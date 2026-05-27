@@ -442,7 +442,7 @@ async fn build_report(
                             "config could not be loaded",
                         )
                         .detail(err.to_string())
-                        .remediation("Fix the reported config error, then rerun codex doctor.")
+                        .remediation("Fix the reported config error, then rerun bcip doctor.")
                     })
                 },
                 async { run_sync_check("network", progress.clone(), network_check) },
@@ -1208,7 +1208,7 @@ fn auth_check(config: &Config) -> DoctorCheck {
                 DoctorCheck::new("auth.credentials", "auth", status, summary).details(details);
             if status == CheckStatus::Fail {
                 check =
-                    check.remediation("Run codex login again or provide a supported auth env var.");
+                    check.remediation("Run bcip login again or provide a supported auth env var.");
             }
             check
         }
@@ -1226,7 +1226,7 @@ fn auth_check(config: &Config) -> DoctorCheck {
             "no Codex credentials were found",
         )
         .details(details)
-        .remediation("Run codex login or provide an API key through a supported auth env var."),
+        .remediation("Run bcip login or provide an API key through a supported auth env var."),
         Err(err) => DoctorCheck::new(
             "auth.credentials",
             "auth",
@@ -1234,7 +1234,7 @@ fn auth_check(config: &Config) -> DoctorCheck {
             "stored credentials could not be read",
         )
         .detail(err.to_string())
-        .remediation("Fix auth storage access or run codex login again."),
+        .remediation("Fix auth storage access or run bcip login again."),
     }
 }
 

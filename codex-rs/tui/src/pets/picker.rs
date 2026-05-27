@@ -253,7 +253,7 @@ mod tests {
                 "Disable terminal pets",
                 "BSOD",
                 "Chefito",
-                "Codex",
+                "BCIP Agent",
                 "Dewey",
                 "Fireball",
                 "Null Signal",
@@ -279,7 +279,7 @@ mod tests {
         );
 
         assert_eq!(params.initial_selected_idx, Some(2));
-        assert_eq!(params.items[2].name, "Codex");
+        assert_eq!(params.items[2].name, "BCIP Agent");
         assert!(!params.items[2].is_current);
     }
 

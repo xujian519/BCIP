@@ -225,7 +225,7 @@ def test_examples_readme_points_to_runtime_version_source_of_truth() -> None:
 def test_runtime_distribution_name_is_consistent() -> None:
     script = _load_update_script_module()
     runtime_setup = _load_runtime_setup_module()
-    from openai_codex import _version, client as client_module
+    from bcip_agent import _version, client as client_module
 
     assert script.SDK_DISTRIBUTION_NAME == "bcip-agent"
     assert runtime_setup.SDK_PACKAGE_NAME == "bcip-agent"
@@ -660,7 +660,7 @@ def test_stage_runtime_stages_package_without_type_generation(tmp_path: Path) ->
 def test_default_runtime_is_resolved_from_installed_runtime_package(
     tmp_path: Path,
 ) -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     fake_binary = tmp_path / ("codex.exe" if client_module.os.name == "nt" else "codex")
     fake_binary.write_text("")
@@ -675,7 +675,7 @@ def test_default_runtime_is_resolved_from_installed_runtime_package(
 
 
 def test_runtime_path_dir_is_prepended_without_duplicates(tmp_path: Path) -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     path_dir = tmp_path / "codex-path"
     env = {"PATH": os.pathsep.join(["/usr/bin", str(path_dir), "/bin"])}
@@ -689,7 +689,7 @@ def test_runtime_path_dir_preserves_windows_path_key(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     path_dir = tmp_path / "codex-path"
     monkeypatch.setattr(client_module.os, "name", "nt")
@@ -704,7 +704,7 @@ def test_runtime_path_dir_preserves_windows_path_key(
 
 
 def test_explicit_codex_bin_override_takes_priority(tmp_path: Path) -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     explicit_binary = tmp_path / (
         "custom-codex.exe" if client_module.os.name == "nt" else "custom-codex"
@@ -722,7 +722,7 @@ def test_explicit_codex_bin_override_takes_priority(tmp_path: Path) -> None:
 
 
 def test_missing_runtime_package_requires_explicit_codex_bin() -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     ops = client_module.CodexBinResolverOps(
         installed_codex_path=lambda: (_ for _ in ()).throw(
@@ -736,7 +736,7 @@ def test_missing_runtime_package_requires_explicit_codex_bin() -> None:
 
 
 def test_broken_runtime_package_does_not_fall_back() -> None:
-    from openai_codex import client as client_module
+    from bcip_agent import client as client_module
 
     ops = client_module.CodexBinResolverOps(
         installed_codex_path=lambda: (_ for _ in ()).throw(

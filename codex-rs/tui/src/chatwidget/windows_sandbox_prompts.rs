@@ -341,7 +341,7 @@ impl ChatWidget {
         ]);
         lines.push(line![""]);
         lines.push(line![
-            "You can still use Codex in a non-admin sandbox. It carries greater risk if prompt injected."
+            "You can still use BCIP in a non-admin sandbox. It carries greater risk if prompt injected."
         ]);
         lines.push(line![
             "Learn more <https://developers.openai.com/codex/windows>"
@@ -378,7 +378,7 @@ impl ChatWidget {
                 ..Default::default()
             },
             SelectionItem {
-                name: "Use Codex with non-admin sandbox".to_string(),
+                name: "Use BCIP with non-admin sandbox".to_string(),
                 description: None,
                 actions: vec![Box::new({
                     let otel = self.session_telemetry.clone();

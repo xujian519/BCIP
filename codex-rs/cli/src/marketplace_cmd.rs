@@ -17,7 +17,7 @@ use std::collections::HashSet;
 use crate::plugin_cmd::configured_marketplace_snapshot_issues;
 
 #[derive(Debug, Parser)]
-#[command(bin_name = "codex plugin marketplace")]
+#[command(bin_name = "bcip plugin marketplace")]
 pub struct MarketplaceCli {
     #[clap(flatten)]
     pub config_overrides: CliConfigOverrides,
@@ -45,8 +45,8 @@ enum MarketplaceSubcommand {
 
 #[derive(Debug, Parser)]
 #[command(
-    bin_name = "codex plugin marketplace add",
-    after_help = "Examples:\n  codex plugin marketplace add ./path/to/marketplace\n  codex plugin marketplace add owner/repo --ref main\n  codex plugin marketplace add https://github.com/owner/repo --sparse plugins/foo"
+    bin_name = "bcip plugin marketplace add",
+    after_help = "Examples:\n  bcip plugin marketplace add ./path/to/marketplace\n  bcip plugin marketplace add owner/repo --ref main\n  bcip plugin marketplace add https://github.com/owner/repo --sparse plugins/foo"
 )]
 struct AddMarketplaceArgs {
     /// Marketplace source: a local path, owner/repo[@ref], HTTPS Git URL, or SSH Git URL.
@@ -68,8 +68,8 @@ struct AddMarketplaceArgs {
 
 #[derive(Debug, Parser)]
 #[command(
-    bin_name = "codex plugin marketplace upgrade",
-    after_help = "Examples:\n  codex plugin marketplace upgrade\n  codex plugin marketplace upgrade debug"
+    bin_name = "bcip plugin marketplace upgrade",
+    after_help = "Examples:\n  bcip plugin marketplace upgrade\n  bcip plugin marketplace upgrade debug"
 )]
 struct UpgradeMarketplaceArgs {
     /// Optional configured marketplace name to upgrade. Omit to upgrade all Git marketplaces.
@@ -79,8 +79,8 @@ struct UpgradeMarketplaceArgs {
 
 #[derive(Debug, Parser)]
 #[command(
-    bin_name = "codex plugin marketplace remove",
-    after_help = "Example:\n  codex plugin marketplace remove debug"
+    bin_name = "bcip plugin marketplace remove",
+    after_help = "Example:\n  bcip plugin marketplace remove debug"
 )]
 struct RemoveMarketplaceArgs {
     /// Configured marketplace name to remove.

@@ -48,7 +48,7 @@ def ensure_local_sdk_src() -> Path:
 
 def runtime_config():
     """Return an example-friendly AppServerConfig for repo-source SDK usage."""
-    from openai_codex import AppServerConfig
+    from bcip_agent import AppServerConfig
 
     ensure_runtime_package_installed(sys.executable, _SDK_PYTHON_DIR)
     return AppServerConfig()

@@ -7,13 +7,13 @@ from typing import Any
 import pytest
 
 import openai_codex.api as public_api_module
-from openai_codex.api import (
+from bcip_agent.api import (
     ApprovalMode,
     AsyncCodex,
     Codex,
 )
-from openai_codex.generated.v2_all import TurnStartParams
-from openai_codex.models import InitializeResponse
+from bcip_agent.generated.v2_all import TurnStartParams
+from bcip_agent.models import InitializeResponse
 
 ROOT = Path(__file__).resolve().parents[1]
 

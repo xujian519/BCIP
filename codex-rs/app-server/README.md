@@ -1,4 +1,4 @@
-# codex-app-server
+# BCIP App Server
 
 `bcip app-server` is the interface BCIP Agent uses to power rich interfaces such as the [BCIP Agent VS Code extension](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt).
 

@@ -9,7 +9,7 @@ import tomllib
 
 import openai_codex
 import openai_codex.types as public_types
-from openai_codex import (
+from bcip_agent import (
     ApprovalMode,
     AppServerConfig,
     AsyncCodex,
@@ -20,8 +20,8 @@ from openai_codex import (
     TurnHandle,
     TurnResult,
 )
-from openai_codex._initialize_metadata import validate_initialize_metadata
-from openai_codex.types import InitializeResponse
+from bcip_agent._initialize_metadata import validate_initialize_metadata
+from bcip_agent.types import InitializeResponse
 
 EXPECTED_ROOT_EXPORTS = [
     "__version__",
@@ -234,7 +234,7 @@ def test_package_root_exports_only_public_api() -> None:
 def test_package_star_import_matches_public_api() -> None:
     """Star imports should follow the same explicit public API list."""
     namespace: dict[str, object] = {}
-    exec("from openai_codex import *", namespace)
+    exec("from bcip_agent import *", namespace)
 
     exported = set(namespace) - {"__builtins__"}
     assert exported == set(EXPECTED_ROOT_EXPORTS)
@@ -251,7 +251,7 @@ def test_types_module_exports_curated_public_types() -> None:
 def test_types_star_import_matches_public_types() -> None:
     """Star imports from the type module should match its explicit export list."""
     namespace: dict[str, object] = {}
-    exec("from openai_codex.types import *", namespace)
+    exec("from bcip_agent.types import *", namespace)
 
     exported = set(namespace) - {"__builtins__"}
     assert exported == set(EXPECTED_TYPES_EXPORTS)

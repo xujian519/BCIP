@@ -11,8 +11,8 @@ from app_server_helpers import (
     streaming_response,
 )
 
-from openai_codex import AsyncCodex, Codex
-from openai_codex.generated.v2_all import (
+from bcip_agent import AsyncCodex, Codex
+from bcip_agent.generated.v2_all import (
     AgentMessageDeltaNotification,
     TurnCompletedNotification,
     TurnStatus,

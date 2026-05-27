@@ -11,7 +11,7 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from openai_codex import AsyncCodex, ImageInput, TextInput
+from bcip_agent import AsyncCodex, ImageInput, TextInput
 
 REMOTE_IMAGE_URL = "https://raw.githubusercontent.com/github/explore/main/topics/python/python.png"
 

@@ -37,3 +37,6 @@ export class Codex {
     return new Thread(this.exec, this.options, options, id);
   }
 }
+
+/** @deprecated Use BCIPAgent instead. Alias for backward compatibility. */
+export const BCIPAgent = Codex;

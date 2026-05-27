@@ -3,7 +3,7 @@ from __future__ import annotations
 from app_server_harness import AppServerHarness
 from app_server_helpers import TINY_PNG_BYTES
 
-from openai_codex import Codex, ImageInput, LocalImageInput, SkillInput, TextInput
+from bcip_agent import Codex, ImageInput, LocalImageInput, SkillInput, TextInput
 
 
 def test_remote_image_input_reaches_responses_api(

@@ -3,9 +3,9 @@
   <img src="https://github.com/xujian519/BCIP/blob/main/.github/codex-cli-splash.png" alt="BCIP Agent splash" width="80%" />
 </p>
 </br>
-If you want BCIP Agent in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>bcip app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the BCIP App page</a>.
-</br>If you are looking for the <em>cloud-based agent</em>, <strong>BCIP Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
+If you want BCIP Agent in your code editor (VS Code, Cursor, Windsurf), <a href="#">install in your IDE.</a>
+</br>If you want the desktop app experience, run <code>bcip app</code> or visit <a href="#">the BCIP App page</a>.
+</br>If you are looking for the <em>cloud-based agent</em>, <strong>BCIP Web</strong>, go to <a href="#">BCIP Web</a>.</p>
 
 ---
 
@@ -16,13 +16,13 @@ If you want BCIP Agent in your code editor (VS Code, Cursor, Windsurf), <a href=
 Run the following on Mac or Linux to install BCIP Agent:
 
 ```shell
-curl -fsSL https://chatgpt.com/codex/install.sh | sh
+curl -fsSL # | sh
 ```
 
 Run the following on Windows to install BCIP Agent:
 
 ```
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "irm # | iex"
 ```
 
 BCIP Agent can also be installed via the following package managers:
@@ -57,13 +57,13 @@ Each archive contains a single entry with the platform baked into the name (e.g.
 
 ### Using BCIP Agent with your ChatGPT plan
 
-Run `bcip` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use BCIP Agent as part of your Plus, Pro, Business, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
+Run `bcip` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use BCIP Agent as part of your Plus, Pro, Business, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](#).
 
-You can also use BCIP Agent with an API key, but this requires [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key).
+You can also use BCIP Agent with an API key, but this requires [additional setup](#).
 
 ## Docs
 
-- [**BCIP Agent Documentation**](https://developers.openai.com/codex)
+- [**BCIP Agent Documentation**](#)
 - [**Contributing**](./docs/contributing.md)
 - [**Installing & building**](./docs/install.md)
 - [**Open source fund**](./docs/open-source-fund.md)

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from openai_codex.client import AppServerClient, _params_dict
-from openai_codex.generated.notification_registry import notification_turn_id
-from openai_codex.generated.v2_all import (
+from bcip_agent.client import AppServerClient, _params_dict
+from bcip_agent.generated.notification_registry import notification_turn_id
+from bcip_agent.generated.v2_all import (
     AgentMessageDeltaNotification,
     ApprovalsReviewer,
     ThreadListParams,
@@ -13,7 +13,7 @@ from openai_codex.generated.v2_all import (
     TurnCompletedNotification,
     WarningNotification,
 )
-from openai_codex.models import Notification, UnknownNotification
+from bcip_agent.models import Notification, UnknownNotification
 
 ROOT = Path(__file__).resolve().parents[1]
 

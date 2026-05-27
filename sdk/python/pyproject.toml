@@ -42,14 +42,14 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/openai_codex"]
+packages = ["src/bcip_agent"]
 include = [
-  "src/openai_codex/py.typed",
+  "src/bcip_agent/py.typed",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "src/openai_codex/**",
+  "src/bcip_agent/**",
   "README.md",
   "CHANGELOG.md",
   "CONTRIBUTING.md",
@@ -67,7 +67,7 @@ required-version = ">=0.15.8"
 line-length = 100
 extend-exclude = [
   "notebooks/**",
-  "src/openai_codex/generated/**",
+  "src/bcip_agent/generated/**",
 ]
 
 [tool.ruff.lint]

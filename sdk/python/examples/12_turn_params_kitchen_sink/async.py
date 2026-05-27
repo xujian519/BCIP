@@ -12,10 +12,10 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from openai_codex import (
+from bcip_agent import (
     AsyncCodex,
 )
-from openai_codex.types import (
+from bcip_agent.types import (
     Personality,
     ReasoningSummary,
 )

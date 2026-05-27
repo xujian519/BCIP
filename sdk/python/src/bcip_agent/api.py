@@ -514,6 +514,10 @@ class AsyncCodex:
         return await self._client.model_list(include_hidden=include_hidden)
 
 
+BCIPAgent = Codex
+AsyncBCIPAgent = AsyncCodex
+
+
 @dataclass(slots=True)
 class Thread:
     _client: AppServerClient

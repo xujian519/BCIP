@@ -15,7 +15,7 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from openai_codex import AsyncCodex, LocalImageInput, TextInput
+from bcip_agent import AsyncCodex, LocalImageInput, TextInput
 
 
 async def main() -> None:

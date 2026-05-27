@@ -13,7 +13,7 @@ from _bootstrap import (
 
 ensure_local_sdk_src()
 
-from openai_codex import Codex, LocalImageInput, TextInput
+from bcip_agent import Codex, LocalImageInput, TextInput
 
 with temporary_sample_image_path() as image_path:
     with Codex(config=runtime_config()) as codex:

@@ -9,10 +9,10 @@ from _bootstrap import ensure_local_sdk_src, runtime_config
 
 ensure_local_sdk_src()
 
-from openai_codex import (
+from bcip_agent import (
     Codex,
 )
-from openai_codex.types import (
+from bcip_agent.types import (
     ThreadTokenUsageUpdatedNotification,
     TurnCompletedNotification,
 )

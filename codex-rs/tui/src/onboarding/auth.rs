@@ -584,7 +584,7 @@ impl AuthModeWidget {
             "".into(),
             "  Before you start:".into(),
             "".into(),
-            "  Decide how much autonomy you want to grant Codex".into(),
+            "  Decide how much autonomy you want to grant BCIP".into(),
             Line::from(vec![
                 "  For more details see the ".into(),
                 "\u{1b}]8;;https://developers.openai.com/codex/security\u{7}BCIP docs\u{1b}]8;;\u{7}".underlined(),
@@ -648,7 +648,7 @@ impl AuthModeWidget {
         let mut intro_lines: Vec<Line> = vec![
             Line::from(vec![
                 "> ".into(),
-                "Use your own OpenAI API key for usage-based billing".bold(),
+                "Use your own API key for usage-based billing".bold(),
             ]),
             "".into(),
             "  Paste or type your API key below. It will be stored locally in auth.json.".into(),

@@ -8,7 +8,7 @@ expression: popup
 › 1. Read Only (current)             BCIP can read files in the current
                                      workspace. Approval is required to edit
                                      files or access the internet.
-  2. Default (non-admin sandbox)  Codex can read and edit files in the
+  2. Default (non-admin sandbox)  BCIP can read and edit files in the
                                      current workspace, and run commands.
                                      Approval is required to access the
                                      internet or edit other files.

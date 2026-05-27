@@ -93,7 +93,7 @@ impl IdeContextError {
                     .to_string()
             }
             IdeContextError::RequestFailed(error) if error == "client-disconnected" => {
-                hint_with_retry("The IDE connection changed while Codex was requesting context.")
+                hint_with_retry("The IDE connection changed while BCIP was requesting context.")
             }
             IdeContextError::RequestFailed(error) if error == "request-timeout" => {
                 hint_with_retry("The IDE extension did not answer in time.")
