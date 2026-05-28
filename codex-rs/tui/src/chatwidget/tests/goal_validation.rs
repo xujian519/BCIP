@@ -140,7 +140,7 @@ async fn goal_slash_command_rejects_large_paste_using_expanded_length() {
     chat.handle_paste(objective);
 
     assert!(
-        chat.bottom_pane.composer_text().contains("[Pasted Content"),
+        chat.bottom_pane.composer_text().contains("[Pasted ~"),
         "expected large paste placeholder in composer"
     );
     submit_current_composer(&mut chat);
