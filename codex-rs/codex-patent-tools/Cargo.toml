@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 codex-patent-core = { path = "../codex-patent-core" }
+codex-patent-domain = { path = "../codex-patent-domain" }
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
 serde = { workspace = true }
 serde_json = { workspace = true }
