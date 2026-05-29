@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 /// 权利要求类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -52,17 +53,17 @@ pub struct ParsedClaim {
 
 /// 知识卡片
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct KnowledgeCard {
     pub id: String,
     pub title: String,
     pub concept: String,
     pub quality: f64,
     pub domain: String,
+    #[serde(alias = "filePath")]
     pub file_path: String,
     pub related_concepts: Vec<String>,
-    pub generated_at: i64,
-    pub version: String,
+    pub generated_at: String,
+    pub version: i64,
 }
 
 /// 法律文档
