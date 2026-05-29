@@ -3,7 +3,9 @@ use codex_patent_core::KgNode;
 use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use rusqlite::params;
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Mutex;
 
 #[derive(Debug)]
 pub struct KgStats {
@@ -19,6 +21,7 @@ pub struct NodeTypeCount {
 
 pub struct SqliteKnowledgeGraph {
     conn: Connection,
+    query_cache: Mutex<HashMap<String, Vec<KgNode>>>,
 }
 
 impl SqliteKnowledgeGraph {
@@ -28,11 +31,27 @@ impl SqliteKnowledgeGraph {
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(|e| format!("failed to open kg db: {e}"))?;
-        Ok(Self { conn })
+
+        conn.execute_batch(
+            "PRAGMA cache_size = -8000;
+             PRAGMA mmap_size = 0;
+             PRAGMA journal_mode = OFF;
+             PRAGMA synchronous = OFF;
+             PRAGMA temp_store = MEMORY;",
+        )
+        .map_err(|e| format!("pragma setup: {e}"))?;
+
+        Ok(Self {
+            conn,
+            query_cache: Mutex::new(HashMap::new()),
+        })
     }
 
     pub fn from_connection(conn: Connection) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            query_cache: Mutex::new(HashMap::new()),
+        }
     }
 
     pub fn stats(&self) -> Result<KgStats, String> {
@@ -56,16 +75,26 @@ impl SqliteKnowledgeGraph {
         node_type: Option<&str>,
         limit: usize,
     ) -> Result<Vec<KgNode>, String> {
-        let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
+        let cache_key = format!("{}|{:?}|{}", query, node_type, limit);
 
-        if let Some(nt) = node_type {
+        {
+            let cache = self.query_cache.lock().unwrap();
+            if let Some(cached) = cache.get(&cache_key) {
+                if cached.len() >= limit {
+                    return Ok(cached[..limit].to_vec());
+                }
+            }
+        }
+
+        let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
+        let nodes = if let Some(nt) = node_type {
             let sql = "SELECT n.id, n.node_type, n.name, n.title, n.content, n.law_refs_count, n.source, n.full_ref, n.chapter, n.article_number \
                       FROM nodes_fts f \
                       JOIN nodes n ON n.rowid = f.rowid \
                       WHERE nodes_fts MATCH ?1 AND n.node_type = ?2 \
                       ORDER BY f.rank \
                       LIMIT ?3";
-            self.query_nodes(sql, params![fts_query, nt, limit])
+            self.query_nodes(sql, params![fts_query, nt, limit])?
         } else {
             let sql = "SELECT n.id, n.node_type, n.name, n.title, n.content, n.law_refs_count, n.source, n.full_ref, n.chapter, n.article_number \
                       FROM nodes_fts f \
@@ -73,8 +102,22 @@ impl SqliteKnowledgeGraph {
                       WHERE nodes_fts MATCH ?1 \
                       ORDER BY f.rank \
                       LIMIT ?2";
-            self.query_nodes(sql, params![fts_query, limit])
+            self.query_nodes(sql, params![fts_query, limit])?
+        };
+
+        {
+            let mut cache = self.query_cache.lock().unwrap();
+            if cache.len() > 100 {
+                cache.clear();
+            }
+            cache.insert(cache_key, nodes.clone());
         }
+
+        Ok(nodes)
+    }
+
+    pub fn clear_cache(&self) {
+        self.query_cache.lock().unwrap().clear();
     }
 
     pub fn get_edges(&self, node_id: &str) -> Result<Vec<KgEdge>, String> {
