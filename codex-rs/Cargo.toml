@@ -57,6 +57,7 @@ members = [
     "lmstudio",
     "login",
     "codex-mcp",
+    "codex-patent-core",
     "mcp-server",
     "memories/mcp",
     "memories/read",
