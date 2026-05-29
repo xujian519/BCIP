@@ -1,0 +1,15 @@
+[package]
+name = "codex-patent-domain"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+codex-patent-core = { path = "../codex-patent-core" }
+codex-patent-knowledge = { path = "../codex-patent-knowledge" }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = "0.9"
+regex = "1"
+strsim = "0.11"
+thiserror = "2"
