@@ -3,8 +3,11 @@
 //! 用于 OA 答复预演与答复质量评估。
 //! 不调用 LLM,纯规则引擎实现。
 
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value, json};
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Map;
+use serde_json::Value;
+use serde_json::json;
 use strsim::jaro;
 
 use codex_patent_core::RejectionType;

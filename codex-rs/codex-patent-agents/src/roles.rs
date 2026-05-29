@@ -25,10 +25,15 @@ pub struct AgentRoleConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PatentAgentRole {
-    Retriever, Analyzer, Writer,
-    NoveltyChecker, CreativityChecker,
-    InfringementChecker, InvalidityChecker,
-    Reviewer, QualityChecker,
+    Retriever,
+    Analyzer,
+    Writer,
+    NoveltyChecker,
+    CreativityChecker,
+    InfringementChecker,
+    InvalidityChecker,
+    Reviewer,
+    QualityChecker,
 }
 
 impl PatentAgentRole {
@@ -60,6 +65,7 @@ impl PatentAgentRole {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "retriever" => Some(Self::Retriever),
@@ -76,15 +82,34 @@ impl PatentAgentRole {
     }
 
     pub fn all() -> &'static [PatentAgentRole] {
-        &[Self::Retriever, Self::Analyzer, Self::Writer, Self::NoveltyChecker, Self::CreativityChecker, Self::InfringementChecker, Self::InvalidityChecker, Self::Reviewer, Self::QualityChecker]
+        &[
+            Self::Retriever,
+            Self::Analyzer,
+            Self::Writer,
+            Self::NoveltyChecker,
+            Self::CreativityChecker,
+            Self::InfringementChecker,
+            Self::InvalidityChecker,
+            Self::Reviewer,
+            Self::QualityChecker,
+        ]
     }
 
     pub fn system_prompt(&self, config: &AgentRoleConfig) -> String {
-        let mut prompt = format!("## 角色: {}\n\n{}\n\n### 工作方法\n", config.name, config.identity);
+        let mut prompt = format!(
+            "## 角色: {}\n\n{}\n\n### 工作方法\n",
+            config.name, config.identity
+        );
         for step in &config.methodology {
-            prompt.push_str(&format!("{}. {}: {}\n", step.step_number, step.step_name, step.description));
+            prompt.push_str(&format!(
+                "{}. {}: {}\n",
+                step.step_number, step.step_name, step.description
+            ));
         }
-        prompt.push_str(&format!("\n### 输出格式\n{}\n\n### 约束\n", config.output_format));
+        prompt.push_str(&format!(
+            "\n### 输出格式\n{}\n\n### 约束\n",
+            config.output_format
+        ));
         for c in &config.constraints {
             prompt.push_str(&format!("- {}\n", c));
         }
@@ -97,8 +122,10 @@ impl PatentAgentRole {
         for role in Self::all() {
             let file_path = dir.join(format!("{}.toml", role.role_id()));
             if file_path.exists() {
-                let content = std::fs::read_to_string(&file_path).map_err(|e| format!("read {}: {e}", file_path.display()))?;
-                let config: AgentRoleConfig = toml::from_str(&content).map_err(|e| format!("parse {}: {e}", file_path.display()))?;
+                let content = std::fs::read_to_string(&file_path)
+                    .map_err(|e| format!("read {}: {e}", file_path.display()))?;
+                let config: AgentRoleConfig = toml::from_str(&content)
+                    .map_err(|e| format!("parse {}: {e}", file_path.display()))?;
                 configs.insert(role.role_id().to_string(), config);
             }
         }
@@ -112,7 +139,9 @@ pub struct AgentRegistry {
 
 impl AgentRegistry {
     pub fn new(role_dir: &str) -> Result<Self, String> {
-        Ok(Self { configs: PatentAgentRole::load_config(role_dir)? })
+        Ok(Self {
+            configs: PatentAgentRole::load_config(role_dir)?,
+        })
     }
 
     pub fn get(&self, role_id: &str) -> Option<&AgentRoleConfig> {

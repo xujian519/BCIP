@@ -3,7 +3,11 @@
 //! 解析专利权利要求文本,提取结构化信息：
 //! 前序部分、过渡词、特征列表、引用关系等。
 
-use codex_patent_core::{ClaimType, CorrespondenceType, FeatureType, ParsedClaim, ParsedFeature};
+use codex_patent_core::ClaimType;
+use codex_patent_core::CorrespondenceType;
+use codex_patent_core::FeatureType;
+use codex_patent_core::ParsedClaim;
+use codex_patent_core::ParsedFeature;
 
 /// 权利要求解析器
 pub struct ClaimParser;
@@ -108,22 +112,13 @@ fn extract_reference_en(text: &str) -> Option<u32> {
 }
 
 /// 将权利要求文本分为前序部分、过渡词、主体部分
-fn split_parts(text: &str, claim_type: ClaimType) -> (String, String, String) {
-    let transitions = if claim_type == ClaimType::Independent {
-        [
-            "其特征在于",
-            "其特征是",
-            "characterized in that",
-            "characterized by",
-        ]
-    } else {
-        [
-            "其特征在于",
-            "其特征是",
-            "characterized in that",
-            "characterized by",
-        ]
-    };
+fn split_parts(text: &str, _claim_type: ClaimType) -> (String, String, String) {
+    let transitions = [
+        "其特征在于",
+        "其特征是",
+        "characterized in that",
+        "characterized by",
+    ];
 
     for tw in transitions {
         if let Some(pos) = text.find(tw) {

@@ -4,8 +4,6 @@ pub(crate) mod apply_patch;
 pub(crate) mod apply_patch_spec;
 mod dynamic;
 pub(crate) mod extension_tools;
-#[cfg(feature = "patent-tools")]
-mod patent_tools;
 mod goal;
 pub(crate) mod goal_spec;
 mod list_available_plugins_to_install;
@@ -17,6 +15,8 @@ pub(crate) mod multi_agents;
 pub(crate) mod multi_agents_common;
 pub(crate) mod multi_agents_spec;
 pub(crate) mod multi_agents_v2;
+#[cfg(feature = "patent-tools")]
+mod patent_tools;
 mod plan;
 pub(crate) mod plan_spec;
 mod request_permissions;

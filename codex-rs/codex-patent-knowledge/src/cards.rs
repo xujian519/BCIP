@@ -53,6 +53,10 @@ impl CardIndex {
         self.cards.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.cards.is_empty()
+    }
+
     pub fn all(&self) -> &[KnowledgeCard] {
         &self.cards
     }
