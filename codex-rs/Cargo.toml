@@ -58,6 +58,8 @@ members = [
     "login",
     "codex-mcp",
     "codex-patent-core",
+    "codex-patent-knowledge",
+    "codex-patent-tools",
     "mcp-server",
     "memories/mcp",
     "memories/read",
