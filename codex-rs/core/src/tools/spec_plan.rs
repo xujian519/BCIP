@@ -763,7 +763,8 @@ fn add_extension_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Pl
 fn add_patent_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut PlannedTools) {
     #[cfg(feature = "patent-tools")]
     {
-        let patent_adapters = crate::tools::handlers::patent_tools::PatentToolAdapter::create_all_adapters();
+        let patent_adapters =
+            crate::tools::handlers::patent_tools::PatentToolAdapter::create_all_adapters();
         for adapter in patent_adapters {
             planned_tools.add_arc(adapter);
         }
