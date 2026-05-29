@@ -73,6 +73,7 @@ codex-utils-pty = { workspace = true }
 codex-utils-string = { workspace = true }
 codex-utils-stream-parser = { workspace = true }
 codex-utils-template = { workspace = true }
+codex-patent-tools = { path = "../codex-patent-tools", optional = true }
 codex-windows-sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
 csv = { workspace = true }
 dirs = { workspace = true }
@@ -159,3 +160,6 @@ zstd = { workspace = true }
 
 [package.metadata.cargo-shear]
 ignored = ["openssl-sys"]
+
+[features]
+patent-tools = ["codex-patent-tools"]

@@ -504,6 +504,7 @@ fn add_tool_sources(context: &CoreToolPlanContext<'_>, planned_tools: &mut Plann
     add_mcp_runtime_tools(context, planned_tools);
     add_dynamic_tools(context, planned_tools);
     add_extension_tools(context, planned_tools);
+    add_patent_tools(context, planned_tools);
     for spec in hosted_model_tool_specs(context.turn_context) {
         planned_tools.add_hosted_spec(spec);
     }
@@ -757,6 +758,16 @@ fn add_extension_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Pl
         context.extension_tool_executors,
         planned_tools,
     );
+}
+
+fn add_patent_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut PlannedTools) {
+    #[cfg(feature = "patent-tools")]
+    {
+        let patent_adapters = crate::tools::handlers::patent_tools::PatentToolAdapter::create_all_adapters();
+        for adapter in patent_adapters {
+            planned_tools.add_arc(adapter);
+        }
+    }
 }
 
 fn append_tool_search_executor(
