@@ -1,0 +1,6 @@
+skill_id = "_shared/legal_reasoning"
+name = "法律推理公共模块"
+description = "法律推理基本方法论"
+instructions = "法律推理应遵循：事实认定→法律适用→结论得出的逻辑顺序。涉及新颖性、创造性判断时，须采用三步法。"
+includes = []
+required_tools = []

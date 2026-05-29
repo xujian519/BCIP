@@ -1,0 +1,6 @@
+skill_id = "cap-response"
+name = "答复策略能力"
+description = "审查意见答复策略制定能力"
+instructions = "分析审查意见→确定答复策略（争辩、修改、组合）→使用标准模板→形成答复文本。\n\n策略选择需考虑检索结果、修改可能性、审查倾向。"
+includes = ["_shared/hitl_protocol", "_shared/output_standards"]
+required_tools = ["OaStrategy", "ResponseTemplate"]

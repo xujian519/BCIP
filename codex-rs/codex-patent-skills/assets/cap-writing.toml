@@ -1,0 +1,6 @@
+skill_id = "cap-writing"
+name = "专利撰写能力"
+description = "说明书、权利要求书和摘要撰写能力"
+instructions = "发明理解→权利要求布局→说明书撰写（技术领域、背景技术、发明内容、附图说明、具体实施方式）。\n\n确保权利要求清楚简要，说明书充分公开，实施例至少3个。"
+includes = ["_shared/quality_checklist", "_shared/output_standards"]
+required_tools = ["ClaimGenerator", "SpecificationDrafter", "AbstractDrafter", "InnovationEvaluator"]

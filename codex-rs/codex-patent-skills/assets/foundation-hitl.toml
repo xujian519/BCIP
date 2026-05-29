@@ -1,0 +1,6 @@
+skill_id = "foundation-hitl"
+name = "HITL基础规则"
+description = "人机协作流程中的基本确认节点"
+instructions = "在任何需要人工判断的关键节点暂停并请求确认。\n\n关键节点包括：检索式确定、对比文件筛选、策略选择、权利要求修改、最终审核。"
+includes = ["_shared/hitl_protocol"]
+required_tools = []

@@ -1,0 +1,6 @@
+skill_id = "cap-formal-exam"
+name = "形式审查能力"
+description = "专利文件形式规范检查能力"
+instructions = "检查标题、发明人、申请人、摘要、附图引用等形式的规范性。\n\n标注错误位置，提供修改建议。"
+includes = ["_shared/output_standards"]
+required_tools = ["FormalCheck"]

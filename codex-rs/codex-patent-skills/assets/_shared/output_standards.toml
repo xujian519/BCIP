@@ -1,0 +1,6 @@
+skill_id = "_shared/output_standards"
+name = "输出格式标准"
+description = "专利分析输出格式规范"
+instructions = "分析报告应包含：标题、分析日期、分析对象、分析方法、分析步骤、结论、置信度标注。使用结构化格式，便于审查。"
+includes = []
+required_tools = []

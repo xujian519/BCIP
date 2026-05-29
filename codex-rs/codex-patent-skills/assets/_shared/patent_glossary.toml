@@ -1,0 +1,6 @@
+skill_id = "_shared/patent_glossary"
+name = "专利术语表"
+description = "标准化专利术语定义"
+instructions = "使用标准术语：现有技术(prior art)、区别技术特征(distinguishing feature)、技术启示(technical teaching)、公知常识(common general knowledge)。"
+includes = []
+required_tools = []

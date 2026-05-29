@@ -1,0 +1,6 @@
+skill_id = "cap-disclosure-exam"
+name = "公开审查能力"
+description = "判断说明书是否充分公开的能力"
+instructions = "检查技术方案是否充分公开，技术问题、技术方案、技术效果是否清楚，本领域技术人员能否实现。\n\n必要时建议补充实施例或修改权利要求。"
+includes = ["_shared/legal_reasoning", "_shared/output_standards"]
+required_tools = ["FormalCheck"]

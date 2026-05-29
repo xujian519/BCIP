@@ -1,0 +1,6 @@
+skill_id = "cap-retrieval"
+name = "专利检索能力"
+description = "智能化的专利文献搜索与筛选能力"
+instructions = "使用多层级检索式，跨多源并行检索，按相关度排序结果。\n\n在每次检索前确认检索式，检索后筛选与发明最相关的对比文件。"
+includes = ["_shared/patent_glossary", "_shared/output_standards"]
+required_tools = ["PatentSearch", "GooglePatentsFetch", "IterativeSearch", "KnowledgeSearch", "SearchQueryBuilder"]

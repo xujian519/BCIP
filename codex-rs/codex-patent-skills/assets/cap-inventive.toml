@@ -1,0 +1,6 @@
+skill_id = "cap-inventive"
+name = "创造性判断能力"
+description = "问题-解决方案法判断创造性"
+instructions = "确定区别特征→确定实际解决的技术问题→判断技术启示→分析是否显而易见。\n\n考虑整体教导而非片面引用，分析公知常识和技术效果。"
+includes = ["_shared/legal_reasoning", "_shared/output_standards"]
+required_tools = ["InventivenessAnalysis", "ClaimCompare", "KnowledgeSearch"]

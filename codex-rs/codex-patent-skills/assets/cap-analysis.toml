@@ -1,0 +1,6 @@
+skill_id = "cap-analysis"
+name = "专利分析能力"
+description = "权利要求解析、特征提取和对比分析能力"
+instructions = "解析权利要求结构，采用最小技术单元法提取特征，进行四层对比（词法、语义、功能、效果）。\n\n逐特征不遗漏，标注对应关系的确定度和置信度。"
+includes = ["_shared/legal_reasoning", "_shared/output_standards"]
+required_tools = ["ClaimParse", "NoveltyAnalysis", "InventivenessAnalysis"]

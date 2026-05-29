@@ -1,0 +1,6 @@
+skill_id = "cap-prior-art-ident"
+name = "现有技术识别能力"
+description = "识别和分类现有技术文献的能力"
+instructions = "从检索结果中识别最相关的现有技术，分类标注技术领域、公开日、相关性等级。\n\n优先选择公开日最早、技术领域最接近、公开特征最多的对比文件。"
+includes = ["_shared/patent_glossary", "_shared/output_standards"]
+required_tools = ["PatentSearch", "KnowledgeSearch"]

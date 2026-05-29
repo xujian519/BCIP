@@ -1,0 +1,6 @@
+skill_id = "_shared/quality_checklist"
+name = "质量检查清单"
+description = "输出质量自检清单"
+instructions = "完成后自检：1）权利要求是否清楚简要 2）说明书是否充分公开 3）实施例是否充分 4）附图引用是否正确 5）形式是否规范。"
+includes = []
+required_tools = []

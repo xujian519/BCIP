@@ -1,0 +1,6 @@
+skill_id = "stop-slop"
+name = "专利文书精简"
+description = "消除专利法律文书中的空洞套话"
+instructions = "避免使用空洞的法律套话和标准化表述。\n\n使用具体、明确、针对性强语言，每句话都应传递实际信息而非模板内容。"
+includes = []
+required_tools = []

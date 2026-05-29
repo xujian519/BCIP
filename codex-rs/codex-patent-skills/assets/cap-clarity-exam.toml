@@ -1,0 +1,6 @@
+skill_id = "cap-clarity-exam"
+name = "清楚性审查能力"
+description = "判断权利要求是否清楚简要的能力"
+instructions = "检查权利要求用词是否明确，引用关系是否正确，特征限定是否清楚。\n\n必要时建议修改用词或调整权利要求结构。"
+includes = ["_shared/legal_reasoning", "_shared/output_standards"]
+required_tools = ["ClaimParse", "FormalCheck"]

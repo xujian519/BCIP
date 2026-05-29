@@ -1,0 +1,6 @@
+skill_id = "_shared/hitl_protocol"
+name = "人机协作协议"
+description = "需要人工确认的关键节点"
+instructions = "以下节点必须人工确认：1）检索式确认 2）对比文件筛选 3）驳回策略选择 4）权利要求修改 5）最终文件审核。"
+includes = []
+required_tools = []

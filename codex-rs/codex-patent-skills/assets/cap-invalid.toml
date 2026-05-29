@@ -1,0 +1,6 @@
+skill_id = "cap-invalid"
+name = "无效分析能力"
+description = "专利无效宣告分析和证据组织能力"
+instructions = "检索无效理由→组织证据链→与复审决定比对→形成无效分析报告。\n\n每个无效理由必须有证据支持，证据链必须完整。"
+includes = ["_shared/legal_reasoning", "_shared/output_standards"]
+required_tools = ["ClaimCompare", "KnowledgeSearch"]
