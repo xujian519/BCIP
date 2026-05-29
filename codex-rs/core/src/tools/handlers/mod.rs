@@ -16,7 +16,7 @@ pub(crate) mod multi_agents_common;
 pub(crate) mod multi_agents_spec;
 pub(crate) mod multi_agents_v2;
 #[cfg(feature = "patent-tools")]
-mod patent_tools;
+pub(crate) mod patent_tools;
 mod plan;
 pub(crate) mod plan_spec;
 mod request_permissions;

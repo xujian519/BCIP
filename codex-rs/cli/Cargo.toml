@@ -99,3 +99,6 @@ insta = { workspace = true }
 predicates = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
+
+[features]
+patent-tools = ["codex-core/patent-tools"]
