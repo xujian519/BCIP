@@ -11,8 +11,18 @@ pub struct LawDatabase {
 
 impl LawDatabase {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
-        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
-            .map_err(|e| format!("failed to open law db: {e}"))?;
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| format!("failed to open law db: {e}"))?;
+
+        conn.execute_batch(
+            "PRAGMA cache_size = -4000;
+             PRAGMA locking_mode = NORMAL;",
+        )
+        .map_err(|e| format!("pragma setup: {e}"))?;
+
         Ok(Self { conn })
     }
 

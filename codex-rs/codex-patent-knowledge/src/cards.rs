@@ -1,9 +1,12 @@
 use codex_patent_core::KnowledgeCard;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::Path;
 
 pub struct CardIndex {
     cards: Vec<KnowledgeCard>,
     base_dir: String,
+    content_cache: RefCell<HashMap<String, String>>,
 }
 
 impl CardIndex {
@@ -39,7 +42,11 @@ impl CardIndex {
             }
         }
 
-        Ok(Self { cards, base_dir })
+        Ok(Self {
+            cards,
+            base_dir,
+            content_cache: RefCell::new(HashMap::new()),
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -97,9 +104,26 @@ impl CardIndex {
     }
 
     pub fn load_content(&self, card: &KnowledgeCard) -> Result<String, String> {
+        {
+            let cache = self.content_cache.borrow();
+            if let Some(cached) = cache.get(&card.id) {
+                return Ok(cached.clone());
+            }
+        }
+
         let path = format!("{}/{}", self.base_dir, card.file_path);
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("读取卡片内容失败 {}: {e}", card.file_path))
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| format!("读取卡片内容失败 {}: {e}", card.file_path))?;
+
+        {
+            let mut cache = self.content_cache.borrow_mut();
+            if cache.len() > 200 {
+                cache.clear();
+            }
+            cache.insert(card.id.clone(), content.clone());
+        }
+
+        Ok(content)
     }
 
     pub fn search_with_content(&self, keyword: &str, limit: usize) -> Vec<(KnowledgeCard, String)> {

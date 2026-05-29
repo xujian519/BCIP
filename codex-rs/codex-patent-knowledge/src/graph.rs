@@ -34,10 +34,7 @@ impl SqliteKnowledgeGraph {
 
         conn.execute_batch(
             "PRAGMA cache_size = -8000;
-             PRAGMA mmap_size = 0;
-             PRAGMA journal_mode = OFF;
-             PRAGMA synchronous = OFF;
-             PRAGMA temp_store = MEMORY;",
+             PRAGMA locking_mode = NORMAL;",
         )
         .map_err(|e| format!("pragma setup: {e}"))?;
 

@@ -4,6 +4,7 @@ use crate::law_db::LawDatabase;
 use crate::synonym::SynonymDict;
 use codex_patent_core::SearchResult;
 use codex_patent_core::SearchSource;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchMode {
@@ -73,14 +74,25 @@ impl UnifiedSearch {
         all_terms.dedup();
 
         let mut results = Vec::new();
+        let mut seen_ids = HashSet::new();
+        let effective_limit = config.limit.min(50);
 
         match config.mode {
             SearchMode::Text | SearchMode::Hybrid => {
-                for term in &all_terms {
-                    if config.search_kg {
-                        if let Some(ref kg) = self.kg {
-                            if let Ok(nodes) = kg.search_nodes(term, None, config.limit) {
+                if config.search_kg && results.len() < effective_limit {
+                    if let Some(ref kg) = self.kg {
+                        for term in all_terms.iter().take(5) {
+                            if results.len() >= effective_limit {
+                                break;
+                            }
+                            if let Ok(nodes) = kg.search_nodes(term, None, effective_limit) {
                                 for node in nodes {
+                                    if results.len() >= effective_limit {
+                                        break;
+                                    }
+                                    if !seen_ids.insert(node.id.clone()) {
+                                        continue;
+                                    }
                                     results.push(SearchResult {
                                         source: SearchSource::KnowledgeGraph,
                                         title: if node.name.is_empty() {
@@ -97,11 +109,22 @@ impl UnifiedSearch {
                             }
                         }
                     }
+                }
 
-                    if config.search_law {
-                        if let Some(ref db) = self.law_db {
-                            if let Ok(laws) = db.search_by_content(term, config.limit) {
+                if config.search_law && results.len() < effective_limit {
+                    if let Some(ref db) = self.law_db {
+                        for term in all_terms.iter().take(5) {
+                            if results.len() >= effective_limit {
+                                break;
+                            }
+                            if let Ok(laws) = db.search_by_content(term, effective_limit) {
                                 for law in laws {
+                                    if results.len() >= effective_limit {
+                                        break;
+                                    }
+                                    if !seen_ids.insert(law.id.clone()) {
+                                        continue;
+                                    }
                                     results.push(SearchResult {
                                         source: SearchSource::LawDatabase,
                                         title: law.name.clone(),
@@ -116,12 +139,20 @@ impl UnifiedSearch {
                     }
                 }
 
-                if config.search_cards {
+                if config.search_cards && results.len() < effective_limit {
                     if let Some(ref index) = self.card_index {
-                        let cards = index.search_by_keyword(&config.query, config.limit);
+                        let cards = index.search_by_keyword(&config.query, effective_limit.min(10));
                         for card in cards {
-                            if card.quality >= config.min_card_quality {
-                                let content = index.load_content(card).unwrap_or_default();
+                            if results.len() >= effective_limit {
+                                break;
+                            }
+                            if card.quality < config.min_card_quality {
+                                continue;
+                            }
+                            if !seen_ids.insert(card.id.clone()) {
+                                continue;
+                            }
+                            if let Ok(content) = index.load_content(card) {
                                 results.push(SearchResult {
                                     source: SearchSource::KnowledgeCard,
                                     title: card.title.clone(),
@@ -142,8 +173,7 @@ impl UnifiedSearch {
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        results.dedup_by(|a, b| a.id == b.id && a.source == b.source);
-        results.truncate(config.limit);
+        results.truncate(effective_limit);
         results
     }
 
