@@ -92,3 +92,68 @@ CHANGELOG.ignore.md
 # Python bytecode files
 __pycache__/
 *.pyc
+
+# 数据库文件（本地数据产物，不提交）
+*.db
+*.db-wal
+*.db-shm
+
+# 专利知识卡片（业务知识资产，不提交）
+codex-rs/codex-patent-assets/cards/
+codex-rs/codex-patent-assets/card-index.json
+
+# 云熙智能体 (YunXi Agent) 本地产物
+.claude/settings.local.json
+.claude/sessions/
+
+# BCIP 本地产物
+.codegraph/
+.cursor/
+.sandbox-home/
+.tauri.pid
+.vite.pid
+.yunxi-todos.json
+.claude.json
+*.snap.new
+*.sqlite
+
+# 桌面应用（BCIP 不涉及）
+apps/
+
+# 业务数据产物（数据库、知识库、知识图谱、语义库）
+codex-rs/codex-patent-assets/.yunpat-semantic-index.sqlite
+codex-rs/codex-patent-assets/eval_queries.json
+codex-rs/codex-patent-assets/constitutional/
+codex-rs/codex-patent-assets/ipc-classification/
+codex-rs/codex-patent-assets/legal-system/
+codex-rs/codex-patent-assets/rules/
+codex-rs/codex-patent-assets/专利侵权/
+codex-rs/codex-patent-assets/专利创造性诊断提示词_v1.0.md
+codex-rs/codex-patent-assets/专利判决/
+codex-rs/codex-patent-assets/专利实务/
+codex-rs/codex-patent-assets/专利说明书撰写提示词_v1.0.md
+codex-rs/codex-patent-assets/个人笔记/
+codex-rs/codex-patent-assets/书籍/
+codex-rs/codex-patent-assets/商标/
+codex-rs/codex-patent-assets/复审无效/
+codex-rs/codex-patent-assets/多智能体创新性评估系统提示词_v1.0.md
+codex-rs/codex-patent-assets/审查指南/
+codex-rs/codex-patent-assets/法律法规/
+codex-rs/codex-patent-assets/All-Concepts*.md
+codex-rs/codex-patent-assets/Concept-Index.md
+
+# IM 模块本地配置
+scripts/config/
+
+# 临时报告
+codex-rs/reports/
+
+# 实施计划文档（不推送）
+docs/plans/
+docs/comprehensive-review-report.md
+docs/deep-analysis-p0-items.md
+docs/deep-analysis-yunpat-to-bcip.md
+docs/implementation-plan.md
+docs/phase1-agent-checklist.md
+docs/phase2-skill-checklist.md
+docs/phase3-6-checklist.md

@@ -1,3 +1,21 @@
-model = "gpt-5.1"
+model = "deepseek-v4-pro"
+
+# Model providers configuration.
+# Each provider needs a base_url and env_key (environment variable holding the API key).
+
+[model_providers.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/v1"
+env_key = "DEEPSEEK_API_KEY"
+
+[model_providers.glm]
+name = "GLM"
+base_url = "https://open.bigmodel.cn/api/coding/paas/v4"
+env_key = "GLM_API_KEY"
+
+[model_providers.kimi]
+name = "Kimi"
+base_url = "https://api.kimi.com/coding/v1"
+env_key = "MOONSHOT_API_KEY"
 
 # Consider setting [mcp_servers] here!

@@ -1,0 +1,169 @@
+name: BCIP Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    name: Build Linux (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            binary: codex
+          - target: aarch64-unknown-linux-gnu
+            binary: codex
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Build
+        run: cargo build -p codex-cli --release --target ${{ matrix.target }}
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          TARGET="${{ matrix.target }}"
+          BINARY="target/${TARGET}/release/codex"
+
+          mkdir -p "dist/bcip-${VERSION}-${TARGET}"
+          cp "${BINARY}" "dist/bcip-${VERSION}-${TARGET}/codex"
+          chmod +x "dist/bcip-${VERSION}-${TARGET}/codex"
+
+          tar -C dist -czf "dist/bcip-${VERSION}-${TARGET}.tar.gz" "bcip-${VERSION}-${TARGET}"
+          shasum -a 256 "dist/bcip-${VERSION}-${TARGET}.tar.gz" > "dist/bcip-${VERSION}-${TARGET}.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bcip-linux-${{ matrix.target }}
+          path: codex-rs/dist/bcip-*.*
+
+  build-macos:
+    name: Build macOS (${{ matrix.target }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+          - target: x86_64-apple-darwin
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Build
+        run: cargo build -p codex-cli --release --target ${{ matrix.target }}
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          TARGET="${{ matrix.target }}"
+          BINARY="target/${TARGET}/release/codex"
+
+          mkdir -p "dist/bcip-${VERSION}-${TARGET}"
+          cp "${BINARY}" "dist/bcip-${VERSION}-${TARGET}/codex"
+          chmod +x "dist/bcip-${VERSION}-${TARGET}/codex"
+
+          tar -C dist -czf "dist/bcip-${VERSION}-${TARGET}.tar.gz" "bcip-${VERSION}-${TARGET}"
+          shasum -a 256 "dist/bcip-${VERSION}-${TARGET}.tar.gz" > "dist/bcip-${VERSION}-${TARGET}.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bcip-macos-${{ matrix.target }}
+          path: codex-rs/dist/bcip-*.*
+
+  release:
+    name: Create Release
+    needs: [build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh dist/
+
+      - name: Generate checksum manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          cat *.sha256 > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: BCIP ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || github.ref_name }}
+          files: |
+            dist/bcip-*.tar.gz
+            dist/bcip-*.tar.gz.sha256
+            dist/SHA256SUMS
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}

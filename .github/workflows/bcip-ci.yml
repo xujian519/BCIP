@@ -1,0 +1,260 @@
+name: BCIP CI
+
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_MIN_STACK: 8388608
+
+jobs:
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      python: ${{ steps.filter.outputs.python }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect changed paths
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA='${{ github.event.pull_request.base.sha }}'
+            HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+            mapfile -t files < <(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")
+          else
+            BEFORE='${{ github.event.before }}'
+            HEAD_SHA='${{ github.sha }}'
+            if [[ -n "$BEFORE" && "$BEFORE" != "0000000000000000000000000000000000000000" ]]; then
+              mapfile -t files < <(git diff --name-only --no-renames "$BEFORE" "$HEAD_SHA")
+            else
+              mapfile -t files < <(git diff --name-only --no-renames HEAD~1 "$HEAD_SHA" 2>/dev/null || true)
+            fi
+          fi
+
+          rust=false
+          python=false
+          docs=false
+          for f in "${files[@]}"; do
+            case "$f" in
+              codex-rs/**|justfile|.github/workflows/bcip-ci.yml)
+                rust=true
+                ;;
+              sdk/python/**|sdk/python-runtime/**)
+                python=true
+                ;;
+              docs/**|*.md|README.md)
+                docs=true
+                ;;
+              .github/workflows/**|.gitignore|.github/scripts/**)
+                rust=true
+                ;;
+            esac
+          done
+
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "python=$python" >> "$GITHUB_OUTPUT"
+          echo "docs=$docs" >> "$GITHUB_OUTPUT"
+
+  rust-fmt:
+    name: Rust fmt
+    needs: detect
+    if: needs.detect.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --check -- --config imports_granularity=Item
+
+  rust-clippy:
+    name: Rust clippy
+    needs: detect
+    if: needs.detect.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Clippy (patent crates)
+        run: |
+          cargo clippy -p codex-patent-core -p codex-patent-domain -p codex-patent-knowledge \
+            -p codex-patent-tools -p codex-patent-agents -p codex-patent-skills \
+            -p codex-patent-constitutional -p codex-patent-text -p codex-patent-scheduler \
+            --tests -- -D warnings
+
+      - name: Clippy (IM crates)
+        run: |
+          cargo clippy -p codex-im-protocol -p codex-im-common -p codex-im-bridge \
+            -p codex-im-telegram -p codex-im-feishu \
+            --tests -- -D warnings || true
+
+      - name: Clippy (API)
+        run: |
+          cargo clippy -p codex-api --tests -- -D warnings || true
+
+  rust-test:
+    name: Rust test
+    needs: detect
+    if: needs.detect.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Test patent crates
+        run: |
+          RUST_MIN_STACK=8388608 cargo nextest run --no-fail-fast \
+            -p codex-patent-core -p codex-patent-domain -p codex-patent-knowledge \
+            -p codex-patent-tools -p codex-patent-agents -p codex-patent-skills \
+            -p codex-patent-constitutional -p codex-patent-text -p codex-patent-scheduler
+
+      - name: Test IM crates
+        run: |
+          RUST_MIN_STACK=8388608 cargo nextest run --no-fail-fast \
+            -p codex-im-protocol -p codex-im-common -p codex-im-bridge \
+            -p codex-im-telegram -p codex-im-feishu || true
+
+  rust-build:
+    name: Rust build
+    needs: detect
+    if: needs.detect.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: codex-rs -> target
+
+      - name: Build codex-cli
+        run: cargo build -p codex-cli --release
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-linux-x64
+          path: codex-rs/target/release/codex
+          if-no-files-found: warn
+
+  python-lint:
+    name: Python lint
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/python
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+  python-test:
+    name: Python test
+    needs: detect
+    if: needs.detect.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/python
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Run tests
+        run: uv run pytest tests/ -v
+
+  security:
+    name: Security scan
+    needs: detect
+    if: needs.detect.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: codex-rs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Check licenses and advisories
+        run: cargo deny check --config deny.toml || true
