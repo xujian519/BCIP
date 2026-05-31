@@ -16,6 +16,7 @@ use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::RequestContext;
 use crate::request_processors::AccountRequestProcessor;
+use crate::request_processors::AgentRuntimeRequestProcessor;
 use crate::request_processors::AppsRequestProcessor;
 use crate::request_processors::CatalogRequestProcessor;
 use crate::request_processors::CommandExecRequestProcessor;
@@ -36,6 +37,7 @@ use crate::request_processors::ThreadGoalRequestProcessor;
 use crate::request_processors::ThreadRequestProcessor;
 use crate::request_processors::TurnRequestProcessor;
 use crate::request_processors::WindowsSandboxRequestProcessor;
+use crate::request_processors::WorkflowRequestProcessor;
 use crate::request_serialization::QueuedInitializedRequest;
 use crate::request_serialization::RequestSerializationQueueKey;
 use crate::request_serialization::RequestSerializationQueues;
@@ -162,6 +164,7 @@ pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
     skills_watcher: Arc<SkillsWatcher>,
     account_processor: AccountRequestProcessor,
+    agent_runtime_processor: AgentRuntimeRequestProcessor,
     apps_processor: AppsRequestProcessor,
     catalog_processor: CatalogRequestProcessor,
     command_exec_processor: CommandExecRequestProcessor,
@@ -182,6 +185,7 @@ pub(crate) struct MessageProcessor {
     thread_processor: ThreadRequestProcessor,
     turn_processor: TurnRequestProcessor,
     windows_sandbox_processor: WindowsSandboxRequestProcessor,
+    workflow_processor: WorkflowRequestProcessor,
     request_serialization_queues: RequestSerializationQueues,
 }
 
@@ -478,11 +482,14 @@ impl MessageProcessor {
             Arc::clone(&config),
             config_manager,
         );
+        let agent_runtime_processor = AgentRuntimeRequestProcessor::new();
+        let workflow_processor = WorkflowRequestProcessor::new();
 
         Self {
             outgoing,
             skills_watcher,
             account_processor,
+            agent_runtime_processor,
             apps_processor,
             catalog_processor,
             command_exec_processor,
@@ -503,6 +510,7 @@ impl MessageProcessor {
             thread_processor,
             turn_processor,
             windows_sandbox_processor,
+            workflow_processor,
             request_serialization_queues: RequestSerializationQueues::default(),
         }
     }
@@ -1340,6 +1348,27 @@ impl MessageProcessor {
             }
             ClientRequest::FeedbackUpload { params, .. } => {
                 self.feedback_processor.feedback_upload(params).await
+            }
+            ClientRequest::AgentSpawn { params, .. } => {
+                self.agent_runtime_processor.agent_spawn(params)
+            }
+            ClientRequest::AgentStatus { params, .. } => {
+                self.agent_runtime_processor.agent_status(params)
+            }
+            ClientRequest::AgentList { .. } => {
+                self.agent_runtime_processor.agent_list()
+            }
+            ClientRequest::AgentCancel { params, .. } => {
+                self.agent_runtime_processor.agent_cancel(params)
+            }
+            ClientRequest::WorkflowStart { params, .. } => {
+                self.workflow_processor.workflow_start(params).await
+            }
+            ClientRequest::WorkflowResume { params, .. } => {
+                self.workflow_processor.workflow_resume(params).await
+            }
+            ClientRequest::WorkflowStatus { params, .. } => {
+                self.workflow_processor.workflow_status(params).await
             }
         };
 

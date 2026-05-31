@@ -1913,6 +1913,8 @@ dependencies = [
  "codex-model-provider-info",
  "codex-models-manager",
  "codex-otel",
+ "codex-patent-agents",
+ "codex-patent-workflow",
  "codex-plugin",
  "codex-protocol",
  "codex-rmcp-client",
@@ -3490,8 +3492,10 @@ name = "codex-patent-agents"
 version = "0.1.0"
 dependencies = [
  "codex-patent-knowledge",
+ "reqwest",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
 ]
@@ -3596,6 +3600,20 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "codex-patent-workflow"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

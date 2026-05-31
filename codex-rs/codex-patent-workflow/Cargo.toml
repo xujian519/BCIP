@@ -1,0 +1,18 @@
+[package]
+name = "codex-patent-workflow"
+version.workspace = true
+edition = "2021"
+publish = false
+description = "DAG 编排引擎 — 将线性 FlowStep 扩展为有向无环图，支持并行分支执行与条件路由"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = "2"
+tracing = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tempfile = "3"

@@ -9,3 +9,8 @@ serde_json = { workspace = true }
 toml = "0.8"
 thiserror = "2"
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tempfile = { version = "3", optional = true }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1074,6 +1074,42 @@ client_request_definitions! {
         serialization: fuzzy_session_id(params.session_id),
         response: FuzzyFileSearchSessionStopResponse,
     },
+
+    AgentSpawn => "agent/spawn" {
+        params: v2::AgentSpawnParams,
+        serialization: None,
+        response: v2::AgentSpawnResponse,
+    },
+    AgentStatus => "agent/status" {
+        params: v2::AgentStatusParams,
+        serialization: None,
+        response: v2::AgentStatusResponse,
+    },
+    AgentList => "agent/list" {
+        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+        serialization: None,
+        response: v2::AgentListResponse,
+    },
+    AgentCancel => "agent/cancel" {
+        params: v2::AgentCancelParams,
+        serialization: None,
+        response: v2::AgentCancelResponse,
+    },
+    WorkflowStart => "workflow/start" {
+        params: v2::WorkflowStartParams,
+        serialization: None,
+        response: v2::WorkflowStartResponse,
+    },
+    WorkflowResume => "workflow/resume" {
+        params: v2::WorkflowResumeParams,
+        serialization: None,
+        response: v2::WorkflowResumeResponse,
+    },
+    WorkflowStatus => "workflow/status" {
+        params: v2::WorkflowStatusParams,
+        serialization: None,
+        response: v2::WorkflowStatusResponse,
+    },
 }
 
 /// Generates an `enum ServerRequest` where each variant is a request that the

@@ -267,17 +267,15 @@ impl PatentAgentRole {
             for include in &config.includes {
                 let include_path =
                     dir.join(format!("{}.toml", include.trim_start_matches("_shared/")));
-                if let Ok(content) = std::fs::read_to_string(&include_path) {
-                    if let Ok(def) = toml::from_str::<serde_json::Value>(&content) {
-                        if let Some(instructions) = def.get("instructions").and_then(|v| v.as_str())
+                if let Ok(content) = std::fs::read_to_string(&include_path)
+                    && let Ok(def) = toml::from_str::<serde_json::Value>(&content)
+                        && let Some(instructions) = def.get("instructions").and_then(|v| v.as_str())
                         {
                             prompt.push_str("\n\n");
                             prompt.push_str(&format!(
                                 "<!-- include: {include} -->\n{instructions}\n<!-- /include: {include} -->"
                             ));
                         }
-                    }
-                }
             }
         }
 

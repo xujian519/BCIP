@@ -719,9 +719,7 @@ fn run_update_command() -> anyhow::Result<()> {
     #[cfg(not(debug_assertions))]
     {
         let Some(action) = codex_tui::get_update_action() else {
-            anyhow::bail!(
-                "Could not detect the installation method. Please update manually: #"
-            );
+            anyhow::bail!("Could not detect the installation method. Please update manually: #");
         };
         run_update_action(action)
     }

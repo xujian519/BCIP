@@ -1,13 +1,19 @@
+pub mod agent_manifest;
+pub mod agent_runtime;
 pub mod bcip_roles;
 pub mod knowledge_context;
+pub mod provider_router;
 pub mod roles;
 pub mod scenario;
 
+pub use agent_manifest::{agent_store_dir, iso8601_now, list_agent_manifests, load_manifest, make_agent_id, persist_manifest, AgentManifest};
+pub use agent_runtime::{AgentSpawnInput, PatentAgentRuntime};
 pub use bcip_roles::config_file_contents;
 pub use bcip_roles::patent_agent_role_configs;
 pub use knowledge_context::AutoKnowledgeConfig;
 pub use knowledge_context::KnowledgeContext;
 pub use knowledge_context::RoleKeywords;
+pub use provider_router::{AgentProvider, detect_provider, resolve_api_key, resolve_api_key_from_config};
 pub use roles::AgentRegistry;
 pub use roles::AgentRoleConfig;
 pub use roles::PatentAgentRole;
