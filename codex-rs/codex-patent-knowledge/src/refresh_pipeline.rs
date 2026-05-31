@@ -69,31 +69,30 @@ impl RefreshPipeline {
                 if path.is_dir() && path.file_name().map(|n| n != ".git").unwrap_or(true) {
                     scan(&path, root, files)?;
                 } else if path.is_file()
-                    && path.extension().map_or(false, |e| {
-                        e == "md" || e == "db" || e == "json" || e == "toml"
-                    })
+                    && path
+                        .extension()
+                        .is_some_and(|e| e == "md" || e == "db" || e == "json" || e == "toml")
+                    && let Ok(meta) = std::fs::metadata(&path)
                 {
-                    if let Ok(meta) = std::fs::metadata(&path) {
-                        let rel = path
-                            .strip_prefix(root)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|_| path.to_string_lossy().to_string());
-                        let modified = meta
-                            .modified()
-                            .ok()
-                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                            .map(|d| d.as_secs() as i64)
-                            .unwrap_or(0);
-                        files.insert(
-                            rel,
-                            FileSnapshot {
-                                path: String::new(),
-                                size: meta.len(),
-                                modified_secs: modified,
-                                last_indexed: String::new(),
-                            },
-                        );
-                    }
+                    let rel = path
+                        .strip_prefix(root)
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|_| path.to_string_lossy().to_string());
+                    let modified = meta
+                        .modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0);
+                    files.insert(
+                        rel,
+                        FileSnapshot {
+                            path: String::new(),
+                            size: meta.len(),
+                            modified_secs: modified,
+                            last_indexed: String::new(),
+                        },
+                    );
                 }
             }
             Ok(())

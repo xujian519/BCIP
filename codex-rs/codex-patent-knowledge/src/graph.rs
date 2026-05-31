@@ -184,10 +184,10 @@ impl SqliteKnowledgeGraph {
                 }
                 let edges = self.get_edges(node_id)?;
                 for edge in edges {
-                    if let Some(filter) = relation_filter {
-                        if !filter.contains(&edge.relation.as_str()) {
-                            continue;
-                        }
+                    if let Some(filter) = relation_filter
+                        && !filter.contains(&edge.relation.as_str())
+                    {
+                        continue;
                     }
                     results.push((edge.clone(), depth));
                     let neighbor = if edge.source == *node_id {
@@ -219,8 +219,7 @@ impl SqliteKnowledgeGraph {
 
         let mut paths = Vec::new();
         let mut visited = HashSet::new();
-        let mut queue = Vec::new();
-        queue.push((from.to_string(), Vec::new()));
+        let mut queue = vec![(from.to_string(), Vec::new())];
 
         let mut depth = 0;
         while depth < max_depth && !queue.is_empty() && paths.is_empty() {

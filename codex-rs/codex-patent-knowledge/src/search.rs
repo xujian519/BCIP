@@ -97,10 +97,8 @@ impl UnifiedSearch {
         let embedding_client = mlx_base_url.zip(mlx_api_key).map(|(url, key)| {
             EmbeddingClient::new(url, key, mlx_model.unwrap_or("bge-m3-mlx-8bit"))
         });
-        let vector_available = vector_index.is_some()
-            && embedding_client
-                .as_ref()
-                .map_or(false, |c| c.health_check());
+        let vector_available =
+            vector_index.is_some() && embedding_client.as_ref().is_some_and(|c| c.health_check());
         Self {
             kg,
             law_db,
@@ -238,35 +236,34 @@ impl UnifiedSearch {
             && results.len() < effective_limit
             && let Some(ref client) = self.embedding_client
             && let Some(ref index) = self.vector_index
+            && let Ok(query_embedding) = client.embed(&config.query)
         {
-            if let Ok(query_embedding) = client.embed(&config.query) {
-                let semantic_results = index.search(&query_embedding, config.semantic_top_k);
-                for scored in &semantic_results {
-                    if results.len() >= effective_limit {
-                        break;
-                    }
-                    let id = scored.chunk.chunk_id.clone();
-                    if !seen_ids.insert(id.clone()) {
-                        continue;
-                    }
-                    let semantic_score = scored.score;
-                    let kw_score = KeywordSearch::score_text_with_query(
-                        &config.query,
-                        &format!("{} {}", scored.chunk.title, scored.chunk.content),
-                    );
-                    let combined = kw_score * (1.0 - config.semantic_weight)
-                        + semantic_score * config.semantic_weight;
-                    results.push(SearchResult {
-                        source: SearchSource::KnowledgeGraph,
-                        title: scored.chunk.title.clone(),
-                        content: scored.chunk.content.clone(),
-                        score: combined,
-                        id,
-                        item_type: "semantic_chunk".into(),
-                        source_path: scored.chunk.file_path.clone(),
-                        source_db: "semantic-index.sqlite".into(),
-                    });
+            let semantic_results = index.search(&query_embedding, config.semantic_top_k);
+            for scored in &semantic_results {
+                if results.len() >= effective_limit {
+                    break;
                 }
+                let id = scored.chunk.chunk_id.clone();
+                if !seen_ids.insert(id.clone()) {
+                    continue;
+                }
+                let semantic_score = scored.score;
+                let kw_score = KeywordSearch::score_text_with_query(
+                    &config.query,
+                    &format!("{} {}", scored.chunk.title, scored.chunk.content),
+                );
+                let combined = kw_score * (1.0 - config.semantic_weight)
+                    + semantic_score * config.semantic_weight;
+                results.push(SearchResult {
+                    source: SearchSource::KnowledgeGraph,
+                    title: scored.chunk.title.clone(),
+                    content: scored.chunk.content.clone(),
+                    score: combined,
+                    id,
+                    item_type: "semantic_chunk".into(),
+                    source_path: scored.chunk.file_path.clone(),
+                    source_db: "semantic-index.sqlite".into(),
+                });
             }
         }
         if let Some(ref prefix) = config.prefix_filter {

@@ -154,7 +154,7 @@ mod tests {
             assert_eq!(results.len(), 10, "should evaluate all 10 queries");
             let summary = SearchEval::summary(&results);
             let p5 = summary["avg_precision_at_5"].as_f64().unwrap();
-            assert!(p5 >= 0.0 && p5 <= 1.0);
+            assert!((0.0..=1.0).contains(&p5));
         }
     }
 }

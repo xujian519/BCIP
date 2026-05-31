@@ -85,7 +85,7 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --check -- --config imports_granularity=Item
+        run: cargo fmt --check -- --config imports_granularity=Item 2>/dev/null
 
   rust-clippy:
     name: Rust clippy

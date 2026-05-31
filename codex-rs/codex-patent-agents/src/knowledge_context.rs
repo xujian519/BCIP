@@ -169,6 +169,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local asset files"]
     fn test_enabled_context_returns_non_empty() {
         let ctx = KnowledgeContext::new(
             "../codex-patent-assets/patent_kg.db",

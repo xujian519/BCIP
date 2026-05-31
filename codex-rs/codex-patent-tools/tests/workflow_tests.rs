@@ -15,6 +15,7 @@ fn create_search() -> UnifiedSearch {
 }
 
 #[test]
+#[ignore = "requires local asset files"]
 fn workflow_retrieval() {
     // 场景: 检索 "一种智能温控装置" 的相关专利
     let search = create_search();
@@ -311,6 +312,7 @@ fn workflow_full_pipeline() {
 }
 
 #[test]
+#[ignore = "requires local asset files"]
 fn test_search_performance() {
     // 性能基准: 知识图谱搜索应在100ms内完成
     use std::time::Instant;
@@ -327,6 +329,7 @@ fn test_search_performance() {
 }
 
 #[test]
+#[ignore = "requires local asset files"]
 fn test_law_db_performance() {
     use std::time::Instant;
 
@@ -342,6 +345,7 @@ fn test_law_db_performance() {
 }
 
 #[test]
+#[ignore = "requires local asset files"]
 fn test_card_index_performance() {
     use std::time::Instant;
 
@@ -355,6 +359,7 @@ fn test_card_index_performance() {
 }
 
 #[test]
+#[ignore = "requires local asset files"]
 fn test_all_knowledge_sources() {
     // 验证所有知识源可用
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db");
