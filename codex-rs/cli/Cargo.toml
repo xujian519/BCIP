@@ -9,6 +9,11 @@ build = "build.rs"
 name = "codex"
 path = "src/main.rs"
 
+# BCIP 本地开发用独立二进制名，避免与 PATH 里的官方 `codex` 混淆
+[[bin]]
+name = "bcip"
+path = "src/main.rs"
+
 [lib]
 name = "codex_cli"
 path = "src/lib.rs"
@@ -102,4 +107,8 @@ pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
 
 [features]
+default = ["patent-tools"]
+# 9 个内置专利 Agent 角色 + 50+ 专利工具（retriever / analyzer / writer 等）
 patent-tools = ["codex-core/patent-tools"]
+# 语音 /realtime WebRTC（会编译 webrtc-sys，耗时长且需完整 Xcode 工具链）
+realtime-webrtc = ["codex-tui/realtime-webrtc"]

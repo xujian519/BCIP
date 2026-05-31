@@ -1,4 +1,4 @@
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "native-webrtc"))]
 mod native;
 
 use std::fmt;
@@ -12,6 +12,8 @@ pub enum RealtimeWebrtcError {
     Message(String),
     #[error("realtime WebRTC is not supported on this platform")]
     UnsupportedPlatform,
+    #[error("realtime WebRTC native stack was disabled at build time (enable feature native-webrtc)")]
+    DisabledAtBuildTime,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,7 +33,7 @@ pub struct StartedRealtimeWebrtcSession {
 }
 
 pub struct RealtimeWebrtcSessionHandle {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "native-webrtc"))]
     inner: native::SessionHandle,
     local_audio_peak: Arc<AtomicU16>,
 }
@@ -45,19 +47,19 @@ impl fmt::Debug for RealtimeWebrtcSessionHandle {
 
 impl RealtimeWebrtcSessionHandle {
     pub fn apply_answer_sdp(&self, answer_sdp: String) -> Result<()> {
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "native-webrtc"))]
         {
             self.inner.apply_answer_sdp(answer_sdp)
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(all(target_os = "macos", feature = "native-webrtc")))]
         {
             let _ = answer_sdp;
-            Err(RealtimeWebrtcError::UnsupportedPlatform)
+            Err(webrtc_unavailable_error())
         }
     }
 
     pub fn close(&self) {
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "native-webrtc"))]
         self.inner.close();
     }
 
@@ -70,7 +72,7 @@ pub struct RealtimeWebrtcSession;
 
 impl RealtimeWebrtcSession {
     pub fn start() -> Result<StartedRealtimeWebrtcSession> {
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "native-webrtc"))]
         {
             let started = native::start()?;
             Ok(StartedRealtimeWebrtcSession {
@@ -82,9 +84,20 @@ impl RealtimeWebrtcSession {
                 events: started.events,
             })
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(all(target_os = "macos", feature = "native-webrtc")))]
         {
-            Err(RealtimeWebrtcError::UnsupportedPlatform)
+            Err(webrtc_unavailable_error())
         }
+    }
+}
+
+fn webrtc_unavailable_error() -> RealtimeWebrtcError {
+    #[cfg(target_os = "macos")]
+    {
+        RealtimeWebrtcError::DisabledAtBuildTime
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        RealtimeWebrtcError::UnsupportedPlatform
     }
 }

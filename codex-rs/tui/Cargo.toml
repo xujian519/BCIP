@@ -150,6 +150,9 @@ winsplit = "0.1"
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { workspace = true }
 
+[features]
+# 需要 /realtime 语音 WebRTC 时：cargo build -p codex-cli --features codex-tui/realtime-webrtc
+realtime-webrtc = ["codex-realtime-webrtc/native-webrtc"]
 
 [dev-dependencies]
 codex-cli = { workspace = true }

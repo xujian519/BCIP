@@ -16,11 +16,10 @@ codex *args:
 alias bcip := bcip-run
 # 仅重编改动链：codex-api → codex-core → 链接 codex-cli（勿 cargo clean）
 bcip-build:
-    cargo build -p codex-api -p codex-core
-    cargo build -p codex-cli
-    @cd target/debug && ln -sf codex bcip
+    touch cli/src/main.rs
+    cargo build -p codex-cli --bin bcip
 bcip-run *args:
-    cargo run --bin codex -- "$@"
+    cargo run --bin bcip -- "$@"
 
 # `codex exec`
 exec *args:
