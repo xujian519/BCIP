@@ -31,9 +31,7 @@ _TARGET_SELECTION_ARGS = {
 }
 _TARGET_SELECTION_PREFIXES = ("--bin=", "--test=", "--example=", "--bench=")
 _TARGET_SELECTION_WITH_VALUE = {"--bin", "--test", "--example", "--bench"}
-_NIGHTLY_LIBRARY_PATTERN = re.compile(
-    r"^(.+@nightly-[0-9]{4}-[0-9]{2}-[0-9]{2})-.+$"
-)
+_NIGHTLY_LIBRARY_PATTERN = re.compile(r"^(.+@nightly-[0-9]{4}-[0-9]{2}-[0-9]{2})-.+$")
 
 
 @dataclass
@@ -139,7 +137,7 @@ def set_default_lint_env(env: MutableMapping[str, str]) -> None:
         env["CARGO_INCREMENTAL"] = "0"
 
 
-def die(message: str) -> "Never":
+def die(message: str) -> "NoReturn":
     print(message, file=sys.stderr)
     raise SystemExit(1)
 
@@ -153,7 +151,9 @@ def require_command(name: str, install_message: str | None = None) -> str:
     return executable
 
 
-def run_capture(args: Sequence[str], env: MutableMapping[str, str] | None = None) -> str:
+def run_capture(
+    args: Sequence[str], env: MutableMapping[str, str] | None = None
+) -> str:
     try:
         completed = subprocess.run(
             list(args),
@@ -230,14 +230,18 @@ def prefer_rustup_shims(env: MutableMapping[str, str]) -> None:
             env["RUSTUP_HOME"] = rustup_home
 
 
-def fetch_packaged_entrypoint(dotslash_manifest: Path, env: MutableMapping[str, str]) -> Path:
+def fetch_packaged_entrypoint(
+    dotslash_manifest: Path, env: MutableMapping[str, str]
+) -> Path:
     require_command(
         "dotslash",
         "argument-comment-lint prebuilt wrapper requires dotslash.\n"
         "Install dotslash, or use:\n"
         "  ./tools/argument-comment-lint/run.py ...",
     )
-    entrypoint = run_capture(["dotslash", "--", "fetch", str(dotslash_manifest)], env=env)
+    entrypoint = run_capture(
+        ["dotslash", "--", "fetch", str(dotslash_manifest)], env=env
+    )
     return Path(entrypoint).resolve()
 
 
@@ -270,7 +274,7 @@ def normalize_packaged_library(package_entrypoint: Path) -> Path:
     return normalized_library_path
 
 
-def exec_command(command: Sequence[str], env: MutableMapping[str, str]) -> "Never":
+def exec_command(command: Sequence[str], env: MutableMapping[str, str]) -> "NoReturn":
     try:
         completed = subprocess.run(list(command), env=dict(env), check=False)
     except FileNotFoundError:

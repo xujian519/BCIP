@@ -1,13 +1,22 @@
 {
   "name": "bcip-monorepo",
   "private": true,
-  "description": "Tools for repo-wide maintenance.",
+  "description": "BCIP monorepo — repo-wide scripts and desktop forwarding.",
   "scripts": {
     "format": "prettier --check *.json *.md docs/*.md .github/workflows/*.yml **/*.js",
     "format:fix": "prettier --write *.json *.md docs/*.md .github/workflows/*.yml **/*.js",
-    "write-hooks-schema": "cargo run --manifest-path ./codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures"
+    "write-hooks-schema": "cargo run --manifest-path ./codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures",
+    "prepare-sidecar": "npm run prepare-sidecar --prefix apps/desktop",
+    "setup:dev": "bash scripts/setup-dev-cli.sh",
+    "bootstrap:home": "bash scripts/bootstrap-bcip-home.sh",
+    "tauri:dev": "npm run tauri:dev --prefix apps/desktop",
+    "tauri:build:bundle": "npm run tauri:build:bundle --prefix apps/desktop",
+    "desktop:smoke": "npm run smoke --prefix apps/desktop",
+    "desktop:ci": "npm run ci --prefix apps/desktop",
+    "desktop:e2e": "npm run test:e2e --prefix apps/desktop"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2",
     "prettier": "^3.5.3"
   },
   "resolutions": {

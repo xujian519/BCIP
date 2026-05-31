@@ -12,6 +12,16 @@ alias c := codex
 codex *args:
     cargo run --bin codex -- "$@"
 
+# BCIP TUI/CLI（crate 名是 codex-cli，二进制是 codex；bcip 为符号链接）
+alias bcip := bcip-run
+# 仅重编改动链：codex-api → codex-core → 链接 codex-cli（勿 cargo clean）
+bcip-build:
+    cargo build -p codex-api -p codex-core
+    cargo build -p codex-cli
+    @cd target/debug && ln -sf codex bcip
+bcip-run *args:
+    cargo run --bin codex -- "$@"
+
 # `codex exec`
 exec *args:
     cargo run --bin codex -- exec "$@"
@@ -123,6 +133,22 @@ argument-comment-lint *args:
 [no-cd]
 argument-comment-lint-from-source *args:
     {{ justfile_directory() }}/tools/argument-comment-lint/run.py "$@"
+
+# 宪法规则验证（Python CLI，零编译）
+constitutional *args:
+    python3 scripts/constitutional_check.py {{ args }}
+
+# 宪法规则检查快捷命令: just constitutional-check <输入文本>
+constitutional-check text phase="撰写":
+    python3 scripts/constitutional_check.py check --input "{{ text }}" --phase "{{ phase }}"
+
+# 宪法规则 YAML 格式验证
+constitutional-validate:
+    python3 scripts/constitutional_check.py validate
+
+# 列出所有宪法规则
+constitutional-list:
+    python3 scripts/constitutional_check.py list
 
 # Tail logs from the state SQLite database
 log *args:
