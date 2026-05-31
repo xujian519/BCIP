@@ -1,17 +1,19 @@
 ---
 source: tui/src/chatwidget/tests/popups_and_settings.rs
+assertion_line: 2196
 expression: popup
 ---
   Select Model and Effort
-  Access legacy models by running codex -m <model_name> or in your config.toml
+  Access legacy models by running bcip -m <model_name> or in your config.toml
 
-  1. gpt-5.5 (default)  Frontier model for complex coding, research, and real-
-                        world work.
-  2. gpt-5.4            Strong model for everyday coding.
-  3. gpt-5.4-mini       Small, fast, and cost-efficient model for simpler
-                        coding tasks.
-  4. gpt-5.3-codex      Coding-optimized model.
-› 5. gpt-5.2 (current)  Optimized for professional work and long-running
-                        agents.
+  1. deepseek-v4-pro (default)  DeepSeek V4 Pro for general coding tasks.
+  2. deepseek-v4-flash          DeepSeek V4 Flash for fast responses and
+                                lighter tasks.
+› 3. glm-5.1 (current)          GLM 5.1 by Zhipu AI — 744B MoE (40B active),
+                                strong coding and reasoning with tool calling
+                                support.
+  4. kimi-for-coding            Kimi Code by Moonshot AI — auto-updating
+                                flagship model for coding, up to 100 tokens/s
+                                with tool calling.
 
   Press enter to confirm or esc to go back

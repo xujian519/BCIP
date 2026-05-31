@@ -2012,6 +2012,42 @@ async fn try_run_sampling_request(
                 });
             }
             ResponseEvent::OutputTextDelta(delta) => {
+                if active_item.is_none() {
+                    tracing::warn!(
+                        "received OutputTextDelta without active item; synthesizing assistant output item"
+                    );
+                    let item = ResponseItem::Message {
+                        id: None,
+                        role: "assistant".to_string(),
+                        content: vec![],
+                        phase: None,
+                    };
+                    if let Some(turn_item) = handle_non_tool_response_item(
+                        sess.as_ref(),
+                        turn_context.as_ref(),
+                        TurnItemContributorPolicy::Skip,
+                        &item,
+                        plan_mode,
+                    )
+                    .await
+                    {
+                        let stream_item_to_client = !defer_streamed_turn_items_for_contributors;
+                        if stream_item_to_client {
+                            if let Some(state) = plan_mode_state.as_mut()
+                                && matches!(turn_item, TurnItem::AgentMessage(_))
+                            {
+                                let item_id = turn_item.id();
+                                state
+                                    .pending_agent_message_items
+                                    .insert(item_id, turn_item.clone());
+                            } else {
+                                sess.emit_turn_item_started(&turn_context, &turn_item).await;
+                            }
+                        }
+                        active_item = Some(turn_item);
+                        active_item_is_streaming_to_client = stream_item_to_client;
+                    }
+                }
                 // In review child threads, suppress assistant text deltas; the
                 // UI will show a selection popup from the final ReviewOutput.
                 if let Some(active) = active_item.as_ref() {
@@ -2040,7 +2076,9 @@ async fn try_run_sampling_request(
                             .await;
                     }
                 } else {
-                    error_or_panic("OutputTextDelta without active item".to_string());
+                    tracing::error!(
+                        "dropping OutputTextDelta: could not establish active streaming item"
+                    );
                 }
             }
             ResponseEvent::ToolCallInputDelta {

@@ -116,7 +116,7 @@ impl ChatWidget {
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
             title: Some("Settings".to_string()),
-            subtitle: Some("Configure settings for BCIP.".to_string()),
+            subtitle: Some("配置云熙专利智能体设置。".to_string()),
             footer_hint: Some(standard_popup_hint_line()),
             items,
             ..Default::default()

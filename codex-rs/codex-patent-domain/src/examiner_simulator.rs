@@ -645,3 +645,241 @@ mod tests {
         assert!(resp["overallScore"].as_f64().unwrap() > 0.0);
     }
 }
+
+// ── 论证模式库（参考 Athena examiner_simulator.py）──
+
+/// 论证轮次
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArgumentationRound {
+    pub round_number: usize,
+    pub examiner_objection: String,
+    pub reasoning_template: String,
+    pub strategy: ArgumentationStrategy,
+}
+
+/// 论证模式
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectionTemplate {
+    pub rejection_type: RejectionType,
+    pub strategy: ArgumentationStrategy,
+    pub templates: Vec<String>,
+    pub description: String,
+}
+
+/// 论证模式库
+pub struct ArgumentationLibrary;
+
+impl ArgumentationLibrary {
+    /// 获取驳回类型的质疑模板
+    pub fn get_objection_templates(rejection: RejectionType) -> Vec<ObjectionTemplate> {
+        let mut templates = Vec::new();
+
+        match rejection {
+            RejectionType::Inventiveness => {
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::StrictLiteral,
+                    templates: vec![
+                        "对比文件{d}已经公开了{feature}，本领域技术人员根据其教导，容易想到将其应用于本案。".into(),
+                        "{feature}属于本领域的常规技术手段，无需创造性劳动即可获得。".into(),
+                    ],
+                    description: "严格字面对比".into(),
+                });
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::CombinationAnalysis,
+                    templates: vec![
+                        "对比文件{d1}给出了{feature1}的技术启示，结合对比文件{d2}的{feature2}，得到本申请权利要求的技术方案是显而易见的。".into(),
+                    ],
+                    description: "组合分析".into(),
+                });
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::HindsightBias,
+                    templates: vec![
+                        "在对比文件{d}的基础上，本领域技术人员结合其掌握的公知常识，无需创造性劳动就能得到权利要求的技术方案。".into(),
+                        "区别技术特征{feature}仅仅是常用技术手段的简单替换，其效果是本领域技术人员可以预料的。".into(),
+                    ],
+                    description: "事后诸葛亮/公知常识".into(),
+                });
+            }
+            RejectionType::Obviousness => {
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::StrictLiteral,
+                    templates: vec![
+                        "权利要求{claim}的技术方案是对比文件{d}与公知常识的简单组合。".into(),
+                    ],
+                    description: "显而易见组合".into(),
+                });
+            }
+            RejectionType::LackOfNovelty => {
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::StrictLiteral,
+                    templates: vec![
+                        "对比文件{d}已经公开了权利要求{claim}的全部技术特征，因此该权利要求不具备新颖性。".into(),
+                    ],
+                    description: "新颖性对比".into(),
+                });
+            }
+            RejectionType::InsufficientDisclosure => {
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::BroadInterpretation,
+                    templates: vec![
+                        "说明书中未清楚、完整地公开{feature}的具体实施方式，本领域技术人员无法实现该技术方案。".into(),
+                    ],
+                    description: "公开不充分".into(),
+                });
+            }
+            RejectionType::UnpatentableSubject => {
+                templates.push(ObjectionTemplate {
+                    rejection_type: rejection,
+                    strategy: ArgumentationStrategy::StrictLiteral,
+                    templates: vec![
+                        "本申请涉及{feature}，属于智力活动的规则和方法，不属于专利法保护的客体。"
+                            .into(),
+                    ],
+                    description: "不属于保护客体".into(),
+                });
+            }
+        }
+
+        templates
+    }
+
+    /// 生成特征逐一对比论证
+    pub fn generate_feature_matching(
+        document: &str,
+        feature: &str,
+        page: Option<&str>,
+        line: Option<&str>,
+    ) -> String {
+        if let (Some(p), Some(l)) = (page, line) {
+            format!("对比文件{document}明确公开了{feature}（参见第{p}页第{l}行）")
+        } else {
+            format!("对比文件{document}明确公开了{feature}")
+        }
+    }
+
+    /// 生成组合对比论证
+    pub fn generate_combination_analysis(
+        doc1: &str,
+        feature1: &str,
+        doc2: &str,
+        feature2: &str,
+    ) -> String {
+        format!(
+            "对比文件{doc1}公开了{feature1}，对比文件{doc2}公开了{feature2}，本领域技术人员有动机将两者结合。"
+        )
+    }
+
+    /// 生成显而易见变型论证
+    pub fn generate_obvious_variation(feature: &str, prior_art: &str) -> String {
+        format!(
+            "特征{feature}与对比文件{prior_art}公开的技术方案相比，仅是本领域技术人员的常规设计选择。"
+        )
+    }
+
+    /// 生成公知常识追加论证
+    pub fn generate_common_knowledge_addition(
+        doc: &str,
+        feature: &str,
+        common_knowledge: &str,
+    ) -> String {
+        format!(
+            "在对比文件{doc}已公开方案的基础上，引入{common_knowledge}中的{feature}是本领域技术人员的常规做法。"
+        )
+    }
+}
+
+/// 多轮论证对话
+pub struct ArgumentationDialog {
+    pub rounds: Vec<ArgumentationRound>,
+    pub rejection_type: RejectionType,
+    pub current_round: usize,
+}
+
+impl ArgumentationDialog {
+    pub fn new(rejection_type: RejectionType) -> Self {
+        Self {
+            rounds: Vec::new(),
+            rejection_type,
+            current_round: 0,
+        }
+    }
+
+    /// 添加一轮论证
+    pub fn add_round(&mut self, strategy: ArgumentationStrategy, template: String) {
+        self.current_round += 1;
+        self.rounds.push(ArgumentationRound {
+            round_number: self.current_round,
+            examiner_objection: template.clone(),
+            reasoning_template: template,
+            strategy,
+        });
+    }
+
+    /// 获取最后一轮的论证内容
+    pub fn last_objection(&self) -> Option<&str> {
+        self.rounds.last().map(|r| r.examiner_objection.as_str())
+    }
+
+    /// 总轮数
+    pub fn len(&self) -> usize {
+        self.rounds.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rounds.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod argumentation_tests {
+    use super::*;
+
+    #[test]
+    fn inventiveness_has_multiple_templates() {
+        let templates = ArgumentationLibrary::get_objection_templates(RejectionType::Inventiveness);
+        assert!(templates.len() >= 3);
+    }
+
+    #[test]
+    fn feature_matching_includes_document() {
+        let result = ArgumentationLibrary::generate_feature_matching(
+            "CN123",
+            "特征A",
+            Some("5"),
+            Some("10"),
+        );
+        assert!(result.contains("CN123"));
+        assert!(result.contains("特征A"));
+        assert!(result.contains("第5页第10行"));
+    }
+
+    #[test]
+    fn combination_analysis_refs_both_docs() {
+        let result =
+            ArgumentationLibrary::generate_combination_analysis("CN123", "特征A", "CN456", "特征B");
+        assert!(result.contains("CN123"));
+        assert!(result.contains("CN456"));
+    }
+
+    #[test]
+    fn argumentation_dialog_tracks_rounds() {
+        let mut dialog = ArgumentationDialog::new(RejectionType::Inventiveness);
+        assert!(dialog.is_empty());
+        dialog.add_round(ArgumentationStrategy::StrictLiteral, "特征A已被公开".into());
+        assert_eq!(dialog.len(), 1);
+        assert_eq!(dialog.last_objection(), Some("特征A已被公开"));
+    }
+
+    #[test]
+    fn novelty_template_includes_legal_basis_refs() {
+        let templates = ArgumentationLibrary::get_objection_templates(RejectionType::LackOfNovelty);
+        assert_eq!(templates.len(), 1);
+        assert!(templates[0].templates[0].contains("不具备新颖性"));
+    }
+}

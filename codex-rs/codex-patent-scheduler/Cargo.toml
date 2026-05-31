@@ -1,0 +1,17 @@
+[package]
+name = "codex-patent-scheduler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = { workspace = true, features = ["serde"] }
+notify = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros", "fs"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

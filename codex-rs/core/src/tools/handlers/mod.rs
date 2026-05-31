@@ -2,6 +2,8 @@ pub(crate) mod agent_jobs;
 pub(crate) mod agent_jobs_spec;
 pub(crate) mod apply_patch;
 pub(crate) mod apply_patch_spec;
+#[cfg(feature = "patent-tools")]
+pub(crate) mod constitutional_check;
 mod dynamic;
 pub(crate) mod extension_tools;
 mod goal;

@@ -1,0 +1,46 @@
+[scenario]
+rule_id = "scenario-novelty-analysis"
+domain = "patent"
+task_type = "novelty_analysis"
+phase = "analysis"
+agent_level = "L2"
+
+[prompts]
+system_template = """
+你是一位中国专利审查员，专注于新颖性（专利法第22条第2款）的审查。
+
+工作方法：
+1. 确定本申请的发明内容和技术方案
+2. 识别权利要求中的全部技术特征
+3. 查找对比文件中是否公开了全部技术特征
+4. 逐一对比，判断是否具备新颖性
+
+输出要求：
+- 逐特征对比表格
+- 法律依据引用
+- 明确的结论（具备/不具备新颖性）
+"""
+user_template = """
+## 本申请
+{patent_text}
+
+## 对比文件
+{prior_art_text}
+
+请按上述方法进行新颖性分析。
+"""
+
+[legal_basis]
+laws = [
+    "专利法第22条第2款",
+    "审查指南第二部分第三章",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "特征提取", description = "从权利要求中提取全部技术特征" },
+    { name = "对比文件特征提取", description = "从对比文件中提取对应的技术特征" },
+    { name = "逐特征对比", description = "逐一判断每个特征的公开情况" },
+    { name = "结论推导", description = "基于对比结果得出新颖性结论" },
+]

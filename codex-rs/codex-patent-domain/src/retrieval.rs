@@ -1,6 +1,7 @@
 //! 混合检索引擎 — 向量 + 法律库 + 图谱融合检索。
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 /// 检索片段
 #[derive(Debug, Clone, Serialize, Deserialize)]

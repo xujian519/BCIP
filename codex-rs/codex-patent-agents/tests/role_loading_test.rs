@@ -1,4 +1,5 @@
-use codex_patent_agents::{PatentAgentRole, AgentRegistry, bcip_roles};
+use codex_patent_agents::PatentAgentRole;
+use codex_patent_agents::bcip_roles;
 use std::path::Path;
 
 #[test]
@@ -24,7 +25,11 @@ fn test_role_names_are_chinese() {
         let name = role.name();
         assert!(!name.is_empty(), "角色名不应为空");
         // 中文名称应包含中文
-        assert!(name.chars().any(|c| c as u32 > 127), "{} 应包含中文字符", name);
+        assert!(
+            name.chars().any(|c| c as u32 > 127),
+            "{} 应包含中文字符",
+            name
+        );
     }
 }
 
@@ -49,7 +54,11 @@ fn test_role_system_prompt_generation() {
         assert!(content.is_some(), "{} 的配置不应为空", role_id);
         let content = content.unwrap();
         // BCIP 格式使用 developer_instructions 字段，不需要 [role] 或 [prompt] 节
-        assert!(content.contains("developer_instructions"), "{} 应包含 developer_instructions 字段", role_id);
+        assert!(
+            content.contains("developer_instructions"),
+            "{} 应包含 developer_instructions 字段",
+            role_id
+        );
         assert!(!content.is_empty());
     }
 }
@@ -66,11 +75,13 @@ fn test_load_configs_from_toml_files() {
     if bcip_dir.exists() {
         for entry in std::fs::read_dir(&bcip_dir).unwrap() {
             let entry = entry.unwrap();
-            if entry.path().extension().map_or(false, |e| e == "toml") {
+            if entry.path().extension().is_some_and(|e| e == "toml") {
                 let content = std::fs::read_to_string(entry.path()).unwrap();
                 // BCIP 格式不使用 [role] 节，而是平铺字段
-                assert!(content.contains("description") || content.contains("developer_instructions"), 
-                        "文件应包含 description 或 developer_instructions 字段");
+                assert!(
+                    content.contains("description") || content.contains("developer_instructions"),
+                    "文件应包含 description 或 developer_instructions 字段"
+                );
                 assert!(!content.is_empty());
                 count += 1;
             }
@@ -104,9 +115,10 @@ fn test_agent_system_prompt_content() {
 #[test]
 fn test_role_routing_hints() {
     // 验证每个角色有明确的路由提示信息
-    let hints: Vec<(&str, &str)> = PatentAgentRole::all().iter().map(|r| {
-        (r.role_id(), r.name())
-    }).collect();
+    let hints: Vec<(&str, &str)> = PatentAgentRole::all()
+        .iter()
+        .map(|r| (r.role_id(), r.name()))
+        .collect();
 
     for (id, name) in &hints {
         println!("角色: {} -> {}", id, name);
@@ -126,8 +138,11 @@ fn test_agent_registry_loads_configs() {
         assert!(content.is_some(), "{} 的配置不应为空", role_id);
         let content = content.unwrap();
         // 验证配置内容包含基本字段
-        assert!(content.contains("description") || content.contains("developer_instructions"),
-                "{} 的配置应包含 description 或 developer_instructions", role_id);
+        assert!(
+            content.contains("description") || content.contains("developer_instructions"),
+            "{} 的配置应包含 description 或 developer_instructions",
+            role_id
+        );
     }
     println!("BCIP Registry 加载了 {} 个角色", configs.len());
 }

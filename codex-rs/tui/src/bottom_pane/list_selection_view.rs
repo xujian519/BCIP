@@ -1416,14 +1416,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "Read Only".to_string(),
-                description: Some("BCIP can read files".to_string()),
+                description: Some("云熙专利智能体可读取文件".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "Full Access".to_string(),
-                description: Some("BCIP can edit files".to_string()),
+                description: Some("云熙专利智能体可编辑文件".to_string()),
                 is_current: false,
                 dismiss_on_select: true,
                 ..Default::default()
@@ -1532,7 +1532,7 @@ mod tests {
 
     #[test]
     fn renders_blank_line_between_subtitle_and_items() {
-        let view = make_selection_view(Some("Switch between BCIP approval presets"));
+        let view = make_selection_view(Some("切换云熙专利智能体审批预设"));
         assert_snapshot!("list_selection_spacing_with_subtitle", render_lines(&view));
     }
 
@@ -1615,7 +1615,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("BCIP can read files".to_string()),
+            description: Some("云熙专利智能体可读取文件".to_string()),
             is_current: true,
             dismiss_on_select: true,
             ..Default::default()
@@ -1647,7 +1647,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("BCIP can read files".to_string()),
+            description: Some("云熙专利智能体可读取文件".to_string()),
             is_current: false,
             dismiss_on_select: true,
             ..Default::default()
@@ -2277,19 +2277,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "gpt-5.1-codex".to_string(),
-                description: Some(
-                    "Optimized for BCIP. Balance of reasoning quality and coding ability."
-                        .to_string(),
-                ),
+                description: Some("专为云熙专利智能体优化。推理质量与编码能力的平衡。".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "gpt-5.1-codex-mini".to_string(),
-                description: Some(
-                    "Optimized for BCIP. Cheaper, faster, but less capable.".to_string(),
-                ),
+                description: Some("专为云熙专利智能体优化。更便宜、更快，但能力较弱。".to_string()),
                 dismiss_on_select: true,
                 ..Default::default()
             },
@@ -2359,19 +2354,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "gpt-5.1-codex".to_string(),
-                description: Some(
-                    "Optimized for BCIP. Balance of reasoning quality and coding ability."
-                        .to_string(),
-                ),
+                description: Some("专为云熙专利智能体优化。推理质量与编码能力的平衡。".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "gpt-5.1-codex-mini".to_string(),
-                description: Some(
-                    "Optimized for BCIP. Cheaper, faster, but less capable.".to_string(),
-                ),
+                description: Some("专为云熙专利智能体优化。更便宜、更快，但能力较弱。".to_string()),
                 dismiss_on_select: true,
                 ..Default::default()
             },

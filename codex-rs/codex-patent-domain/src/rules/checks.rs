@@ -2,7 +2,8 @@
 
 use regex::Regex;
 
-use super::schema::{PatentDocument, Target};
+use super::schema::PatentDocument;
+use super::schema::Target;
 
 /// 全局正则缓存(避免热路径重复编译)。
 static REGEX_CACHE: std::sync::OnceLock<

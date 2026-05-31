@@ -36,6 +36,7 @@ use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_cli::CliConfigOverrides;
 use codex_utils_cli::ProfileV2Name;
 use codex_utils_cli::resume_hint;
+use codex_utils_home_dir::ensure_bcip_home_layout;
 use owo_colors::OwoColorize;
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -828,6 +829,10 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
+    if let Ok(home) = find_codex_home() {
+        ensure_bcip_home_layout(home.as_path())?;
+    }
+
     let MultitoolCli {
         config_overrides: mut root_config_overrides,
         feature_toggles,

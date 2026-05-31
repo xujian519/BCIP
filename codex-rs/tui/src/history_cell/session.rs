@@ -1,6 +1,8 @@
 //! Session headers, onboarding guidance, and transcript cards.
 
 use super::*;
+use crate::style::yunxi_name_style;
+use crate::yunxi_greeting;
 
 pub(crate) const SESSION_HEADER_MAX_INNER_WIDTH: usize = 56; // Just an eyeballed value
 
@@ -79,40 +81,34 @@ pub(crate) fn padded_emoji(emoji: &str) -> String {
 }
 
 #[derive(Debug)]
-struct TooltipHistoryCell {
-    tip: String,
-    cwd: PathBuf,
+struct YunxiGreetingHistoryCell {
+    message: String,
 }
 
-impl TooltipHistoryCell {
-    fn new(tip: String, cwd: &Path) -> Self {
+impl YunxiGreetingHistoryCell {
+    fn new() -> Self {
         Self {
-            tip,
-            cwd: cwd.to_path_buf(),
+            message: yunxi_greeting::pick_greeting(),
         }
     }
 }
 
-impl HistoryCell for TooltipHistoryCell {
+impl HistoryCell for YunxiGreetingHistoryCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
-        let indent = "  ";
-        let indent_width = UnicodeWidthStr::width(indent);
+        const PREFIX: &str = "  ◇ ";
+        let prefix_width = UnicodeWidthStr::width(PREFIX);
         let wrap_width = usize::from(width.max(1))
-            .saturating_sub(indent_width)
+            .saturating_sub(prefix_width)
             .max(1);
-        let mut lines: Vec<Line<'static>> = Vec::new();
-        append_markdown(
-            &format!("**Tip:** {}", self.tip),
-            Some(wrap_width),
-            Some(self.cwd.as_path()),
-            &mut lines,
+        let wrapped = adaptive_wrap_lines(
+            [Line::from(self.message.clone())],
+            RtOptions::new(wrap_width),
         );
-
-        prefix_lines(lines, indent.into(), indent.into())
+        prefix_lines(wrapped, PREFIX.dim(), "     ".into())
     }
 
     fn raw_lines(&self) -> Vec<Line<'static>> {
-        vec![Line::from(format!("Tip: {}", self.tip))]
+        vec![Line::from(self.message.clone())]
     }
 }
 
@@ -142,8 +138,8 @@ pub(crate) fn new_session_info(
     requested_model: &str,
     session: &ThreadSessionState,
     is_first_event: bool,
-    tooltip_override: Option<String>,
-    auth_plan: Option<PlanType>,
+    _tooltip_override: Option<String>,
+    _auth_plan: Option<PlanType>,
     show_fast_status: bool,
 ) -> SessionInfoCell {
     // Header box rendered as history (so it appears at the very top)
@@ -180,7 +176,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/permissions".into(),
-                " - choose what BCIP is allowed to do".dim(),
+                " - 选择云熙专利智能体允许执行的操作".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -196,13 +192,7 @@ pub(crate) fn new_session_info(
 
         parts.push(Box::new(PlainHistoryCell { lines: help_lines }));
     } else {
-        if config.show_tooltips
-            && let Some(tooltips) = tooltip_override
-                .or_else(|| tooltips::get_tooltip(auth_plan, show_fast_status))
-                .map(|tip| TooltipHistoryCell::new(tip, &config.cwd))
-        {
-            parts.push(Box::new(tooltips));
-        }
+        parts.push(Box::new(YunxiGreetingHistoryCell::new()));
         if requested_model != session.model.as_str() {
             let lines = vec![
                 "model changed:".magenta().bold().into(),
@@ -258,7 +248,7 @@ impl SessionHeaderHistoryCell {
     ) -> Self {
         Self::new_with_style(
             model,
-            Style::default(),
+            Style::default().fg(Color::Cyan),
             reasoning_effort,
             show_fast_status,
             directory,
@@ -337,10 +327,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
-        // Title line rendered inside the box: ">_ BCIP Agent (vX)"
+        // Title line rendered inside the box: "🌸 云熙 (vX)"
         let title_spans: Vec<Span<'static>> = vec![
-            Span::from(">_ ").dim(),
-            Span::from("BCIP Agent").bold(),
+            Span::styled(padded_emoji("🌸"), Style::default().dim()),
+            Span::styled("云熙", yunxi_name_style()),
             Span::from(" ").dim(),
             Span::from(format!("(v{})", self.version)).dim(),
         ];
@@ -407,7 +397,7 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
     fn raw_lines(&self) -> Vec<Line<'static>> {
         let mut lines = vec![
-            Line::from(format!("BCIP Agent (v{})", self.version)),
+            Line::from(format!("🌸 云熙 (v{})", self.version)),
             Line::from(format!(
                 "model: {}{}",
                 self.model,

@@ -1,3 +1,4 @@
+# DEPRECATED: 使用 bcip/creativity_checker.toml 替代，此文件仅保留供参考
 role_id = "creativity_checker"
 name = "创造性评估专家"
 identity = "你是一位创造性评估专家，精通问题-解决方案法判断专利创造性。"

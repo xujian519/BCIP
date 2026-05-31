@@ -396,6 +396,70 @@ pub fn process_responses_event(
     Ok(None)
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct ResponsesStreamNormalizer {
+    assistant_text_stream_open: bool,
+}
+
+fn synthetic_streaming_assistant_message() -> ResponseItem {
+    ResponseItem::Message {
+        id: None,
+        role: "assistant".into(),
+        content: vec![],
+        phase: None,
+    }
+}
+
+fn marks_assistant_text_stream(item: &ResponseItem) -> bool {
+    matches!(item, ResponseItem::Message { role, .. } if role == "assistant")
+}
+
+/// Some Responses API shims (for example LiteLLM proxies) emit `output_text.delta`
+/// without a preceding `output_item.added`. Mirror the Chat Completions adapter by
+/// synthesizing the missing bookends so core can stream assistant text safely.
+pub(crate) fn normalize_response_stream_events(
+    state: &mut ResponsesStreamNormalizer,
+    event: ResponseEvent,
+) -> Vec<ResponseEvent> {
+    match event {
+        ResponseEvent::OutputTextDelta(delta) => {
+            let mut events = Vec::new();
+            if !state.assistant_text_stream_open {
+                state.assistant_text_stream_open = true;
+                events.push(ResponseEvent::OutputItemAdded(
+                    synthetic_streaming_assistant_message(),
+                ));
+            }
+            events.push(ResponseEvent::OutputTextDelta(delta));
+            events
+        }
+        ResponseEvent::OutputItemAdded(item) => {
+            if marks_assistant_text_stream(&item) {
+                state.assistant_text_stream_open = true;
+            }
+            vec![ResponseEvent::OutputItemAdded(item)]
+        }
+        ResponseEvent::OutputItemDone(item) => {
+            if marks_assistant_text_stream(&item) {
+                state.assistant_text_stream_open = false;
+            }
+            vec![ResponseEvent::OutputItemDone(item)]
+        }
+        ResponseEvent::Completed { .. } => {
+            let mut events = Vec::new();
+            if state.assistant_text_stream_open {
+                state.assistant_text_stream_open = false;
+                events.push(ResponseEvent::OutputItemDone(
+                    synthetic_streaming_assistant_message(),
+                ));
+            }
+            events.push(event);
+            events
+        }
+        other => vec![other],
+    }
+}
+
 pub async fn process_sse(
     stream: ByteStream,
     tx_event: mpsc::Sender<Result<ResponseEvent, ApiError>>,
@@ -405,6 +469,7 @@ pub async fn process_sse(
     let mut stream = stream.eventsource();
     let mut response_error: Option<ApiError> = None;
     let mut last_server_model: Option<String> = None;
+    let mut stream_normalizer = ResponsesStreamNormalizer::default();
 
     loop {
         let start = Instant::now();
@@ -468,12 +533,14 @@ pub async fn process_sse(
 
         match process_responses_event(event) {
             Ok(Some(event)) => {
-                let is_completed = matches!(event, ResponseEvent::Completed { .. });
-                if tx_event.send(Ok(event)).await.is_err() {
-                    return;
-                }
-                if is_completed {
-                    return;
+                for event in normalize_response_stream_events(&mut stream_normalizer, event) {
+                    let is_completed = matches!(event, ResponseEvent::Completed { .. });
+                    if tx_event.send(Ok(event)).await.is_err() {
+                        return;
+                    }
+                    if is_completed {
+                        return;
+                    }
                 }
             }
             Ok(None) => {}
@@ -572,6 +639,79 @@ mod tests {
     use tokio::sync::mpsc;
     use tokio_test::io::Builder as IoBuilder;
     use tokio_util::io::ReaderStream;
+
+    #[test]
+    fn normalize_response_stream_events_synthesizes_output_item_added_before_delta() {
+        let mut state = ResponsesStreamNormalizer::default();
+        let events = normalize_response_stream_events(
+            &mut state,
+            ResponseEvent::OutputTextDelta("hi".to_string()),
+        );
+        assert_eq!(events.len(), 2);
+        assert_matches!(events[0], ResponseEvent::OutputItemAdded(_));
+        assert_matches!(
+            &events[1],
+            ResponseEvent::OutputTextDelta(delta) if delta == "hi"
+        );
+    }
+
+    #[test]
+    fn normalize_response_stream_events_closes_open_assistant_stream_on_completed() {
+        let mut state = ResponsesStreamNormalizer::default();
+        let _ = normalize_response_stream_events(
+            &mut state,
+            ResponseEvent::OutputTextDelta("hi".to_string()),
+        );
+        let events = normalize_response_stream_events(
+            &mut state,
+            ResponseEvent::Completed {
+                response_id: "resp-1".to_string(),
+                token_usage: None,
+                end_turn: Some(true),
+            },
+        );
+        assert_eq!(events.len(), 2);
+        assert_matches!(events[0], ResponseEvent::OutputItemDone(_));
+        assert_matches!(
+            &events[1],
+            ResponseEvent::Completed {
+                response_id,
+                end_turn: Some(true),
+                ..
+            } if response_id == "resp-1"
+        );
+    }
+
+    #[tokio::test]
+    async fn process_sse_synthesizes_output_item_added_for_orphan_text_deltas() {
+        let events = run_sse(vec![
+            json!({
+                "type": "response.output_text.delta",
+                "delta": "你好"
+            }),
+            json!({
+                "type": "response.completed",
+                "response": { "id": "resp-1" }
+            }),
+        ])
+        .await;
+
+        assert_eq!(events.len(), 4);
+        assert_matches!(events[0], ResponseEvent::OutputItemAdded(_));
+        assert_matches!(
+            &events[1],
+            ResponseEvent::OutputTextDelta(delta) if delta == "你好"
+        );
+        assert_matches!(events[2], ResponseEvent::OutputItemDone(_));
+        assert_matches!(
+            &events[3],
+            ResponseEvent::Completed {
+                response_id,
+                end_turn: None,
+                ..
+            } if response_id == "resp-1"
+        );
+    }
 
     async fn collect_events(chunks: &[&[u8]]) -> Vec<Result<ResponseEvent, ApiError>> {
         let mut builder = IoBuilder::new();

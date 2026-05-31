@@ -1,6 +1,7 @@
-use serde::Deserialize;
+use crate::google_patents::GooglePatentsInput;
+use crate::google_patents::fetch_google_patents;
 use codex_patent_knowledge::synonym::SynonymDict;
-use crate::google_patents::{fetch_google_patents, GooglePatentsInput};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct PatentSearchInput {
@@ -25,7 +26,9 @@ pub struct IterativeSearchInput {
     pub limit: usize,
 }
 
-pub fn default_limit() -> usize { 10 }
+pub fn default_limit() -> usize {
+    10
+}
 
 pub async fn patent_search(input: PatentSearchInput) -> Result<serde_json::Value, String> {
     let mut query = input.query.clone();
@@ -34,12 +37,18 @@ pub async fn patent_search(input: PatentSearchInput) -> Result<serde_json::Value
         let expanded = dict.expand(&input.query);
         query = expanded.join(" OR ");
     }
-    let google_input = GooglePatentsInput { query, limit: input.limit, patent_number: input.patent_number };
+    let google_input = GooglePatentsInput {
+        query,
+        limit: input.limit,
+        patent_number: input.patent_number,
+    };
     let results = fetch_google_patents(google_input).await?;
     serde_json::to_value(results).map_err(|e| format!("{e}"))
 }
 
-pub async fn search_query_builder(input: SearchQueryBuilderInput) -> Result<serde_json::Value, String> {
+pub async fn search_query_builder(
+    input: SearchQueryBuilderInput,
+) -> Result<serde_json::Value, String> {
     let dict = SynonymDict::new();
     let exact_terms = dict.expand(&input.concept);
     let mut variants = Vec::new();
@@ -62,9 +71,15 @@ pub async fn iterative_search(input: IterativeSearchInput) -> Result<serde_json:
     let mut all_results = Vec::new();
     let mut current_query = input.query.clone();
     for _ in 0..rounds {
-        let google_input = GooglePatentsInput { query: current_query.clone(), limit: input.limit, patent_number: None };
+        let google_input = GooglePatentsInput {
+            query: current_query.clone(),
+            limit: input.limit,
+            patent_number: None,
+        };
         let results = fetch_google_patents(google_input).await?;
-        if results.is_empty() { break; }
+        if results.is_empty() {
+            break;
+        }
         all_results.extend(results);
         let dict = SynonymDict::new();
         current_query = dict.expand(&current_query).join(" OR ");

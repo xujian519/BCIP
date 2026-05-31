@@ -1239,7 +1239,7 @@ impl App {
                                     Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
-                                        "BCIP can now safely edit files and execute commands in your computer"
+                                        "云熙专利智能体现可安全编辑文件并在您的电脑上执行命令"
                                             .dark_gray(),
                                     ]),
                                 ]);
@@ -1273,7 +1273,7 @@ impl App {
                                     Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
-                                        "BCIP can now safely edit files and execute commands in your computer"
+                                        "云熙专利智能体现可安全编辑文件并在您的电脑上执行命令"
                                             .dark_gray(),
                                     ]),
                                 ]);

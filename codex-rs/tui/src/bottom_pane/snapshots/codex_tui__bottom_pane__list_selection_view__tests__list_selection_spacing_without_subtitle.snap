@@ -1,11 +1,14 @@
 ---
 source: tui/src/bottom_pane/list_selection_view.rs
+assertion_line: 1527
 expression: render_lines(&view)
 ---
                                                 
   Select Approval Mode                          
                                                 
-› 1. Read Only (current)  BCIP can read files  
-  2. Full Access          BCIP can edit files  
+› 1. Read Only (current)  云 熙 专 利 智 能 体 可 读 取   
+                          文 件                   
+  2. Full Access          云 熙 专 利 智 能 体 可 编 辑   
+                          文 件                   
                                                 
   Press enter to confirm or esc to go back

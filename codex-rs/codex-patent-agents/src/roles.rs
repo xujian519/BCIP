@@ -1,6 +1,14 @@
-use serde::{Deserialize, Serialize};
+use crate::knowledge_context::AutoKnowledgeConfig;
+use crate::knowledge_context::KnowledgeContext;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
+
+/// 最大 include 嵌套深度（含 root 层）。
+/// 值 = 4 表示允许 root + 3 层递归 include。
+const MAX_INCLUDE_DEPTH: usize = 4;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -21,6 +29,122 @@ pub struct AgentRoleConfig {
     pub primary_tools: Vec<String>,
     pub secondary_tools: Vec<String>,
     pub constraints: Vec<String>,
+    #[serde(default)]
+    pub auto_knowledge: Option<AutoKnowledgeConfig>,
+    #[serde(default)]
+    pub includes: Vec<String>,
+}
+
+/// 解析文本中的 `{{include:_shared/name}}` 内联标记，替换为共享模块内容。
+///
+/// 从 skills_shared_dir（通常是 `codex-rs/codex-patent-skills/assets/_shared/`）
+/// 读取对应的 `.toml` 文件中的 `instructions` 字段。
+///
+/// 支持递归 include（最深 3 层），自动防循环引用。
+pub fn resolve_text_includes(text: &str, skills_shared_dir: &Path) -> String {
+    let mut visited = std::collections::HashSet::new();
+    resolve_text_includes_inner(text, skills_shared_dir, 0, &mut visited)
+}
+
+fn resolve_text_includes_inner(
+    text: &str,
+    shared_dir: &Path,
+    depth: usize,
+    visited: &mut std::collections::HashSet<String>,
+) -> String {
+    if depth >= MAX_INCLUDE_DEPTH {
+        return format!("<!-- include 超出最大深度({MAX_INCLUDE_DEPTH})，原始内容如下 -->\n{text}");
+    }
+
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(start) = rest.find("{{include:") {
+        result.push_str(&rest[..start]);
+        let after_marker = &rest[start + 10..];
+
+        if let Some(end) = after_marker.find("}}") {
+            let ref_path = after_marker[..end].trim();
+            let canonical = ref_path.strip_prefix("_shared/").unwrap_or(ref_path);
+
+            if visited.contains(canonical) {
+                result.push_str(&format!("<!-- 循环引用跳过: {ref_path} -->"));
+            } else {
+                let file_name = format!("{canonical}.toml");
+                let file_path = shared_dir.join(&file_name);
+
+                if file_path.exists() {
+                    if let Ok(content) = std::fs::read_to_string(&file_path) {
+                        if let Ok(def) = toml::from_str::<serde_json::Value>(&content) {
+                            if let Some(instructions) =
+                                def.get("instructions").and_then(|v| v.as_str())
+                            {
+                                visited.insert(canonical.to_string());
+                                let nested = resolve_text_includes_inner(
+                                    instructions,
+                                    shared_dir,
+                                    depth + 1,
+                                    visited,
+                                );
+                                result.push_str(&format!(
+                                    "<!-- include: {ref_path} -->\n{nested}\n<!-- /include: {ref_path} -->"
+                                ));
+                            } else {
+                                result.push_str(&format!("{{include:{ref_path}}}"));
+                            }
+                        } else {
+                            result.push_str(&format!("{{include:{ref_path}}}"));
+                        }
+                    } else {
+                        result.push_str(&format!("{{include:{ref_path}}}"));
+                    }
+                } else {
+                    result.push_str(&format!("{{include:{ref_path}}}"));
+                }
+            }
+
+            rest = &after_marker[end + 2..];
+        } else {
+            result.push_str(&rest[start..]);
+            rest = "";
+            break;
+        }
+    }
+
+    result.push_str(rest);
+    result
+}
+
+/// 查找包含共享技能资产的目录。
+/// 优先从 `CODEX_PATENT_SKILLS_ASSETS` 环境变量，其次从 crate 路径推断。
+pub fn find_skills_shared_dir() -> Option<PathBuf> {
+    if let Ok(dir) = std::env::var("CODEX_PATENT_SKILLS_ASSETS") {
+        let path = PathBuf::from(dir).join("_shared");
+        if path.is_dir() {
+            return Some(path);
+        }
+    }
+
+    let candidates = [
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("codex-patent-skills/assets/_shared")),
+        Some(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../codex-patent-skills/assets/_shared"),
+        ),
+        Some(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../codex-patent-skills/assets/_shared"),
+        ),
+    ];
+
+    for candidate in candidates.into_iter().flatten() {
+        if candidate.is_dir() {
+            return Some(candidate);
+        }
+    }
+
+    None
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -96,16 +220,67 @@ impl PatentAgentRole {
     }
 
     pub fn system_prompt(&self, config: &AgentRoleConfig) -> String {
-        let mut prompt = format!(
-            "## 角色: {}\n\n{}\n\n### 工作方法\n",
-            config.name, config.identity
-        );
+        self.system_prompt_with_context(config, "", None, None)
+    }
+
+    /// 构建 agent 系统提示词。
+    ///
+    /// - `task_description`: 当前任务描述
+    /// - `knowledge`: 知识上下文（可选）
+    /// - `shared_dir`: 共享模块目录路径，用于解析 `{{include:_shared/name}}` 内联标记
+    pub fn system_prompt_with_context(
+        &self,
+        config: &AgentRoleConfig,
+        task_description: &str,
+        knowledge: Option<&KnowledgeContext>,
+        shared_dir: Option<&Path>,
+    ) -> String {
+        let identity = if let Some(dir) = shared_dir {
+            resolve_text_includes(&config.identity, dir)
+        } else {
+            config.identity.clone()
+        };
+
+        let mut prompt = format!("## 角色: {}\n\n{identity}\n\n", config.name);
+
+        if let Some(kc) = knowledge
+            && kc.is_enabled()
+        {
+            let context = kc.resolve(self.role_id(), task_description);
+            if !context.is_empty() {
+                prompt.push_str("### 知识上下文\n\n");
+                prompt.push_str(&context);
+                prompt.push('\n');
+            }
+        }
+
+        prompt.push_str("### 工作方法\n");
         for step in &config.methodology {
             prompt.push_str(&format!(
                 "{}. {}: {}\n",
                 step.step_number, step.step_name, step.description
             ));
         }
+
+        // 解析 includes — 追加共享模块内容
+        if let Some(dir) = shared_dir {
+            for include in &config.includes {
+                let include_path =
+                    dir.join(format!("{}.toml", include.trim_start_matches("_shared/")));
+                if let Ok(content) = std::fs::read_to_string(&include_path) {
+                    if let Ok(def) = toml::from_str::<serde_json::Value>(&content) {
+                        if let Some(instructions) = def.get("instructions").and_then(|v| v.as_str())
+                        {
+                            prompt.push_str("\n\n");
+                            prompt.push_str(&format!(
+                                "<!-- include: {include} -->\n{instructions}\n<!-- /include: {include} -->"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
         prompt.push_str(&format!(
             "\n### 输出格式\n{}\n\n### 约束\n",
             config.output_format

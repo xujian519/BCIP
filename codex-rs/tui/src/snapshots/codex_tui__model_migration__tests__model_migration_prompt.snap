@@ -1,9 +1,10 @@
 ---
 source: tui/src/model_migration.rs
+assertion_line: 451
 expression: terminal.backend()
 ---
 
-> BCIP just got an upgrade. Introducing gpt-5.1-codex-max.
+> 云熙专利智能体刚刚升级。 gpt-5.1-codex-max.
 
   Upgrade to gpt-5.2-codex for the latest and greatest
   agentic coding model.

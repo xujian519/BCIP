@@ -1,6 +1,7 @@
 //! User, assistant, reasoning, and streaming message history cells.
 
 use super::*;
+use crate::style::agent_reply_prefix;
 
 #[derive(Debug)]
 pub(crate) struct UserHistoryCell {
@@ -287,7 +288,7 @@ impl HistoryCell for AgentMessageCell {
             &self.lines,
             RtOptions::new(width as usize)
                 .initial_indent(if self.is_first_line {
-                    "• ".dim().into()
+                    agent_reply_prefix().into()
                 } else {
                     "  ".into()
                 })
@@ -340,19 +341,32 @@ impl HistoryCell for AgentMarkdownCell {
         let Some(wrap_width) =
             crate::width::usable_content_width_u16(width, /*reserved_cols*/ 2)
         else {
-            return prefix_lines(vec![Line::default()], "• ".dim(), "  ".into());
+            return prefix_lines(vec![Line::default()], agent_reply_prefix(), "  ".into());
         };
+
+        let extracted = follow_up::extract_follow_up(&self.markdown_source);
 
         let mut lines: Vec<Line<'static>> = Vec::new();
         // Re-render markdown from source at the current width. Reserve 2 columns for the "• " /
         // " " prefix prepended below.
         crate::markdown::append_markdown_agent_with_cwd(
-            &self.markdown_source,
+            &extracted.clean_markdown,
             Some(wrap_width),
             Some(self.cwd.as_path()),
             &mut lines,
         );
-        prefix_lines(lines, "• ".dim(), "  ".into())
+
+        let mut styled = prefix_lines(lines, agent_reply_prefix(), "  ".into());
+
+        // Render follow-up section if present.
+        if let Some(ref follow_up) = extracted.follow_up
+            && !follow_up.items.is_empty()
+        {
+            styled.push(Line::from(""));
+            styled.extend(follow_up::render_follow_up(follow_up, width));
+        }
+
+        styled
     }
 
     fn raw_lines(&self) -> Vec<Line<'static>> {
@@ -387,7 +401,7 @@ impl HistoryCell for StreamingAgentTailCell {
         prefix_lines(
             self.lines.clone(),
             if self.is_first_line {
-                "• ".dim()
+                agent_reply_prefix()
             } else {
                 "  ".into()
             },

@@ -3,7 +3,8 @@
 //! 提供专利撰写质量的自动化评估能力,
 //! 涵盖多维度的质量检查与评分。
 
-use codex_patent_core::{DraftQualityReport, QualityDimension};
+use codex_patent_core::DraftQualityReport;
+use codex_patent_core::QualityDimension;
 
 /// 根据各维度分数重新计算总分
 pub fn recalculate_overall_score(report: &mut DraftQualityReport) {
@@ -83,7 +84,7 @@ mod tests {
     fn default_report_is_not_acceptable() {
         let report = default_quality_report();
         assert!(!report.is_acceptable);
-        assert!((report.overall_score - 0.0).abs() < std::f64::EPSILON);
+        assert!((report.overall_score - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -106,14 +107,14 @@ mod tests {
             ..default_quality_report()
         };
         recalculate_overall_score(&mut report);
-        assert!((report.overall_score).abs() < std::f64::EPSILON);
+        assert!((report.overall_score).abs() < f64::EPSILON);
     }
 
     #[test]
     fn dimension_max_score_is_ten() {
         let report = default_quality_report();
         for d in &report.dimensions {
-            assert!((d.max_score - 10.0).abs() < std::f64::EPSILON);
+            assert!((d.max_score - 10.0).abs() < f64::EPSILON);
         }
     }
 }

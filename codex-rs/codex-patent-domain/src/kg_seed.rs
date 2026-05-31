@@ -3,7 +3,8 @@
 //! 解决 `legal_reasoning.rs` 测试依赖外部 `patent_kg.db` 的问题:
 //! 提供一个零依赖的 `in_memory_kg()` 函数,包含专利法律推理所需的核心节点和边。
 
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
+use rusqlite::params;
 
 use codex_patent_knowledge::SqliteKnowledgeGraph;
 

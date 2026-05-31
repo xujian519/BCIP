@@ -1,6 +1,18 @@
 skill_id = "_shared/patent_glossary"
 name = "专利术语表"
-description = "标准化专利术语定义"
-instructions = "使用标准术语：现有技术(prior art)、区别技术特征(distinguishing feature)、技术启示(technical teaching)、公知常识(common general knowledge)。"
-includes = []
-required_tools = []
+description = "标准化专利术语定义（中英文双语）"
+instructions = """
+## 核心法律术语
+- 现有技术（prior art）：申请日以前在国内外为公众所知的技术
+- 区别技术特征（distinguishing feature）：权利要求与最接近现有技术的不同技术特征
+- 技术启示（technical teaching）：现有技术中给出的将区别特征应用于最接近现有技术的指引
+- 公知常识（common general knowledge）：本领域技术人员普遍知晓的技术知识，包括教科书、技术手册、技术词典中的内容
+- 所属技术领域的技术人员（PHOSITA）：一种假设的人，知晓申请日之前所属领域所有普通技术知识，具有应用该日期之前常规实验手段的能力，但不具有创造能力
+- 预料不到的技术效果（unexpected technical effect）：同现有技术相比，技术效果产生"质"的变化或超出预期想象的"量"的变化
+
+## 实务术语
+- 必要技术特征（essential feature）：解决发明技术问题所必不可少的技术特征
+- 最小技术单元（minimum technical unit）：能相对独立地执行一定技术功能、产生相对独立的技术效果的最小技术特征
+- 问题-解决方案法（problem-solution approach）：创造性判断中确定客观技术问题的方法
+- 事后诸葛亮（hindsight bias）：在得知发明内容后带着发明指引来评价创造性的认知偏差
+"""

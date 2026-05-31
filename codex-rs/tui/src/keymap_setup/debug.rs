@@ -22,7 +22,7 @@ use super::actions::matching_actions_for_key_event;
 use super::key_event_to_config_key_spec;
 
 const MISSING_KEY_HINT_DELAY: Duration = Duration::from_secs(3);
-const SHORT_MISSING_KEY_HINT: &str = "Tip: BCIP can only inspect keys your terminal sends.";
+const SHORT_MISSING_KEY_HINT: &str = "提示：云熙专利智能体只能检测终端发送的按键。";
 const DELAYED_MISSING_KEY_HINT: &str = "Still waiting? If nothing changes when you press a key, your terminal is not sending that key to BCIP. Only received keys can be assigned as shortcuts.";
 
 struct KeymapDebugReport {
@@ -63,9 +63,7 @@ impl KeymapDebugView {
         let wrap_width = usize::from(width.max(1));
         let mut lines = vec![
             Line::from("Keypress Inspector".bold()),
-            Line::from(
-                "Press any key to see what BCIP receives. Esc is inspected; Ctrl+C closes.".dim(),
-            ),
+            Line::from("按任意键查看云熙专利智能体接收到的按键。Esc 被检测；Ctrl+C 关闭。".dim()),
         ];
         let hint = if self.should_show_delayed_hint(now) {
             DELAYED_MISSING_KEY_HINT

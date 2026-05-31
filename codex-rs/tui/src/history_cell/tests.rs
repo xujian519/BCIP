@@ -272,7 +272,7 @@ fn source_backed_cells_render_raw_source_without_prefix_or_style() {
 #[test]
 fn proposed_plan_cell_renders_markdown_table() {
     let plan = new_proposed_plan(
-        "## Plan\n\n| Step | Owner |\n| --- | --- |\n| Verify | Codex |\n".to_string(),
+        "## Plan\n\n| Step | Owner |\n| --- | --- |\n| Verify | 云熙 |\n".to_string(),
         &test_cwd(),
     );
 
@@ -301,7 +301,7 @@ fn proposed_plan_cell_renders_markdown_table() {
 #[test]
 fn proposed_plan_cell_unwraps_markdown_fenced_table() {
     let plan = new_proposed_plan(
-        "## Plan\n\n```markdown\n| Step | Owner |\n| --- | --- |\n| Verify | Codex |\n```\n"
+        "## Plan\n\n```markdown\n| Step | Owner |\n| --- | --- |\n| Verify | 云熙 |\n```\n"
             .to_string(),
         &test_cwd(),
     );
@@ -545,7 +545,7 @@ fn ps_output_empty_snapshot() {
 }
 
 #[tokio::test]
-async fn session_info_uses_availability_nux_tooltip_override() {
+async fn session_info_shows_yunxi_greeting_instead_of_tooltip_override() {
     let config = test_config().await;
     let cell = new_session_info(
         &config,
@@ -558,7 +558,9 @@ async fn session_info_uses_availability_nux_tooltip_override() {
     );
 
     let rendered = render_transcript(&cell).join("\n");
-    assert!(rendered.contains("Model just became available"));
+    assert!(!rendered.contains("Model just became available"));
+    assert!(!rendered.contains("Tip:"));
+    assert!(rendered.contains("云熙"));
 }
 
 #[tokio::test]
@@ -566,7 +568,7 @@ async fn session_info_uses_availability_nux_tooltip_override() {
     target_os = "windows",
     ignore = "snapshot path rendering differs on Windows"
 )]
-async fn session_info_availability_nux_tooltip_snapshot() {
+async fn session_info_shows_yunxi_greeting_on_returning_session() {
     let mut config = test_config().await;
     config.cwd = test_path_buf("/tmp/project").abs();
     let cell = new_session_info(
@@ -580,7 +582,11 @@ async fn session_info_availability_nux_tooltip_snapshot() {
     );
 
     let rendered = render_transcript(&cell).join("\n");
-    insta::assert_snapshot!(rendered);
+    assert!(rendered.contains('🌸'));
+    assert!(rendered.contains("云熙"));
+    assert!(rendered.contains("◇"));
+    assert!(!rendered.contains("Tip:"));
+    assert!(!rendered.contains("Model just became available"));
 }
 
 #[tokio::test]
@@ -617,6 +623,7 @@ async fn session_info_hides_tooltips_when_disabled() {
 
     let rendered = render_transcript(&cell).join("\n");
     assert!(!rendered.contains("Model just became available"));
+    assert!(rendered.contains("◇"));
 }
 
 #[test]
@@ -912,7 +919,7 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
     let summary = Line::from(vec![
         "You ".into(),
         "approved".bold(),
-        " codex to run ".into(),
+        " 云熙 to run ".into(),
         "echo something really long to ensure wrapping happens".dim(),
         " this time".bold(),
     ]);
@@ -921,7 +928,7 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
     assert_eq!(
         rendered,
         vec![
-            "✔ You approved codex to".to_string(),
+            "✔ You approved 云熙 to".to_string(),
             "  run echo something".to_string(),
             "  really long to ensure".to_string(),
             "  wrapping happens this".to_string(),
@@ -2290,8 +2297,8 @@ fn agent_markdown_cell_renders_source_at_different_widths() {
 
     let lines_80 = render_lines(&cell.display_lines(/*width*/ 80));
     assert!(
-        lines_80.first().is_some_and(|line| line.starts_with("• ")),
-        "first line should start with bullet prefix: {:?}",
+        lines_80.first().is_some_and(|line| line.starts_with("› ")),
+        "first line should start with agent reply prefix: {:?}",
         lines_80[0]
     );
 
@@ -2324,7 +2331,7 @@ fn agent_markdown_cell_narrow_width_shows_prefix_only() {
     let cell = AgentMarkdownCell::new(source.to_string(), &test_cwd());
 
     let lines = render_lines(&cell.display_lines(/*width*/ 2));
-    assert_eq!(lines, vec!["• ".to_string()]);
+    assert_eq!(lines, vec!["› ".to_string()]);
 }
 
 #[test]

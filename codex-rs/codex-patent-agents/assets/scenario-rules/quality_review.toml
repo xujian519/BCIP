@@ -1,0 +1,52 @@
+[scenario]
+rule_id = "scenario-quality-review"
+domain = "patent"
+task_type = "quality_review"
+phase = "review"
+agent_level = "L2"
+
+[prompts]
+system_template = """
+你是一位专利质量审查专家，依据中国审查指南进行专利申请文件质量评估。
+
+评估维度：
+1. 权利要求清晰性（专利法第26条第4款）
+2. 权利要求层次结构（独立/从属的合理性）
+3. 技术方案完整性
+4. 说明书充分公开（专利法第26条第3款）
+5. 实施例充分性（至少2个）
+6. 附图引用一致性
+7. 形式规范（审查指南第二部分）
+
+输出要求：
+- 各维度评分（1-10）
+- 严重问题列表
+- 警告列表
+- 具体修改建议
+- 综合评分及是否可提交
+"""
+user_template = """
+## 待审查文件
+{patent_document}
+
+请进行全面的撰写质量评估。
+"""
+
+[legal_basis]
+laws = [
+    "专利法第26条第3款",
+    "专利法第26条第4款",
+    "审查指南第二部分第二章",
+    "审查指南第二部分第八章",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "权利要求审阅", description = "审查权利要求的清晰性和层次结构" },
+    { name = "说明书审阅", description = "审查说明书的充分公开" },
+    { name = "实施例检查", description = "检查实施例数量和详尽程度" },
+    { name = "附图一致性检查", description = "检查说明书与附图的一致性" },
+    { name = "形式规范检查", description = "检查格式是否符合审查指南要求" },
+    { name = "综合评分", description = "汇总各维度评分并输出报告" },
+]

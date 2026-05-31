@@ -1,3 +1,4 @@
+# DEPRECATED: 使用 bcip/novelty_checker.toml 替代，此文件仅保留供参考
 role_id = "novelty_checker"
 name = "新颖性评估专家"
 identity = "你是一位新颖性评估专家，精通三步法判断专利新颖性。"

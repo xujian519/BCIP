@@ -1,6 +1,46 @@
 skill_id = "cap-retrieval"
 name = "专利检索能力"
 description = "智能化的专利文献搜索与筛选能力"
-instructions = "使用多层级检索式，跨多源并行检索，按相关度排序结果。\n\n在每次检索前确认检索式，检索后筛选与发明最相关的对比文件。"
-includes = ["_shared/patent_glossary", "_shared/output_standards"]
+instructions = """
+## 激活场景
+当用户需要搜索专利文献、构建检索式或筛选对比文件时激活此技能。
+
+## 法律背景
+审查指南第七章规定了检索的基本原则：检索应覆盖申请日之前的全部相关现有技术。检索要素应体现技术方案的基本构思。
+
+## 操作步骤
+
+### 步骤1：检索要素提取
+从技术描述中提取基本检索要素，每个要素提供：
+- IPC/CPC分类号表达
+- 关键词表达（中英文）
+- 同义词/近义词/上下位概念
+- 技术效果词
+
+### 步骤2：构建三层渐进式检索式
+- 精确层：全要素组合 AND，精准定位高度相关文献
+- 扩展层：部分要素组合 OR，覆盖要素被分散公开的文献
+- 语义层：同义词+上下位+技术效果词，扩大覆盖面
+
+### 步骤3：跨多源并行检索
+至少检索3种来源：专利数据库（CNABS/CNTXT/Google Patents/DWPI）+ 学术论文（CNKI/Web of Science/IEEE Xplore）+ 非专利文献。
+
+### 步骤4：结果筛选与排序
+按相关度排序，每篇对比文件标注：相关度（X/Y/A）、公开日、技术领域、特征覆盖度。
+
+## 质量标准
+- 对比文件至少3篇不同来源
+- 每篇标注相关度和覆盖的权利要求
+- 检索式使用标准布尔逻辑表达式
+- IPC分类号至少到小组级别
+
+## 常见错误
+- 检索式太窄导致遗漏对比文件
+- 未使用同义词扩展导致漏检
+- 仅检索单一数据库
+- 对比文件未标注相关度
+"""
+activates_agents = ["retriever"]
+related_concepts = ["现有技术", "出版物公开", "抵触申请", "IPC分类"]
 required_tools = ["PatentSearch", "GooglePatentsFetch", "IterativeSearch", "KnowledgeSearch", "SearchQueryBuilder"]
+includes = ["_shared/patent_glossary", "_shared/output_standards"]

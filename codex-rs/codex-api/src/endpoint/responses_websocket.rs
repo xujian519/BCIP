@@ -7,6 +7,8 @@ use crate::error::ApiError;
 use crate::provider::Provider;
 use crate::rate_limits::parse_rate_limit_event;
 use crate::sse::ResponsesStreamEvent;
+use crate::sse::ResponsesStreamNormalizer;
+use crate::sse::normalize_response_stream_events;
 use crate::sse::process_responses_event;
 use crate::telemetry::WebsocketTelemetry;
 use codex_client::TransportError;
@@ -668,6 +670,7 @@ async fn run_websocket_response_stream(
     connection_reused: bool,
 ) -> Result<(), ApiError> {
     let mut last_server_model: Option<String> = None;
+    let mut stream_normalizer = ResponsesStreamNormalizer::default();
     send_websocket_request(
         ws_stream,
         request_body,
@@ -677,7 +680,7 @@ async fn run_websocket_response_stream(
     )
     .await?;
 
-    loop {
+    'ws_stream: loop {
         let poll_start = Instant::now();
         let response = tokio::time::timeout(idle_timeout, ws_stream.next())
             .await
@@ -744,10 +747,17 @@ async fn run_websocket_response_stream(
                 }
                 match process_responses_event(event) {
                     Ok(Some(event)) => {
-                        let is_completed = matches!(event, ResponseEvent::Completed { .. });
-                        let _ = tx_event.send(Ok(event)).await;
-                        if is_completed {
-                            break;
+                        for event in normalize_response_stream_events(&mut stream_normalizer, event)
+                        {
+                            let is_completed = matches!(event, ResponseEvent::Completed { .. });
+                            if tx_event.send(Ok(event)).await.is_err() {
+                                return Err(ApiError::Stream(
+                                    "response event consumer dropped".to_string(),
+                                ));
+                            }
+                            if is_completed {
+                                break 'ws_stream;
+                            }
                         }
                     }
                     Ok(None) => {}

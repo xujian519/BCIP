@@ -8,4 +8,7 @@ ignore = [
     "RUSTSEC-2025-0141", # bincode via syntect; remove when syntect drops or updates it
     "RUSTSEC-2026-0118", # hickory-proto via rama-dns/rama-tcp; remove when rama updates to hickory 0.26.1 or hickory-net
     "RUSTSEC-2026-0119", # hickory-proto via rama-dns/rama-tcp; remove when rama updates to hickory 0.26.1 or hickory-net
+    "RUSTSEC-2023-0071", # rsa 0.9.10 Marvin Attack via sqlx-mysql; project only enables sqlite, not compiled into binary
+    "RUSTSEC-2026-0002", # lru 0.12.5 IterMut unsound via fork ratatui; no fixed release from fork yet
+    "RUSTSEC-2026-0097", # rand 0.8.5 unsound via age/zbus/keyring; no fixed release from upstream yet
 ]

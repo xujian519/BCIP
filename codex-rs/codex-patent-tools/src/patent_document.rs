@@ -20,13 +20,19 @@ pub struct PatentDocumentTools;
 
 impl PatentDocumentTools {
     pub fn oa_parse(input: OaParseInput) -> Result<serde_json::Value, String> {
-        let rejection_type = codex_patent_domain::examiner_simulator::ExaminerSimulator::detect_rejection_type(&input.oa_text);
+        let rejection_type =
+            codex_patent_domain::examiner_simulator::ExaminerSimulator::detect_rejection_type(
+                &input.oa_text,
+            );
         let has_comparison = input.oa_text.contains("对比文件");
         let has_claims_analysis = input.oa_text.contains("权利要求");
         let has_conclusion = input.oa_text.contains("驳回") || input.oa_text.contains("授权");
 
         let re = regex::Regex::new(r"(CN|US|EP)\d{6,12}[A-Z]?\d?").unwrap();
-        let cited_patents: Vec<String> = re.find_iter(&input.oa_text).map(|m| m.as_str().to_string()).collect();
+        let cited_patents: Vec<String> = re
+            .find_iter(&input.oa_text)
+            .map(|m| m.as_str().to_string())
+            .collect();
 
         Ok(serde_json::json!({
             "rejection_type": format!("{rejection_type:?}"),
@@ -43,7 +49,8 @@ impl PatentDocumentTools {
     pub fn document_parse(input: DocumentParseInput) -> Result<serde_json::Value, String> {
         let doc_type = input.document_type.unwrap_or_else(|| "unknown".to_string());
         let has_claims = input.document_text.contains("权利要求");
-        let has_description = input.document_text.contains("说明书") || input.document_text.contains("技术领域");
+        let has_description =
+            input.document_text.contains("说明书") || input.document_text.contains("技术领域");
         let has_abstract = input.document_text.contains("摘要");
 
         let sections = [
@@ -66,13 +73,24 @@ impl PatentDocumentTools {
         }))
     }
 
-    pub fn drawing_understanding(input: DrawingUnderstandingInput) -> Result<serde_json::Value, String> {
-        let has_numbering = regex::Regex::new(r"图\s*\d+").unwrap().is_match(&input.description);
-        let has_components = input.description.contains("包括") || input.description.contains("包含") || input.description.contains("设有");
-        let has_connections = input.description.contains("连接") || input.description.contains("固定") || input.description.contains("安装");
+    pub fn drawing_understanding(
+        input: DrawingUnderstandingInput,
+    ) -> Result<serde_json::Value, String> {
+        let has_numbering = regex::Regex::new(r"图\s*\d+")
+            .unwrap()
+            .is_match(&input.description);
+        let has_components = input.description.contains("包括")
+            || input.description.contains("包含")
+            || input.description.contains("设有");
+        let has_connections = input.description.contains("连接")
+            || input.description.contains("固定")
+            || input.description.contains("安装");
 
         let re = regex::Regex::new(r"图\s*(\d+)").unwrap();
-        let figures: Vec<String> = re.captures_iter(&input.description).map(|c| c.get(1).unwrap().as_str().to_string()).collect();
+        let figures: Vec<String> = re
+            .captures_iter(&input.description)
+            .map(|c| c.get(1).unwrap().as_str().to_string())
+            .collect();
 
         Ok(serde_json::json!({
             "has_numbering": has_numbering,

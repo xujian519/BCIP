@@ -768,6 +768,12 @@ fn add_patent_tools(_context: &CoreToolPlanContext<'_>, planned_tools: &mut Plan
         for adapter in patent_adapters {
             planned_tools.add_arc(adapter);
         }
+
+        let constitutional_adapters =
+            crate::tools::handlers::constitutional_check::ConstitutionalCheckHandler::create_checkers();
+        for adapter in constitutional_adapters {
+            planned_tools.add_arc(adapter);
+        }
     }
 }
 

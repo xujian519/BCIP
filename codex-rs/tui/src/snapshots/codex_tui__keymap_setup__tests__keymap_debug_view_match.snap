@@ -1,10 +1,11 @@
 ---
 source: tui/src/keymap_setup.rs
+assertion_line: 1378
 expression: rendered
 ---
 Keypress Inspector
-Press any key to see what BCIP receives. Esc is inspected; Ctrl+C closes.
-Tip: BCIP can only inspect keys your terminal sends.
+按 任 意 键 查 看 云 熙 专 利 智 能 体 接 收 到 的 按 键 。 Esc 被 检 测 ； Ctrl+C 关 闭 。
+提 示 ： 云 熙 专 利 智 能 体 只 能 检 测 终 端 发 送 的 按 键 。
 
 Detected: ctrl + o
 Config key: ctrl-o

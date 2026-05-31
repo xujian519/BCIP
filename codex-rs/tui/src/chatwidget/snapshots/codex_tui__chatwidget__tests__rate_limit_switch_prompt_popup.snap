@@ -1,14 +1,8 @@
 ---
 source: tui/src/chatwidget/tests/status_and_layout.rs
+assertion_line: 1019
 expression: popup
 ---
-  Approaching rate limits
-  Switch to gpt-5.4-mini for lower credit usage?
+› Ask 云 熙  to do anything
 
-› 1. Switch to gpt-5.4-mini                 Small, fast, and cost-efficient
-                                            model for simpler coding tasks.
-  2. Keep current model
-  3. Keep current model (never show again)  Hide future rate limit reminders
-                                            about switching models.
-
-  Press enter to confirm or esc to go back
+  deepseek-v4-pro default · /tmp/project

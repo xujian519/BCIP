@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use codex_patent_domain::compare;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SemanticCompareInput {
@@ -36,12 +36,13 @@ impl AdvancedAnalysisTools {
 
         let lexical = compare::lexical_similarity(&input.text_a, &input.text_b);
 
-        let a_sentences: Vec<&str> = input.text_a.split(|c| c == '。' || c == '；' || c == ';').collect();
-        let b_sentences: Vec<&str> = input.text_b.split(|c| c == '。' || c == '；' || c == ';').collect();
+        let a_sentences: Vec<&str> = input.text_a.split(['。', '；', ';']).collect();
+        let b_sentences: Vec<&str> = input.text_b.split(['。', '；', ';']).collect();
         let structural = if a_sentences.is_empty() || b_sentences.is_empty() {
             0.0
         } else {
-            let ratio = a_sentences.len().min(b_sentences.len()) as f64 / a_sentences.len().max(b_sentences.len()) as f64;
+            let ratio = a_sentences.len().min(b_sentences.len()) as f64
+                / a_sentences.len().max(b_sentences.len()) as f64;
             let mut match_count = 0;
             for a in &a_sentences {
                 for b in &b_sentences {
@@ -81,7 +82,8 @@ impl AdvancedAnalysisTools {
         for i in 0..input.features.len() {
             for j in i + 1..input.features.len() {
                 let sim = compare::lexical_similarity(&input.features[i], &input.features[j]);
-                let both_in_desc = input.description.contains(&input.features[i]) && input.description.contains(&input.features[j]);
+                let both_in_desc = input.description.contains(&input.features[i])
+                    && input.description.contains(&input.features[j]);
                 let synergy = if both_in_desc && sim < 0.5 {
                     0.8
                 } else if both_in_desc && sim >= 0.5 {
@@ -100,7 +102,11 @@ impl AdvancedAnalysisTools {
         let avg_synergy: f64 = if synergy_pairs.is_empty() {
             0.0
         } else {
-            synergy_pairs.iter().filter_map(|p| p["pair_synergy"].as_f64()).sum::<f64>() / synergy_pairs.len() as f64
+            synergy_pairs
+                .iter()
+                .filter_map(|p| p["pair_synergy"].as_f64())
+                .sum::<f64>()
+                / synergy_pairs.len() as f64
         };
 
         Ok(serde_json::json!({

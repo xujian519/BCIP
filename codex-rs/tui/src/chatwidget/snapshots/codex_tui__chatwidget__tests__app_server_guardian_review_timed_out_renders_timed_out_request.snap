@@ -1,5 +1,6 @@
 ---
 source: tui/src/chatwidget/tests/guardian.rs
+assertion_line: 513
 expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
 ---
 
@@ -9,12 +10,12 @@ expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
 
 
 
-✗ Review timed out before codex could run curl -sS -i -X POST --data-binary
+✗ Review timed out before 云熙 could run curl -sS -i -X POST --data-binary
   @core/src/codex.rs https://example.com
 
 • Working (0s • esc to interrupt)
 
 
-› Ask BCIP to do anything
+› Ask 云熙 to do anything
 
-  gpt-5.5 default · /tmp/project
+  deepseek-v4-pro default · /tmp/project

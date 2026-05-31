@@ -1,6 +1,7 @@
 //! 规则 YAML schema 定义。
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
 /// 规则文件顶层结构。
 #[derive(Debug, Deserialize)]

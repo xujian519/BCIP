@@ -1,25 +1,24 @@
 ---
 source: tui/src/chatwidget/tests/slash_commands.rs
+assertion_line: 1870
 expression: popup
 ---
   Select Pet
   Choose a pet to wake in the terminal.
 
   Type to filter pets...
-  Disable terminal pets
-  BSOD                   A tiny blue-screen
-                         gremlin
-› BCIP                  The original BCIP
-                         companion
-  Dewey                  A tidy duck for calm         Loading preview...
-                         workspace days
-  Fireball               Hot path energy for
-                         fast iteration
-  Null Signal            Quiet signal from the
-                         void
-  Rocky                  A steady rock when
-                         the diff gets large
-  Seedy                  Small green shoots
-                         for new ideas
+  BSOD            A tiny blue-screen gremlin
+  Dewey           A tidy duck for calm
+                  workspace days
+  Fireball        Hot path energy for fast
+                  iteration                           Loading preview...
+  Null Signal     Quiet signal from the void
+  Rocky           A steady rock when the diff
+                  gets large
+  Seedy           Small green shoots for new
+                  ideas
+  Stacky          A balanced stack for deep
+                  work
+› 云 熙 专 利 智 能 体   原 始 云 熙 专 利 智 能 体 伴 侣
 
   Press enter to confirm or esc to go back

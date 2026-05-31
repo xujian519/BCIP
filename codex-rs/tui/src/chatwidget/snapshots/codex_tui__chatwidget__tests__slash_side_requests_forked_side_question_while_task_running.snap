@@ -1,11 +1,12 @@
 ---
 source: tui/src/chatwidget/tests/side.rs
+assertion_line: 343
 expression: normalized_backend_snapshot(terminal.backend())
 ---
 "                                                                                "
 "• Working (0s • esc to interrupt)                                               "
 "                                                                                "
 "                                                                                "
-"› Ask BCIP to do anything                                                      "
+"› Ask 云熙 to do anything                                                       " Hidden by multi-width symbols: [(7, " "), (9, " ")]
 "                                                                                "
-"  gpt-5.5 default                                             Side starting...  "
+"  deepseek-v4-pro default                                     Side starting...  "

@@ -22,12 +22,11 @@ const MAX_IPC_FRAME_BYTES: usize = 256 * 1024 * 1024;
 #[cfg(any(unix, windows))]
 const TUI_SOURCE_CLIENT_ID: &str = "codex-tui";
 #[cfg(any(unix, windows))]
-const OPEN_IDE_HINT: &str =
-    "Open this project in VS Code or Cursor with the BCIP extension active.";
+const OPEN_IDE_HINT: &str = "在 VS Code 或 Cursor 中打开此项目，并激活云熙专利智能体扩展。";
 #[cfg(any(unix, windows))]
 const IDE_DID_NOT_PROVIDE_CONTEXT_HINT: &str = "The IDE extension did not provide context.";
 #[cfg(any(unix, windows))]
-const KEEP_TRYING_HINT: &str = "BCIP will keep trying on future messages.";
+const KEEP_TRYING_HINT: &str = "云熙专利智能体将继续尝试后续消息。";
 
 #[derive(Debug, Error)]
 pub(crate) enum IdeContextError {
@@ -69,10 +68,10 @@ impl IdeContextError {
                 "The selected IDE context is too large. Clear any large selection in your IDE and try /ide again.".to_string()
             }
             IdeContextError::Send(_) => {
-                "BCIP could not request IDE context. Try /ide again.".to_string()
+                "云熙专利智能体无法请求IDE上下文。请重试 /ide。".to_string()
             }
             IdeContextError::Read(_) | IdeContextError::InvalidResponse(_) => {
-                "BCIP could not read IDE context. Try /ide again.".to_string()
+                "云熙专利智能体无法读取IDE上下文。请重试 /ide。".to_string()
             }
         }
     }
@@ -89,11 +88,10 @@ impl IdeContextError {
                 OPEN_IDE_HINT.to_string()
             }
             IdeContextError::Read(error) if error.kind() == std::io::ErrorKind::TimedOut => {
-                "BCIP timed out waiting for IDE context. It will keep trying on future messages."
-                    .to_string()
+                "云熙专利智能体等待IDE上下文超时。将继续尝试后续消息。".to_string()
             }
             IdeContextError::RequestFailed(error) if error == "client-disconnected" => {
-                hint_with_retry("The IDE connection changed while BCIP was requesting context.")
+                hint_with_retry("云熙专利智能体请求上下文时IDE连接发生了变化。")
             }
             IdeContextError::RequestFailed(error) if error == "request-timeout" => {
                 hint_with_retry("The IDE extension did not answer in time.")
@@ -106,13 +104,13 @@ impl IdeContextError {
                 "The connected IDE client does not support IDE context requests.".to_string()
             }
             IdeContextError::Send(_) => {
-                hint_with_retry("BCIP lost the IDE connection while requesting context.")
+                hint_with_retry("云熙专利智能体请求上下文时失去了IDE连接。")
             }
             IdeContextError::InvalidResponse(_) => {
-                hint_with_retry("BCIP received an unexpected IDE context response.")
+                hint_with_retry("云熙专利智能体收到意外的IDE上下文响应。")
             }
             IdeContextError::RequestFailed(_) => hint_with_retry(IDE_DID_NOT_PROVIDE_CONTEXT_HINT),
-            IdeContextError::Read(_) => hint_with_retry("BCIP could not read IDE context."),
+            IdeContextError::Read(_) => hint_with_retry("云熙专利智能体无法读取IDE上下文。"),
         }
     }
 

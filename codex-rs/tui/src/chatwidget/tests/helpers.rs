@@ -182,7 +182,7 @@ pub(super) async fn make_chatwidget_manual(
     let mut widget = ChatWidget::new_with_op_target(common, super::CodexOpTarget::Direct(op_tx));
     widget.transcript.active_cell = None;
     widget.transcript.active_cell_revision = 0;
-    widget.normal_placeholder_text = "Ask Codex to do anything".to_string();
+    widget.normal_placeholder_text = "Ask 云熙 to do anything".to_string();
     widget.side_placeholder_text =
         "Check recently modified functions for compatibility".to_string();
     widget
@@ -288,10 +288,12 @@ pub(crate) fn set_fast_mode_test_catalog(chat: &mut ChatWidget) {
     let models: Vec<ModelPreset> = ModelsResponse {
         models: vec![
             test_model_info(
-                "gpt-5.4", /*priority*/ 0, /*supports_fast_mode*/ true,
+                "deepseek-v4-pro",
+                /*priority*/ 0,
+                /*supports_fast_mode*/ true,
             ),
             test_model_info(
-                "gpt-5.3-codex",
+                "kimi-for-coding",
                 /*priority*/ 1,
                 /*supports_fast_mode*/ false,
             ),

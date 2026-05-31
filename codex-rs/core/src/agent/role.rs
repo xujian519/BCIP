@@ -93,6 +93,7 @@ async fn load_role_layer_toml(
             .map(str::to_owned)
             .ok_or(anyhow!("No corresponding config content"))?;
         let role_config_toml: TomlValue = toml::from_str(&role_config_contents)?;
+        let role_config_toml = strip_non_config_fields(role_config_toml);
         (role_config_toml, config.codex_home.as_path())
     } else {
         let role_config_contents = tokio::fs::read_to_string(config_file).await?;
@@ -114,6 +115,34 @@ async fn load_role_layer_toml(
         role_config_toml,
         role_config_base,
     )?)
+}
+
+const PATENT_ROLE_NON_CONFIG_KEYS: &[&str] = &[
+    "description",
+    "role_id",
+    "name",
+    "identity",
+    "output_format",
+    "methodology",
+    "primary_tools",
+    "secondary_tools",
+    "constraints",
+    "auto_knowledge",
+    "includes",
+    "related_concepts",
+    "required_tools",
+    "activates_agents",
+    "phase",
+    "skill_id",
+    "instructions",
+];
+
+fn strip_non_config_fields(toml: TomlValue) -> TomlValue {
+    let TomlValue::Table(mut table) = toml else {
+        return toml;
+    };
+    table.retain(|key, _| !PATENT_ROLE_NON_CONFIG_KEYS.iter().any(|k| *k == key));
+    TomlValue::Table(table)
 }
 
 pub(crate) fn resolve_role_config<'a>(
@@ -308,7 +337,7 @@ mod built_in {
     /// Returns the cached built-in role declarations defined in this module.
     pub(super) fn configs() -> &'static BTreeMap<String, AgentRoleConfig> {
         static CONFIG: LazyLock<BTreeMap<String, AgentRoleConfig>> = LazyLock::new(|| {
-            BTreeMap::from([
+            let mut roles = BTreeMap::from([
                 (
                     DEFAULT_ROLE_NAME.to_string(),
                     AgentRoleConfig {
@@ -346,25 +375,14 @@ Rules:
                         nickname_candidates: None,
                     }
                 ),
-                // Awaiter is temp removed
-//                 (
-//                     "awaiter".to_string(),
-//                     AgentRoleConfig {
-//                         description: Some(r#"Use an `awaiter` agent EVERY TIME you must run a command that will take some very long time.
-// This includes, but not only:
-// * testing
-// * monitoring of a long running process
-// * explicit ask to wait for something
-//
-// Rules:
-// - When an awaiter is running, you can work on something else. If you need to wait for its completion, use the largest possible timeout.
-// - Be patient with the `awaiter`.
-// - Do not use an awaiter for every compilation/test if it won't take time. Only use if for long running commands.
-// - Close the awaiter when you're done with it."#.to_string()),
-//                         config_file: Some("awaiter.toml".to_string().parse().unwrap_or_default()),
-//                     }
-//                 )
-            ])
+            ]);
+
+            #[cfg(feature = "patent-tools")]
+            for (name, config_file) in patent_roles() {
+                roles.insert(name, config_file);
+            }
+
+            roles
         });
         &CONFIG
     }
@@ -376,8 +394,48 @@ Rules:
         match path.to_str()? {
             "explorer.toml" => Some(EXPLORER),
             "awaiter.toml" => Some(AWAITER),
-            _ => None,
+            other => {
+                #[cfg(feature = "patent-tools")]
+                if let Some(content) = patent_config_file_contents(other) {
+                    return Some(content);
+                }
+                None
+            }
         }
+    }
+
+    #[cfg(feature = "patent-tools")]
+    fn patent_roles() -> Vec<(String, AgentRoleConfig)> {
+        let definitions: &[(&str, &str)] = &[
+            ("retriever", "专利检索专家 — 多源专利检索、检索式构建、对比文件筛选"),
+            ("analyzer", "专利技术分析专家 — 权利要求解析、技术特征提取、四层对比分析"),
+            ("writer", "专利文件撰写专家 — 说明书/权利要求书/摘要撰写"),
+            ("novelty_checker", "新颖性评估专家 — 三步法新颖性判断、逐特征对比"),
+            ("creativity_checker", "创造性评估专家 — 问题-解决方案法创造性分析"),
+            ("infringement_checker", "侵权分析专家 — 全面覆盖+等同原则侵权分析"),
+            ("invalidity_checker", "无效分析专家 — 无效理由和证据分析"),
+            ("reviewer", "文件审查专家 — 格式规范和内容质量审查"),
+            ("quality_checker", "质量评估专家 — 多维度专利质量评估"),
+        ];
+        definitions
+            .iter()
+            .map(|(name, desc)| {
+                let config_file = format!("patent/{name}.toml");
+                (
+                    name.to_string(),
+                    AgentRoleConfig {
+                        description: Some(desc.to_string()),
+                        config_file: Some(config_file.parse().unwrap_or_default()),
+                        nickname_candidates: None,
+                    },
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "patent-tools")]
+    fn patent_config_file_contents(path: &str) -> Option<&'static str> {
+        codex_patent_agents::bcip_roles::config_file_contents(Path::new(path))
     }
 }
 

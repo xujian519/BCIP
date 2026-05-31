@@ -7,7 +7,10 @@
 //!
 //! 依赖 `codex_patent_knowledge::SqliteKnowledgeGraph` 作为知识源。
 
-use codex_patent_core::{KgEdge, KgNode, ReasoningConclusion, ReasoningStep};
+use codex_patent_core::KgEdge;
+use codex_patent_core::KgNode;
+use codex_patent_core::ReasoningConclusion;
+use codex_patent_core::ReasoningStep;
 use codex_patent_knowledge::SqliteKnowledgeGraph;
 
 /// 推理路径(从起点到终点的节点链)
@@ -85,17 +88,16 @@ impl<'a> LegalReasoningEngine<'a> {
                         }
 
                         // 查找邻居节点
-                        if let Ok(mut neighbors) = self.kg.search_nodes(neighbor_id, None, 1) {
-                            if let Some(neighbor) = neighbors.pop() {
-                                if neighbor.id == *neighbor_id {
-                                    visited.insert(neighbor_id.clone());
-                                    let mut new_node_path = node_path.clone();
-                                    new_node_path.push(neighbor.clone());
-                                    let mut new_edge_path = edge_path.clone();
-                                    new_edge_path.push(edge);
-                                    queue.push((neighbor, new_node_path, new_edge_path));
-                                }
-                            }
+                        if let Ok(mut neighbors) = self.kg.search_nodes(neighbor_id, None, 1)
+                            && let Some(neighbor) = neighbors.pop()
+                            && neighbor.id == *neighbor_id
+                        {
+                            visited.insert(neighbor_id.clone());
+                            let mut new_node_path = node_path.clone();
+                            new_node_path.push(neighbor.clone());
+                            let mut new_edge_path = edge_path.clone();
+                            new_edge_path.push(edge);
+                            queue.push((neighbor, new_node_path, new_edge_path));
                         }
                     }
                 }

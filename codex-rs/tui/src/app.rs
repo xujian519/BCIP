@@ -41,8 +41,6 @@ use crate::external_editor;
 use crate::file_search::FileSearchManager;
 use crate::history_cell;
 use crate::history_cell::HistoryCell;
-#[cfg(not(debug_assertions))]
-use crate::history_cell::UpdateAvailableHistoryCell;
 use crate::hooks_rpc::HookTrustUpdate;
 use crate::key_hint::KeyBindingListExt;
 use crate::keymap::RuntimeKeymap;
@@ -958,8 +956,6 @@ Fix the config and retry.\n\
 See the BCIP keymap documentation for supported actions and examples."
             )
         })?;
-        #[cfg(not(debug_assertions))]
-        let upgrade_version = crate::updates::get_upgrade_version(&config);
 
         let mut app = Self {
             model_catalog,
@@ -1077,26 +1073,6 @@ See the BCIP keymap documentation for supported actions and examples."
         let mut listen_for_app_server_events = true;
         let mut waiting_for_initial_session_configured = wait_for_initial_session_configured;
 
-        #[cfg(not(debug_assertions))]
-        let pre_loop_exit_reason = if let Some(latest_version) = upgrade_version {
-            let control = app
-                .handle_event(
-                    tui,
-                    &mut app_server,
-                    AppEvent::InsertHistoryCell(Box::new(UpdateAvailableHistoryCell::new(
-                        latest_version,
-                        crate::update_action::get_update_action(),
-                    ))),
-                )
-                .await?;
-            match control {
-                AppRunControl::Continue => None,
-                AppRunControl::Exit(exit_reason) => Some(exit_reason),
-            }
-        } else {
-            None
-        };
-        #[cfg(debug_assertions)]
         let pre_loop_exit_reason: Option<ExitReason> = None;
 
         let exit_reason_result = if let Some(exit_reason) = pre_loop_exit_reason {

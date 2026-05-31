@@ -80,6 +80,9 @@ ignore = [
     { id = "RUSTSEC-2025-0141", reason = "bincode is unmaintained; pulled in via syntect v5.3.0 used by codex-tui for syntax highlighting; no fixed release yet" },
     { id = "RUSTSEC-2026-0118", reason = "hickory-proto v0.25.2 is pulled in via rama-dns/rama-tcp used by codex-network-proxy; DNSSEC features are not enabled; remove when rama updates to hickory 0.26.1 or hickory-net" },
     { id = "RUSTSEC-2026-0119", reason = "hickory-proto v0.25.2 is pulled in via rama-dns/rama-tcp used by codex-network-proxy; no fixed rama release is available yet; remove when rama updates to hickory 0.26.1 or hickory-net" },
+    { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 Marvin Attack via sqlx-mysql; project only enables sqlite, sqlx-mysql is not compiled into the binary" },
+    { id = "RUSTSEC-2026-0002", reason = "lru 0.12.5 IterMut unsound via fork ratatui (nornagon); no fixed release from fork yet; ratatui 0.30+ should resolve" },
+    { id = "RUSTSEC-2026-0097", reason = "rand 0.8.5 unsound via age/zbus/keyring; no fixed release from upstream yet; condition requires custom logger using rand::rng()" },
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.

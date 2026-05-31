@@ -253,13 +253,13 @@ mod tests {
                 "Disable terminal pets",
                 "BSOD",
                 "Chefito",
-                "BCIP Agent",
                 "Dewey",
                 "Fireball",
                 "Null Signal",
                 "Rocky",
                 "Seedy",
                 "Stacky",
+                "云熙专利智能体",
             ],
         );
         assert_eq!(params.initial_selected_idx, Some(2));
@@ -278,8 +278,8 @@ mod tests {
             PetPickerPreviewState::default(),
         );
 
-        assert_eq!(params.initial_selected_idx, Some(2));
-        assert_eq!(params.items[2].name, "BCIP Agent");
+        assert_eq!(params.initial_selected_idx, Some(8));
+        assert_eq!(params.items[8].name, "云熙专利智能体");
         assert!(!params.items[2].is_current);
     }
 

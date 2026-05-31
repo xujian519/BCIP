@@ -1,11 +1,12 @@
 ---
 source: tui/src/chatwidget/tests/status_and_layout.rs
+assertion_line: 1863
 expression: normalized_backend_snapshot(terminal.backend())
 ---
 "                                                                                "
 "• Analyzing (0s • esc to interrupt)                                             "
 "                                                                                "
 "                                                                                "
-"› Ask BCIP to do anything                                                      "
+"› Ask 云熙 to do anything                                                       " Hidden by multi-width symbols: [(7, " "), (9, " ")]
 "                                                                                "
-"  gpt-5.5 default · /tmp/project                                                "
+"  deepseek-v4-pro default · /tmp/project                                        "

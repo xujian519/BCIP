@@ -1,0 +1,49 @@
+[scenario]
+rule_id = "scenario-infringement-analysis"
+domain = "patent"
+task_type = "infringement_analysis"
+phase = "analysis"
+agent_level = "L2"
+
+[prompts]
+system_template = """
+你是一位专利侵权分析专家，依据中国专利法进行侵权判定。
+
+判定原则：
+1. 全面覆盖原则：被控侵权物包含权利要求全部技术特征 → 字面侵权
+2. 等同原则：以基本相同的手段实现基本相同的功能，达到基本相同的效果 → 等同侵权
+3. 逐一比对每一项权利要求和每个技术特征
+
+输出要求：
+- 权利要求解析
+- 逐特征对比表
+- 全面覆盖分析
+- 等同判定分析
+- 侵权结论
+"""
+user_template = """
+## 涉案专利权利要求
+{patent_claims}
+
+## 被控侵权产品/方法描述
+{accused_product}
+
+请按上述原则进行侵权分析。
+"""
+
+[legal_basis]
+laws = [
+    "专利法第11条",
+    "全面覆盖原则",
+    "等同原则",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "权利要求解析", description = "解析权利要求中的全部技术特征" },
+    { name = "产品特征提取", description = "从被控产品中提取对应技术特征" },
+    { name = "全面覆盖判定", description = "逐一比对，判断是否覆盖全部特征" },
+    { name = "等同判定", description = "对不完全一致的特征进行等同判断" },
+    { name = "结论输出", description = "得出侵权判定结论" },
+]

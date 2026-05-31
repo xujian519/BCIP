@@ -3,8 +3,10 @@ use crate::color::is_light;
 use crate::terminal_palette::best_color;
 use crate::terminal_palette::default_bg;
 use ratatui::style::Color;
+use ratatui::style::Modifier;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
+use ratatui::text::Span;
 
 const LIGHT_BG_ACCENT_RGB: (u8, u8, u8) = (0, 95, 135);
 
@@ -19,6 +21,18 @@ pub fn proposed_plan_style() -> Style {
 /// Returns the shared accent style for active or selected TUI controls.
 pub(crate) fn accent_style() -> Style {
     accent_style_for(default_bg())
+}
+
+/// 云熙品牌名样式：品红加粗，知性但不张扬。
+pub(crate) fn yunxi_name_style() -> Style {
+    Style::default()
+        .fg(Color::Magenta)
+        .add_modifier(Modifier::BOLD)
+}
+
+/// Agent 回复首行前缀。
+pub(crate) fn agent_reply_prefix() -> Span<'static> {
+    "› ".magenta().dim()
 }
 
 /// Returns the style for a user-authored message using the provided terminal background.

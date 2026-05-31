@@ -2,7 +2,8 @@
 //!
 //! 基于 JSON 文件加载审查指南结构化数据和法律实体关系图。
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 
 /// 审查指南元数据

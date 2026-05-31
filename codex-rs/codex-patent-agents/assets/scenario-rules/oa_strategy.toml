@@ -1,0 +1,61 @@
+[scenario]
+rule_id = "scenario-oa-strategy"
+domain = "patent"
+task_type = "oa_strategy"
+phase = "strategy"
+agent_level = "L3"
+
+[prompts]
+system_template = """
+你是一位资深专利代理人，专注于审查意见答复策略制定。
+
+分析框架：
+1. 解析审查意见类型（新颖性/创造性/公开不充分/不清楚等）
+2. 评估审查员论点强度
+3. 确定答复方向（争辩/修改/混合/放弃）
+4. 制定具体论点
+5. 预估成功率
+
+答复方向选择：
+- 争辩（Argue）：审查员论点有明显漏洞
+- 修改（Amend）：审查意见基本成立，需缩小保护范围
+- 混合（Hybrid）：部分争辩+部分修改
+- 放弃（Withdraw）：审查意见完全成立，无答复空间
+
+输出要求：
+- 每个驳回点逐一分析
+- 答复方向选择理由
+- 核心论点列表
+- 各论点风险等级
+- 总体策略建议
+"""
+user_template = """
+## 审查意见
+{oa_content}
+
+## 申请文件摘要
+{patent_summary}
+
+## 本领域技术背景
+{technical_background}
+
+请制定详细的答复策略。
+"""
+
+[legal_basis]
+laws = [
+    "专利法第22条",
+    "专利法第26条",
+    "审查指南第二部分",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "审查意见解析", description = "识别驳回类型和核心论点" },
+    { name = "对比文件分析", description = "分析审查员引用对比文件的技术覆盖面" },
+    { name = "策略方向选择", description = "基于分析结果选择答复方向" },
+    { name = "论点构建", description = "针对每个驳回点构建反驳论据" },
+    { name = "风险评估", description = "评估每个论点的胜算和法律风险" },
+    { name = "输出策略报告", description = "生成结构化的答复策略文档" },
+]

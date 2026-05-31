@@ -914,7 +914,7 @@ fn exec_options(
                 shortcuts: keymap.deny.clone(),
             }),
             CommandExecutionApprovalDecision::Cancel => Some(ApprovalOption {
-                label: "No, and tell BCIP what to do differently".to_string(),
+                label: "不，并告知云熙专利智能体如何改进".to_string(),
                 decision: ApprovalDecision::Command(CommandExecutionApprovalDecision::Cancel),
                 shortcuts: keymap.decline.clone(),
             }),
@@ -1030,7 +1030,7 @@ fn patch_options(keymap: &ApprovalKeymap) -> Vec<ApprovalOption> {
             shortcuts: keymap.approve_for_session.clone(),
         },
         ApprovalOption {
-            label: "No, and tell BCIP what to do differently".to_string(),
+            label: "不，并告知云熙专利智能体如何改进".to_string(),
             decision: ApprovalDecision::FileChange(FileChangeApprovalDecision::Cancel),
             shortcuts: keymap.decline.clone(),
         },
@@ -1721,7 +1721,7 @@ mod tests {
                 "Yes, just this once".to_string(),
                 "Yes, and allow this host for this conversation".to_string(),
                 "Yes, and allow this host in the future".to_string(),
-                "No, and tell BCIP what to do differently".to_string(),
+                "不，并告知云熙专利智能体如何改进".to_string(),
             ]
         );
     }
@@ -1746,7 +1746,7 @@ mod tests {
             vec![
                 "Yes, proceed".to_string(),
                 "Yes, and don't ask again for this command in this session".to_string(),
-                "No, and tell BCIP what to do differently".to_string(),
+                "不，并告知云熙专利智能体如何改进".to_string(),
             ]
         );
     }
@@ -1779,7 +1779,7 @@ mod tests {
             labels,
             vec![
                 "Yes, proceed".to_string(),
-                "No, and tell BCIP what to do differently".to_string(),
+                "不，并告知云熙专利智能体如何改进".to_string(),
             ]
         );
     }
@@ -2188,7 +2188,7 @@ mod tests {
             })
             .collect();
         let expected = vec![
-            "✔ You approved codex to run".to_string(),
+            "✔ You approved 云熙 to run".to_string(),
             "  git add tui/src/render/".to_string(),
             "  mod.rs tui/src/render/".to_string(),
             "  renderable.rs this time".to_string(),
@@ -2257,7 +2257,7 @@ mod tests {
         assert_eq!(
             render_history_cell_lines(decision.as_ref(), /*width*/ 80),
             vec![
-                "✔ You approved codex network access to https://example.com:8443 this time"
+                "✔ You approved 云熙 network access to https://example.com:8443 this time"
                     .to_string(),
             ]
         );

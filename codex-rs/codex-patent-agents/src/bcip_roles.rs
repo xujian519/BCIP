@@ -37,12 +37,27 @@ pub fn patent_agent_role_configs() -> BTreeMap<String, &'static Path> {
     roles.insert("retriever".to_string(), Path::new("patent/retriever.toml"));
     roles.insert("analyzer".to_string(), Path::new("patent/analyzer.toml"));
     roles.insert("writer".to_string(), Path::new("patent/writer.toml"));
-    roles.insert("novelty_checker".to_string(), Path::new("patent/novelty_checker.toml"));
-    roles.insert("creativity_checker".to_string(), Path::new("patent/creativity_checker.toml"));
-    roles.insert("infringement_checker".to_string(), Path::new("patent/infringement_checker.toml"));
-    roles.insert("invalidity_checker".to_string(), Path::new("patent/invalidity_checker.toml"));
+    roles.insert(
+        "novelty_checker".to_string(),
+        Path::new("patent/novelty_checker.toml"),
+    );
+    roles.insert(
+        "creativity_checker".to_string(),
+        Path::new("patent/creativity_checker.toml"),
+    );
+    roles.insert(
+        "infringement_checker".to_string(),
+        Path::new("patent/infringement_checker.toml"),
+    );
+    roles.insert(
+        "invalidity_checker".to_string(),
+        Path::new("patent/invalidity_checker.toml"),
+    );
     roles.insert("reviewer".to_string(), Path::new("patent/reviewer.toml"));
-    roles.insert("quality_checker".to_string(), Path::new("patent/quality_checker.toml"));
+    roles.insert(
+        "quality_checker".to_string(),
+        Path::new("patent/quality_checker.toml"),
+    );
 
     roles
 }
@@ -63,15 +78,42 @@ pub fn config_file_contents(path: &Path) -> Option<&'static str> {
     // 这些内容将在调用处通过 include_str! 嵌入
     // 这里只提供路径映射逻辑
     const CONFIGS: &[(&str, &str)] = &[
-        ("patent/retriever.toml", include_str!("../assets/bcip/retriever.toml")),
-        ("patent/analyzer.toml", include_str!("../assets/bcip/analyzer.toml")),
-        ("patent/writer.toml", include_str!("../assets/bcip/writer.toml")),
-        ("patent/novelty_checker.toml", include_str!("../assets/bcip/novelty_checker.toml")),
-        ("patent/creativity_checker.toml", include_str!("../assets/bcip/creativity_checker.toml")),
-        ("patent/infringement_checker.toml", include_str!("../assets/bcip/infringement_checker.toml")),
-        ("patent/invalidity_checker.toml", include_str!("../assets/bcip/invalidity_checker.toml")),
-        ("patent/reviewer.toml", include_str!("../assets/bcip/reviewer.toml")),
-        ("patent/quality_checker.toml", include_str!("../assets/bcip/quality_checker.toml")),
+        (
+            "patent/retriever.toml",
+            include_str!("../assets/bcip/retriever.toml"),
+        ),
+        (
+            "patent/analyzer.toml",
+            include_str!("../assets/bcip/analyzer.toml"),
+        ),
+        (
+            "patent/writer.toml",
+            include_str!("../assets/bcip/writer.toml"),
+        ),
+        (
+            "patent/novelty_checker.toml",
+            include_str!("../assets/bcip/novelty_checker.toml"),
+        ),
+        (
+            "patent/creativity_checker.toml",
+            include_str!("../assets/bcip/creativity_checker.toml"),
+        ),
+        (
+            "patent/infringement_checker.toml",
+            include_str!("../assets/bcip/infringement_checker.toml"),
+        ),
+        (
+            "patent/invalidity_checker.toml",
+            include_str!("../assets/bcip/invalidity_checker.toml"),
+        ),
+        (
+            "patent/reviewer.toml",
+            include_str!("../assets/bcip/reviewer.toml"),
+        ),
+        (
+            "patent/quality_checker.toml",
+            include_str!("../assets/bcip/quality_checker.toml"),
+        ),
     ];
 
     CONFIGS

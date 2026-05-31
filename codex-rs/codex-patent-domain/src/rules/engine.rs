@@ -3,7 +3,12 @@
 use regex::Regex;
 
 use super::checks;
-use super::schema::{Check, PatentDocument, Rule, RuleFile, RuleViolation, Target};
+use super::schema::Check;
+use super::schema::PatentDocument;
+use super::schema::Rule;
+use super::schema::RuleFile;
+use super::schema::RuleViolation;
+use super::schema::Target;
 
 /// 全局正则缓存。
 static REGEX_CACHE: std::sync::OnceLock<
@@ -219,8 +224,10 @@ rules:
 "#;
         let rules = load_rules(yaml).unwrap();
 
-        let mut doc = PatentDocument::default();
-        doc.claims = vec!["一种方法,步骤A。".into()];
+        let mut doc = PatentDocument {
+            claims: vec!["一种方法,步骤A。".into()],
+            ..Default::default()
+        };
         let violations = evaluate(&doc, &rules);
         assert_eq!(violations.len(), 1);
 

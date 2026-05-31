@@ -1,13 +1,14 @@
 ---
 source: tui/src/bottom_pane/list_selection_view.rs
+assertion_line: 2386
 expression: "render_lines_with_width(&view, 80)"
 ---
                                                                                 
   Select Model and Effort                                                       
                                                                                 
-› 1. gpt-5.1-codex (current)  Optimized for BCIP. Balance of reasoning         
-                              quality and coding ability.                       
-  2. gpt-5.1-codex-mini       Optimized for BCIP. Cheaper, faster, but less    
-                              capable.                                          
+› 1. gpt-5.1-codex (current)  专 为 云 熙 专 利 智 能 体 优 化 。 推 理 质 量 与 编 码 能 力 的 平     
+                              衡 。                                               
+  2. gpt-5.1-codex-mini       专 为 云 熙 专 利 智 能 体 优 化 。 更 便 宜 、 更 快 ， 但 能 力 较     
+                              弱 。                                               
   3. gpt-4.1-codex            Legacy model. Use when you need compatibility     
                               with older automations.

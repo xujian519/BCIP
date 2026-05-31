@@ -1493,9 +1493,9 @@ impl ChatWidget {
             .count();
         tabs.push(SelectionTab {
             id: OPENAI_CURATED_TAB_ID.to_string(),
-            label: "BCIP Curated".to_string(),
+            label: "云熙专利智能体精选".to_string(),
             header: plugins_header(
-                "BCIP Curated marketplace.".to_string(),
+                "云熙专利智能体精选市场。".to_string(),
                 format!("Installed {curated_installed} of {curated_total} BCIP Curated plugins."),
             ),
             items: self.plugin_selection_items(

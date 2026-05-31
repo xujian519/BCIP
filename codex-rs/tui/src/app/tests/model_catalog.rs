@@ -40,23 +40,36 @@ fn model_migration_copy_to_plain_text(copy: &crate::model_migration::ModelMigrat
 #[tokio::test]
 async fn model_migration_prompt_only_shows_for_deprecated_models() {
     let seen = BTreeMap::new();
+    let mut presets = all_model_presets();
+    let glm = presets
+        .iter_mut()
+        .find(|preset| preset.model == "glm-5.1")
+        .expect("glm-5.1 preset present");
+    glm.upgrade = Some(ModelUpgrade {
+        id: "deepseek-v4-pro".to_string(),
+        reasoning_effort_mapping: None,
+        migration_config_key: String::new(),
+        model_link: None,
+        upgrade_copy: None,
+        migration_markdown: None,
+    });
     assert!(should_show_model_migration_prompt(
-        "gpt-5.2",
-        "gpt-5.4",
+        "glm-5.1",
+        "deepseek-v4-pro",
         &seen,
-        &all_model_presets()
+        &presets
     ));
     assert!(should_show_model_migration_prompt(
-        "gpt-5.3-codex",
-        "gpt-5.4",
+        "kimi-for-coding",
+        "deepseek-v4-pro",
         &seen,
-        &all_model_presets()
+        &presets
     ));
     assert!(!should_show_model_migration_prompt(
-        "gpt-5.3-codex",
-        "gpt-5.3-codex",
+        "kimi-for-coding",
+        "kimi-for-coding",
         &seen,
-        &all_model_presets()
+        &presets
     ));
 }
 
@@ -68,10 +81,10 @@ fn select_model_availability_nux_picks_only_eligible_model() {
     });
     let target = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
+        .find(|preset| preset.model == "deepseek-v4-pro")
         .expect("target preset present");
     target.availability_nux = Some(ModelAvailabilityNux {
-        message: "gpt-5.4 is available".to_string(),
+        message: "deepseek-v4-pro is available".to_string(),
     });
 
     let selected = select_model_availability_nux(&presets, &model_availability_nux_config(&[]));
@@ -79,8 +92,8 @@ fn select_model_availability_nux_picks_only_eligible_model() {
     assert_eq!(
         selected,
         Some(StartupTooltipOverride {
-            model_slug: "gpt-5.4".to_string(),
-            message: "gpt-5.4 is available".to_string(),
+            model_slug: "deepseek-v4-pro".to_string(),
+            message: "deepseek-v4-pro is available".to_string(),
         })
     );
 }
@@ -91,31 +104,34 @@ fn select_model_availability_nux_skips_missing_and_exhausted_models() {
     presets.iter_mut().for_each(|preset| {
         preset.availability_nux = None;
     });
-    let gpt_5 = presets
+    let first_model = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
-        .expect("gpt-5.4 preset present");
-    gpt_5.availability_nux = Some(ModelAvailabilityNux {
-        message: "gpt-5.4 is available".to_string(),
+        .find(|preset| preset.model == "deepseek-v4-pro")
+        .expect("deepseek-v4-pro preset present");
+    first_model.availability_nux = Some(ModelAvailabilityNux {
+        message: "deepseek-v4-pro is available".to_string(),
     });
-    let gpt_5_2 = presets
+    let second_model = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4-mini")
-        .expect("gpt-5.4-mini preset present");
-    gpt_5_2.availability_nux = Some(ModelAvailabilityNux {
-        message: "gpt-5.4-mini is available".to_string(),
+        .find(|preset| preset.model == "deepseek-v4-flash")
+        .expect("deepseek-v4-flash preset present");
+    second_model.availability_nux = Some(ModelAvailabilityNux {
+        message: "deepseek-v4-flash is available".to_string(),
     });
 
     let selected = select_model_availability_nux(
         &presets,
-        &model_availability_nux_config(&[("gpt-5.4", MODEL_AVAILABILITY_NUX_MAX_SHOW_COUNT)]),
+        &model_availability_nux_config(&[(
+            "deepseek-v4-pro",
+            MODEL_AVAILABILITY_NUX_MAX_SHOW_COUNT,
+        )]),
     );
 
     assert_eq!(
         selected,
         Some(StartupTooltipOverride {
-            model_slug: "gpt-5.4-mini".to_string(),
-            message: "gpt-5.4-mini is available".to_string(),
+            model_slug: "deepseek-v4-flash".to_string(),
+            message: "deepseek-v4-flash is available".to_string(),
         })
     );
 }
@@ -128,15 +144,15 @@ fn select_model_availability_nux_uses_existing_model_order_as_priority() {
     });
     let first = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4-mini")
-        .expect("gpt-5.4-mini preset present");
+        .find(|preset| preset.model == "deepseek-v4-flash")
+        .expect("deepseek-v4-flash preset present");
     first.availability_nux = Some(ModelAvailabilityNux {
         message: "first".to_string(),
     });
     let second = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
-        .expect("gpt-5.4 preset present");
+        .find(|preset| preset.model == "deepseek-v4-pro")
+        .expect("deepseek-v4-pro preset present");
     second.availability_nux = Some(ModelAvailabilityNux {
         message: "second".to_string(),
     });
@@ -146,7 +162,7 @@ fn select_model_availability_nux_uses_existing_model_order_as_priority() {
     assert_eq!(
         selected,
         Some(StartupTooltipOverride {
-            model_slug: "gpt-5.4".to_string(),
+            model_slug: "deepseek-v4-pro".to_string(),
             message: "second".to_string(),
         })
     );
@@ -160,15 +176,18 @@ fn select_model_availability_nux_returns_none_when_all_models_are_exhausted() {
     });
     let target = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
+        .find(|preset| preset.model == "deepseek-v4-pro")
         .expect("target preset present");
     target.availability_nux = Some(ModelAvailabilityNux {
-        message: "gpt-5.4 is available".to_string(),
+        message: "deepseek-v4-pro is available".to_string(),
     });
 
     let selected = select_model_availability_nux(
         &presets,
-        &model_availability_nux_config(&[("gpt-5.4", MODEL_AVAILABILITY_NUX_MAX_SHOW_COUNT)]),
+        &model_availability_nux_config(&[(
+            "deepseek-v4-pro",
+            MODEL_AVAILABILITY_NUX_MAX_SHOW_COUNT,
+        )]),
     );
 
     assert_eq!(selected, None);
@@ -188,19 +207,19 @@ async fn prepare_startup_tooltip_override_persists_model_availability_nux_count(
     });
     let target = presets
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
+        .find(|preset| preset.model == "deepseek-v4-pro")
         .expect("target preset present");
     target.availability_nux = Some(ModelAvailabilityNux {
-        message: "gpt-5.4 is available".to_string(),
+        message: "deepseek-v4-pro is available".to_string(),
     });
 
     let tooltip =
         prepare_startup_tooltip_override(&mut config, &presets, /*is_first_run*/ false).await;
 
-    assert_eq!(tooltip.as_deref(), Some("gpt-5.4 is available"));
+    assert_eq!(tooltip.as_deref(), Some("deepseek-v4-pro is available"));
     assert_eq!(
         config.model_availability_nux.shown_count,
-        HashMap::from([("gpt-5.4".to_string(), 1)])
+        HashMap::from([("deepseek-v4-pro".to_string(), 1)])
     );
 
     let reloaded = ConfigBuilder::default()
@@ -210,7 +229,7 @@ async fn prepare_startup_tooltip_override_persists_model_availability_nux_count(
         .expect("reloaded config");
     assert_eq!(
         reloaded.model_availability_nux.shown_count,
-        HashMap::from([("gpt-5.4".to_string(), 1)])
+        HashMap::from([("deepseek-v4-pro".to_string(), 1)])
     );
 }
 
@@ -222,7 +241,7 @@ async fn accepted_model_migration_persists_target_default_reasoning_effort() {
         .build()
         .await
         .expect("config");
-    config.model = Some("gpt-5.2".to_string());
+    config.model = Some("glm-5.1".to_string());
     config.model_reasoning_effort = Some(ReasoningEffortConfig::XHigh);
 
     let (tx_raw, mut rx) = unbounded_channel();
@@ -231,12 +250,12 @@ async fn accepted_model_migration_persists_target_default_reasoning_effort() {
     apply_accepted_model_migration(
         &mut config,
         &app_event_tx,
-        "gpt-5.2".to_string(),
-        "gpt-5.4".to_string(),
+        "glm-5.1".to_string(),
+        "deepseek-v4-pro".to_string(),
         ReasoningEffortConfig::Medium,
     );
 
-    assert_eq!(config.model.as_deref(), Some("gpt-5.4"));
+    assert_eq!(config.model.as_deref(), Some("deepseek-v4-pro"));
     assert_eq!(
         config.model_reasoning_effort,
         Some(ReasoningEffortConfig::Medium)
@@ -246,13 +265,13 @@ async fn accepted_model_migration_persists_target_default_reasoning_effort() {
     assert_matches!(
         acknowledged,
         AppEvent::PersistModelMigrationPromptAcknowledged { from_model, to_model }
-            if from_model == "gpt-5.2" && to_model == "gpt-5.4"
+            if from_model == "glm-5.1" && to_model == "deepseek-v4-pro"
     );
 
     let update_model = rx.try_recv().expect("update model event");
     assert_matches!(
         update_model,
-        AppEvent::UpdateModel(model) if model == "gpt-5.4"
+        AppEvent::UpdateModel(model) if model == "deepseek-v4-pro"
     );
 
     let update_effort = rx.try_recv().expect("update effort event");
@@ -265,23 +284,23 @@ async fn accepted_model_migration_persists_target_default_reasoning_effort() {
     assert_matches!(
         persist_selection,
         AppEvent::PersistModelSelection { model, effort }
-            if model == "gpt-5.4" && effort == Some(ReasoningEffortConfig::Medium)
+            if model == "deepseek-v4-pro" && effort == Some(ReasoningEffortConfig::Medium)
     );
 }
 
 #[tokio::test]
 async fn model_migration_prompt_respects_hide_flag_and_self_target() {
     let mut seen = BTreeMap::new();
-    seen.insert("gpt-5.2".to_string(), "gpt-5.4".to_string());
+    seen.insert("glm-5.1".to_string(), "deepseek-v4-pro".to_string());
     assert!(!should_show_model_migration_prompt(
-        "gpt-5.2",
-        "gpt-5.4",
+        "glm-5.1",
+        "deepseek-v4-pro",
         &seen,
         &all_model_presets()
     ));
     assert!(!should_show_model_migration_prompt(
-        "gpt-5.4",
-        "gpt-5.4",
+        "deepseek-v4-pro",
+        "deepseek-v4-pro",
         &seen,
         &all_model_presets()
     ));
@@ -292,7 +311,7 @@ async fn model_migration_prompt_skips_when_target_missing_or_hidden() {
     let mut available = all_model_presets();
     let mut current = available
         .iter()
-        .find(|preset| preset.model == "gpt-5.2")
+        .find(|preset| preset.model == "glm-5.1")
         .cloned()
         .expect("preset present");
     current.upgrade = Some(ModelUpgrade {
@@ -303,7 +322,7 @@ async fn model_migration_prompt_skips_when_target_missing_or_hidden() {
         upgrade_copy: None,
         migration_markdown: None,
     });
-    available.retain(|preset| preset.model != "gpt-5.2");
+    available.retain(|preset| preset.model != "glm-5.1");
     available.push(current.clone());
 
     assert!(!should_show_model_migration_prompt(
@@ -318,17 +337,17 @@ async fn model_migration_prompt_skips_when_target_missing_or_hidden() {
     let mut with_hidden_target = all_model_presets();
     let target = with_hidden_target
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.4")
+        .find(|preset| preset.model == "deepseek-v4-pro")
         .expect("target preset present");
     target.show_in_picker = false;
 
     assert!(!should_show_model_migration_prompt(
-        "gpt-5.2",
-        "gpt-5.4",
+        "glm-5.1",
+        "deepseek-v4-pro",
         &BTreeMap::new(),
         &with_hidden_target,
     ));
-    assert!(target_preset_for_upgrade(&with_hidden_target, "gpt-5.4").is_none());
+    assert!(target_preset_for_upgrade(&with_hidden_target, "deepseek-v4-pro").is_none());
 }
 
 #[tokio::test]
@@ -343,13 +362,21 @@ async fn model_migration_prompt_shows_for_hidden_model() {
     let mut available_models = all_model_presets();
     let current = available_models
         .iter_mut()
-        .find(|preset| preset.model == "gpt-5.3-codex")
-        .expect("gpt-5.3-codex preset present");
+        .find(|preset| preset.model == "kimi-for-coding")
+        .expect("kimi-for-coding preset present");
     current.show_in_picker = false;
+    current.upgrade = Some(ModelUpgrade {
+        id: "deepseek-v4-pro".to_string(),
+        reasoning_effort_mapping: None,
+        migration_config_key: HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG.to_string(),
+        model_link: None,
+        upgrade_copy: None,
+        migration_markdown: None,
+    });
     let current = current.clone();
     assert!(
         !current.show_in_picker,
-        "expected gpt-5.3-codex to be hidden from picker for this test"
+        "expected kimi-for-coding to be hidden from picker for this test"
     );
 
     let upgrade = current.upgrade.as_ref().expect("upgrade configured");

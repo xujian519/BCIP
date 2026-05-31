@@ -1,9 +1,10 @@
 ---
 source: tui/src/keymap_setup.rs
+assertion_line: 1366
 expression: rendered
 ---
 Keypress Inspector
-Press any key to see what BCIP receives. Esc is inspected; Ctrl+C closes.
+按 任 意 键 查 看 云 熙 专 利 智 能 体 接 收 到 的 按 键 。 Esc 被 检 测 ； Ctrl+C 关 闭 。
 Still waiting? If nothing changes when you press a key, your terminal is not sending that key to
 BCIP. Only received keys can be assigned as shortcuts.
 

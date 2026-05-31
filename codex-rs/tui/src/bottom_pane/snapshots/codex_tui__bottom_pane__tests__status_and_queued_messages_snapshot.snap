@@ -1,6 +1,6 @@
 ---
 source: tui/src/bottom_pane/mod.rs
-assertion_line: 1889
+assertion_line: 2484
 expression: "render_snapshot(&pane, area)"
 ---
 • Working (0s • esc to interrupt)               
@@ -9,6 +9,6 @@ expression: "render_snapshot(&pane, area)"
   ↳ Queued follow-up question                   
     ⌥ + ↑ edit last queued message              
                                                 
-› Ask BCIP to do anything                      
+› 向 云 熙 专 利 智 能 体 提 出 任 何 需 求                   
                                                 
   ? for shortcuts            100% context left

@@ -1,12 +1,13 @@
 ---
 source: tui/src/bottom_pane/list_selection_view.rs
+assertion_line: 1638
 expression: "render_lines_with_width(&view, 40)"
 ---
                                         
   Select Approval Mode                  
                                         
-› 1. Read Only (current)  BCIP can     
-                          read files    
+› 1. Read Only (current)  云 熙 专 利 智 能   
+                          体 可 读 取 文 件   
                                         
   Note: Use /setup-default-sandbox to   
   allow network access.                 

@@ -1,5 +1,9 @@
+use codex_patent_knowledge::CardIndex;
+use codex_patent_knowledge::LawDatabase;
+use codex_patent_knowledge::SearchConfig;
+use codex_patent_knowledge::SqliteKnowledgeGraph;
+use codex_patent_knowledge::UnifiedSearch;
 use serde_json::to_string_pretty;
-use codex_patent_knowledge::{SearchConfig, UnifiedSearch, SqliteKnowledgeGraph, LawDatabase, CardIndex};
 
 // 辅助函数：创建统一搜索引擎
 fn create_search() -> UnifiedSearch {
@@ -43,7 +47,10 @@ fn workflow_retrieval() {
 
     assert!(!results.is_empty(), "搜索应返回结果");
     println!("检索到 {} 条结果", results.len());
-    assert!(results.iter().any(|r| r.score > 0.0), "至少有一条结果有正分数");
+    assert!(
+        results.iter().any(|r| r.score > 0.0),
+        "至少有一条结果有正分数"
+    );
 }
 
 #[test]
@@ -58,10 +65,13 @@ fn workflow_claim_analysis() {
     let claim = parser.parse(1, claim_text);
     assert_eq!(claim.claim_number, 1);
     assert!(!claim.features.is_empty());
-    assert!(claim.features.len() >= 1, "应至少提取1个特征");
+    assert!(!claim.features.is_empty(), "应至少提取1个特征");
 
     // Step 2: 验证特征类型
-    let has_element = claim.features.iter().any(|f| matches!(f.feature_type, codex_patent_core::FeatureType::Element));
+    let has_element = claim
+        .features
+        .iter()
+        .any(|f| matches!(f.feature_type, codex_patent_core::FeatureType::Element));
     assert!(has_element, "应包含元件类特征");
 
     println!("提取到 {} 个特征", claim.features.len());
@@ -73,8 +83,8 @@ fn workflow_claim_analysis() {
 #[test]
 fn workflow_novelty_check() {
     // 场景: 检查发明的新颖性
-    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
     use codex_patent_core::CaseContext;
+    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
@@ -92,14 +102,17 @@ fn workflow_novelty_check() {
     let result = engine.analyze_novelty(&ctx).unwrap();
     assert!(result.net_score > 0.3, "存在区别特征应有正面评分");
     assert!(!result.applied_rules.is_empty(), "应应用至少一条规则");
-    println!("新颖性分析: {} (置信度: {:.2})", result.conclusion, result.confidence);
+    println!(
+        "新颖性分析: {} (置信度: {:.2})",
+        result.conclusion, result.confidence
+    );
 }
 
 #[test]
 fn workflow_inventiveness_check() {
     // 场景: 创造性评估
-    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
     use codex_patent_core::CaseContext;
+    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
@@ -116,47 +129,68 @@ fn workflow_inventiveness_check() {
 
     let result = engine.analyze_inventiveness(&ctx).unwrap();
     assert!(result.net_score > 0.4, "有技术效果应有较高创造性评分");
-    println!("创造性分析: {:.2} (置信度: {:.2})", result.net_score, result.confidence);
+    println!(
+        "创造性分析: {:.2} (置信度: {:.2})",
+        result.net_score, result.confidence
+    );
 }
 
 #[test]
 fn workflow_infringement_analysis() {
     // 场景: 侵权分析
+    use codex_patent_core::CompareFeature;
     use codex_patent_domain::claim_parser::ClaimParser;
     use codex_patent_domain::compare::FeatureMatcher;
-    use codex_patent_core::CompareFeature;
 
     let parser = ClaimParser::new();
-    let claim_text = "一种折叠椅，包括座板、靠背和支撑腿，其特征在于，所述支撑腿可折叠收纳于座板底部。";
+    let claim_text =
+        "一种折叠椅，包括座板、靠背和支撑腿，其特征在于，所述支撑腿可折叠收纳于座板底部。";
     let claim = parser.parse(1, claim_text);
 
-    let target_features: Vec<CompareFeature> = claim.features.iter()
-        .map(|f| CompareFeature { id: f.id.clone(), description: f.description.clone() })
+    let target_features: Vec<CompareFeature> = claim
+        .features
+        .iter()
+        .map(|f| CompareFeature {
+            id: f.id.clone(),
+            description: f.description.clone(),
+        })
         .collect();
 
     // 被控侵权产品的特征
     let prior_features = vec![
-        CompareFeature { id: "P1".into(), description: "一种折叠椅，具有座板".into() },
-        CompareFeature { id: "P2".into(), description: "靠背可调节角度".into() },
-        CompareFeature { id: "P3".into(), description: "支撑腿可折叠收纳于座板底部".into() },
+        CompareFeature {
+            id: "P1".into(),
+            description: "一种折叠椅，具有座板".into(),
+        },
+        CompareFeature {
+            id: "P2".into(),
+            description: "靠背可调节角度".into(),
+        },
+        CompareFeature {
+            id: "P3".into(),
+            description: "支撑腿可折叠收纳于座板底部".into(),
+        },
     ];
 
     let result = FeatureMatcher::compare(&target_features, &prior_features);
-    println!("侵权分析: 覆盖率 {:.2}, 精确匹配 {} 个, 等同匹配 {} 个",
-        result.coverage_ratio, result.exact_matches.len(), result.equivalent_matches.len());
+    println!(
+        "侵权分析: 覆盖率 {:.2}, 精确匹配 {} 个, 等同匹配 {} 个",
+        result.coverage_ratio,
+        result.exact_matches.len(),
+        result.equivalent_matches.len()
+    );
     assert!(result.coverage_ratio >= 0.0, "覆盖率应为有效值");
 }
 
 #[test]
 fn workflow_drafting() {
     // 场景: 专利撰写流程
-    use codex_patent_domain::drafting::{default_quality_report, recalculate_overall_score};
+    use codex_patent_domain::drafting::default_quality_report;
+    use codex_patent_domain::drafting::recalculate_overall_score;
 
-    let _claims = vec![
-        "一种智能门锁，包括指纹识别模块、密码输入模块和蓝牙通信模块，其特征在于，所述指纹识别模块和密码输入模块通过蓝牙通信模块与移动终端连接。".to_string(),
+    let _claims = ["一种智能门锁，包括指纹识别模块、密码输入模块和蓝牙通信模块，其特征在于，所述指纹识别模块和密码输入模块通过蓝牙通信模块与移动终端连接。".to_string(),
         "根据权利要求1所述的智能门锁，其特征在于，还包括人脸识别模块。".to_string(),
-        "根据权利要求1所述的智能门锁，其特征在于，所述蓝牙通信模块支持BLE 5.0协议。".to_string(),
-    ];
+        "根据权利要求1所述的智能门锁，其特征在于，所述蓝牙通信模块支持BLE 5.0协议。".to_string()];
 
     let mut report = default_quality_report();
     report.dimensions[0].score = 8.5;
@@ -169,7 +203,10 @@ fn workflow_drafting() {
     recalculate_overall_score(&mut report);
     report.is_acceptable = report.overall_score >= 6.0;
 
-    println!("撰写质量: {:.2}/100 (可接受: {})", report.overall_score, report.is_acceptable);
+    println!(
+        "撰写质量: {:.2}/100 (可接受: {})",
+        report.overall_score, report.is_acceptable
+    );
     for dim in &report.dimensions {
         println!("  {}: {:.1}/{}", dim.name, dim.score, dim.max_score);
     }
@@ -179,8 +216,8 @@ fn workflow_drafting() {
 #[test]
 fn workflow_oa_response() {
     // 场景: OA答复策略
-    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
     use codex_patent_core::CaseContext;
+    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
@@ -196,7 +233,10 @@ fn workflow_oa_response() {
     };
 
     let strategy = engine.suggest_oa_strategy(&ctx).unwrap();
-    println!("OA策略: {} (置信度: {:.2})", strategy.conclusion, strategy.confidence);
+    println!(
+        "OA策略: {} (置信度: {:.2})",
+        strategy.conclusion, strategy.confidence
+    );
     assert!(!strategy.applied_rules.is_empty());
 }
 
@@ -237,8 +277,8 @@ fn workflow_full_pipeline() {
     assert!(!claim.features.is_empty(), "Step2: 解析失败");
 
     // Step 3: 新颖性分析
-    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
     use codex_patent_core::CaseContext;
+    use codex_patent_domain::rule_engine::QualitativeRuleEngine;
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
         invention: Some("主动均衡电池管理系统".into()),
@@ -247,16 +287,17 @@ fn workflow_full_pipeline() {
         technical_effect: Some("电池寿命延长20%".into()),
         performance_improvement: Some(0.2),
         obviousness: Some(false),
-        rejection_type: None, technical_effects: None, prior_art_different_field: None,
+        rejection_type: None,
+        technical_effects: None,
+        prior_art_different_field: None,
     };
     let novelty = engine.analyze_novelty(&ctx).unwrap();
     assert!(novelty.confidence > 0.3, "Step3: 新颖性分析失败");
 
     // Step 4: 撰写评估
-    use codex_patent_domain::drafting::{default_quality_report, recalculate_overall_score};
-    let _claims = vec![
-        "一种电池管理系统，包括电压检测模块、温度检测模块和均衡控制模块，其特征在于，所述均衡控制模块根据电压和温度的综合参数进行主动均衡。".to_string(),
-    ];
+    use codex_patent_domain::drafting::default_quality_report;
+    use codex_patent_domain::drafting::recalculate_overall_score;
+    let _claims = ["一种电池管理系统，包括电压检测模块、温度检测模块和均衡控制模块，其特征在于，所述均衡控制模块根据电压和温度的综合参数进行主动均衡。".to_string()];
     let mut quality = default_quality_report();
     quality.dimensions[0].score = 8.0;
     quality.dimensions[1].score = 8.0;
@@ -309,7 +350,7 @@ fn test_card_index_performance() {
     let elapsed = start.elapsed();
 
     println!("卡片索引加载: {} 张卡片, 耗时: {:?}", idx.len(), elapsed);
-    assert!(idx.len() > 0, "卡片索引应有数据");
+    assert!(!idx.is_empty(), "卡片索引应有数据");
     assert!(elapsed.as_millis() < 2000, "加载不应超过2秒");
 }
 
@@ -329,6 +370,8 @@ fn test_all_knowledge_sources() {
     let status = search.status();
     println!("知识源状态: {}", to_string_pretty(&status).unwrap());
 
-    assert!(status["knowledge_graph"].is_object() || status["knowledge_graph"].is_null(),
-        "KG状态应为对象或null");
+    assert!(
+        status["knowledge_graph"].is_object() || status["knowledge_graph"].is_null(),
+        "KG状态应为对象或null"
+    );
 }

@@ -56,13 +56,21 @@ members = [
     "linux-sandbox",
     "lmstudio",
     "login",
+    "codex-im-protocol",
+    "codex-im-common",
+    "codex-im-bridge",
+    "codex-im-telegram",
+    "codex-im-feishu",
     "codex-mcp",
     "codex-patent-core",
     "codex-patent-domain",
     "codex-patent-knowledge",
     "codex-patent-tools",
     "codex-patent-agents",
+    "codex-patent-constitutional",
     "codex-patent-skills",
+    "codex-patent-text",
+    "codex-patent-scheduler",
     "mcp-server",
     "memories/mcp",
     "memories/read",
@@ -181,6 +189,11 @@ codex-file-search = { path = "file-search" }
 codex-file-watcher = { path = "file-watcher" }
 codex-git-utils = { path = "git-utils" }
 codex-hooks = { path = "hooks" }
+codex-im-bridge = { path = "codex-im-bridge" }
+codex-im-common = { path = "codex-im-common" }
+codex-im-feishu = { path = "codex-im-feishu" }
+codex-im-protocol = { path = "codex-im-protocol" }
+codex-im-telegram = { path = "codex-im-telegram" }
 codex-keyring-store = { path = "keyring-store" }
 codex-linux-sandbox = { path = "linux-sandbox" }
 codex-lmstudio = { path = "lmstudio" }
@@ -203,6 +216,7 @@ codex-patent-domain = { path = "codex-patent-domain" }
 codex-patent-knowledge = { path = "codex-patent-knowledge" }
 codex-patent-skills = { path = "codex-patent-skills" }
 codex-patent-tools = { path = "codex-patent-tools" }
+codex-patent-scheduler = { path = "codex-patent-scheduler" }
 codex-plugin = { path = "plugin" }
 codex-model-provider = { path = "model-provider" }
 codex-process-hardening = { path = "process-hardening" }

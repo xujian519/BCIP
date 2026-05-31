@@ -3,6 +3,7 @@ use codex_patent_knowledge::LawDatabase;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SqliteKnowledgeGraph;
 use codex_patent_knowledge::UnifiedSearch;
+use codex_patent_knowledge::VectorIndex;
 
 #[test]
 fn test_open_knowledge_graph() {
@@ -42,7 +43,7 @@ fn test_load_card_index() {
     let idx = CardIndex::load("../codex-patent-assets/card-index.json");
     assert!(idx.is_ok(), "Should load card-index.json");
     let idx = idx.unwrap();
-    assert!(idx.len() > 0, "Should have cards");
+    assert!(!idx.is_empty(), "Should have cards");
     assert!(idx.len() >= 100, "Expected >=100 cards, got {}", idx.len());
 }
 
@@ -73,4 +74,112 @@ fn test_knowledge_status() {
     assert!(status.get("knowledge_graph").is_some());
     assert!(status.get("law_database").is_some());
     assert!(status.get("knowledge_cards").is_some());
+}
+
+#[test]
+fn test_vector_index_open() {
+    let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite");
+    assert!(idx.is_ok(), "Should open semantic index");
+    let idx = idx.unwrap();
+    assert!(idx.len() >= 100, "Expected >=100 chunks, got {}", idx.len());
+    assert_eq!(idx.dimension(), 1024, "BGE-M3 should have 1024 dim");
+}
+
+#[test]
+fn test_vector_index_search() {
+    let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite").unwrap();
+    // 零向量 norm=0 → search 返回空（查询无意义时行为正确）
+    let dummy_embedding = vec![0.0f32; 1024];
+    let results = idx.search(&dummy_embedding, 5);
+    assert!(results.is_empty(), "Zero-vector query should return empty");
+}
+
+#[test]
+fn test_vector_index_search_relevant() {
+    let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite").unwrap();
+    // 用 1.0 在第一维，模拟查询
+    let mut query = vec![0.0f32; 1024];
+    query[0] = 1.0;
+    let results = idx.search(&query, 3);
+    assert!(!results.is_empty());
+    // 至少应有按相似度排序的结果
+    if results.len() > 1 {
+        assert!(results[0].score >= results[1].score);
+    }
+}
+
+#[test]
+fn test_unified_search_status_with_vector() {
+    let search = UnifiedSearch::with_vector(
+        Some("../codex-patent-assets/patent_kg.db"),
+        Some("../codex-patent-assets/laws.db"),
+        Some("../codex-patent-assets/card-index.json"),
+        Some("../codex-patent-assets/.yunpat-semantic-index.sqlite"),
+        None,
+        None,
+        None,
+    );
+    let status = search.status();
+    let vi = status.get("vector_index").unwrap();
+    assert_eq!(vi["available"], true);
+    assert!(vi["chunk_count"].as_u64().unwrap_or(0) >= 100);
+    assert_eq!(vi["dimension"].as_u64().unwrap_or(0), 1024);
+}
+
+#[test]
+fn test_graph_traverse() {
+    let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
+    // 先获取一个节点
+    let nodes = kg.search_nodes("新颖性", None, 1).unwrap();
+    if nodes.is_empty() {
+        return;
+    }
+    let start_id = &nodes[0].id;
+    let edges = kg.traverse(start_id, None, 1).unwrap();
+    assert!(
+        !edges.is_empty(),
+        "Should have at least 1 edge from the node"
+    );
+    // 验证返回格式
+    let (edge, depth) = &edges[0];
+    assert!(*depth >= 1);
+    assert!(!edge.source.is_empty());
+    assert!(!edge.target.is_empty());
+}
+
+#[test]
+fn test_graph_traverse_with_filter() {
+    let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
+    let nodes = kg.search_nodes("创造性", None, 1).unwrap();
+    if nodes.is_empty() {
+        return;
+    }
+    let start_id = &nodes[0].id;
+    let filter = ["RELATED_TO", "CITES"];
+    let edges = kg.traverse(start_id, Some(&filter), 2).unwrap();
+    // 只应返回指定关系类型的边
+    for (edge, _depth) in &edges {
+        assert!(
+            edge.relation == "RELATED_TO" || edge.relation == "CITES",
+            "Unexpected relation: {}",
+            edge.relation
+        );
+    }
+}
+
+#[test]
+fn test_graph_find_path() {
+    let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
+    let nodes_a = kg.search_nodes("新颖性", None, 1).unwrap();
+    let nodes_b = kg.search_nodes("创造性", None, 1).unwrap();
+    if nodes_a.is_empty() || nodes_b.is_empty() {
+        return;
+    }
+    let paths = kg.find_path(&nodes_a[0].id, &nodes_b[0].id, 3).unwrap();
+    // 新颖性和创造性之间应有路径连接
+    if !paths.is_empty() {
+        for path in &paths {
+            assert!(!path.is_empty(), "Each path should have edges");
+        }
+    }
 }

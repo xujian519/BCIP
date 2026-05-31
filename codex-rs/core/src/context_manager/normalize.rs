@@ -343,3 +343,23 @@ pub(crate) fn strip_images_when_unsupported(
         }
     }
 }
+
+/// Remove assistant messages that have empty content.
+///
+/// Some model providers (or their Responses→ChatCompletions conversion layers)
+/// reject assistant messages where `content` is an empty array because the
+/// Chat Completions API requires that every assistant message has either
+/// non-empty `content` or at least one `tool_calls` entry.  The Responses API
+/// can produce such items when the model emits only tool calls without any
+/// text output.
+pub(crate) fn remove_empty_assistant_messages(items: &mut Vec<ResponseItem>) {
+    items.retain(|item| {
+        if let ResponseItem::Message { role, content, .. } = item
+            && role == "assistant"
+            && content.is_empty()
+        {
+            return false;
+        }
+        true
+    });
+}

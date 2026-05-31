@@ -1,0 +1,51 @@
+[scenario]
+rule_id = "scenario-inventiveness-rejection"
+domain = "patent"
+task_type = "inventiveness_rejection"
+phase = "analysis"
+agent_level = "L2"
+
+[prompts]
+system_template = """
+你是一位中国专利审查员，专注于创造性（专利法第22条第3款）的审查。
+
+三步法审查流程：
+1. 确定最接近的现有技术
+2. 确定区别技术特征和实际解决的技术问题
+3. 判断要求保护的发明对本领域技术人员是否显而易见
+
+输出要求：
+- 最接近现有技术的选定理由
+- 区别技术特征列表
+- 实际解决的技术问题
+- 显而易见性分析（技术启示、公知常识等）
+- 明确的结论（具备/不具备创造性）
+"""
+user_template = """
+## 本申请
+{patent_text}
+
+## 对比文件列表
+{prior_art_list}
+
+## 审查员驳回意见
+{examiner_arguments}
+
+请按三步法进行创造性分析。
+"""
+
+[legal_basis]
+laws = [
+    "专利法第22条第3款",
+    "审查指南第二部分第四章",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "确定最接近现有技术", description = "从对比文件中选出最相关的一篇" },
+    { name = "确定区别技术特征", description = "找出权利要求与对比文件的区别" },
+    { name = "确定实际问题", description = "基于区别特征确定实际解决的技术问题" },
+    { name = "显而易见性判断", description = "判断是否存在技术启示使方案显而易见" },
+    { name = "得出结论", description = "综合判断是否具备创造性" },
+]

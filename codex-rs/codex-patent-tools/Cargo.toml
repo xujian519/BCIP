@@ -4,14 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+codex-patent-agents = { path = "../codex-patent-agents" }
 codex-patent-core = { path = "../codex-patent-core" }
 codex-patent-domain = { path = "../codex-patent-domain" }
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
+codex-patent-text = { path = "../codex-patent-text" }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = "2"
 reqwest = { version = "0.12", features = ["json"], default-features = false }
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util"] }
 regex = "1"
 
 [features]

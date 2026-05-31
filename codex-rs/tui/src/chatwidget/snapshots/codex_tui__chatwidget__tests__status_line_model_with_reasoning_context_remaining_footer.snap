@@ -1,9 +1,10 @@
 ---
 source: tui/src/chatwidget/tests/status_and_layout.rs
+assertion_line: 2369
 expression: normalized_backend_snapshot(terminal.backend())
 ---
 "                                                                                "
 "                                                                                "
-"› Ask BCIP to do anything                                                      "
+"› Ask 云熙 to do anything                                                       " Hidden by multi-width symbols: [(7, " "), (9, " ")]
 "                                                                                "
-"  gpt-5.4 xhigh fast · Context 100% left · /tmp/project                         "
+"  deepseek-v4-pro xhigh fast · Context 100% left · /tmp/project                 "

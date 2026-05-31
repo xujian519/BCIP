@@ -1,17 +1,12 @@
 ---
 source: tui/src/chatwidget/tests/popups_and_settings.rs
+assertion_line: 2364
 expression: popup
 ---
-  Select Reasoning Level for gpt-5.2
+  Select Reasoning Level for glm-5.1
 
-  1. Low                   Balances speed with some reasoning; useful for
-                           straightforward queries and short explanations
-  2. Medium (default)      Provides a solid balance of reasoning depth and
-                           latency for general-purpose tasks
-  3. High                  Maximizes reasoning depth for complex or ambiguous
-                           problems
-› 4. Extra high (current)  Extra high reasoning for complex problems
-                           ⚠ Extra high reasoning effort can quickly consume
-                           Plus plan rate limits.
+› 1. Low               Fast responses
+  2. Medium (default)  Balanced reasoning
+  3. High              Deep reasoning for complex problems
 
   Press enter to confirm or esc to go back

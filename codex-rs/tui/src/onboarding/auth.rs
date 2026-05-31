@@ -584,14 +584,14 @@ impl AuthModeWidget {
             "".into(),
             "  Before you start:".into(),
             "".into(),
-            "  Decide how much autonomy you want to grant BCIP".into(),
+            "  选择您希望授予云熙专利智能体的自主权限".into(),
             Line::from(vec![
                 "  For more details see the ".into(),
-                "\u{1b}]8;;https://developers.openai.com/codex/security\u{7}BCIP docs\u{1b}]8;;\u{7}".underlined(),
+                "\u{1b}]8;;https://github.com/xujian519/BCIP\u{7}BCIP docs\u{1b}]8;;\u{7}".underlined(),
             ])
             .dim(),
             "".into(),
-            "  BCIP can make mistakes".into(),
+            "  云熙专利智能体可能会犯错".into(),
             "  Review the code it writes and commands it runs".dim().into(),
             "".into(),
             "  Powered by your ChatGPT account".into(),

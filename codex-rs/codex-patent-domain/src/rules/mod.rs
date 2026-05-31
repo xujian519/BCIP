@@ -6,5 +6,12 @@ pub mod checks;
 pub mod engine;
 pub mod schema;
 
-pub use engine::{evaluate, load_rules};
-pub use schema::{Check, PatentDocument, Rule, RuleFile, RuleViolation, Severity, Target};
+pub use engine::evaluate;
+pub use engine::load_rules;
+pub use schema::Check;
+pub use schema::PatentDocument;
+pub use schema::Rule;
+pub use schema::RuleFile;
+pub use schema::RuleViolation;
+pub use schema::Severity;
+pub use schema::Target;

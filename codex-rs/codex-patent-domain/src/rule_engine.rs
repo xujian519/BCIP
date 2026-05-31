@@ -11,7 +11,9 @@ pub enum RuleEngineError {
     EvaluationFailed(String),
 }
 
-use codex_patent_core::{AnalysisResult, AppliedRule, CaseContext};
+use codex_patent_core::AnalysisResult;
+use codex_patent_core::AppliedRule;
+use codex_patent_core::CaseContext;
 
 /// 定性规则推理引擎
 pub struct QualitativeRuleEngine {

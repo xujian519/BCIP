@@ -1,13 +1,13 @@
 ---
 source: tui/src/chatwidget/tests/popups_and_settings.rs
-assertion_line: 767
+assertion_line: 1087
 expression: popup
 ---
   Plugins
   Browse plugins from available marketplaces.
   Installed 0 of 3 available plugins.
 
-  [All Plugins]  Installed (0)  BCIP Curated  Add Marketplace
+  [All Plugins]  Installed (0)  云 熙 专 利 智 能 体 精 选   Add Marketplace
 
   sla
 › [-] Slack      Available   Press Enter to install or view plugin details.

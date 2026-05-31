@@ -372,6 +372,9 @@ impl ContextManager {
 
         // strip images when model does not support them
         normalize::strip_images_when_unsupported(input_modalities, &mut self.items);
+
+        // remove assistant messages with empty content (causes upstream 400 errors)
+        normalize::remove_empty_assistant_messages(&mut self.items);
     }
 
     fn process_item(&self, item: &ResponseItem, policy: TruncationPolicy) -> ResponseItem {

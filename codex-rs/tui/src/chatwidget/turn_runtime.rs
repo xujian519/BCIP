@@ -327,7 +327,7 @@ impl ChatWidget {
         self.finalize_turn();
 
         let message = if message.trim().is_empty() {
-            "BCIP is currently experiencing high load.".to_string()
+            "云熙专利智能体当前负载较高。".to_string()
         } else {
             message
         };
@@ -389,7 +389,7 @@ impl ChatWidget {
             }
             Some(RateLimitReachedType::WorkspaceOwnerUsageLimitReached) => {
                 self.on_error(
-                    "Usage limit reached. You've reached your usage limit. Increase your limits to continue using codex."
+                    "Usage limit reached. You've reached your usage limit. Increase your limits to continue using BCIP."
                         .to_string(),
                 );
             }

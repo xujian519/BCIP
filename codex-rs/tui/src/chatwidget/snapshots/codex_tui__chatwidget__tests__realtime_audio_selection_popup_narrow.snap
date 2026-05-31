@@ -1,9 +1,10 @@
 ---
 source: tui/src/chatwidget/tests/popups_and_settings.rs
+assertion_line: 2226
 expression: popup
 ---
   Settings
-  Configure settings for BCIP.
+  配 置 云 熙 专 利 智 能 体 设 置 。
 
 › 1. Microphone  Current: System default
   2. Speaker     Current: System default

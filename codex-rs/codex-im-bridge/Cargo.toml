@@ -1,0 +1,14 @@
+[package]
+name = "codex-im-bridge"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+codex-im-protocol = { path = "../codex-im-protocol" }
+futures = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"], default-features = false }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true }

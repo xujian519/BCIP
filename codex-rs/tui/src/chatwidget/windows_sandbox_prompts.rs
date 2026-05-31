@@ -199,7 +199,7 @@ impl ChatWidget {
             header.push(*Box::new(
                 Paragraph::new(vec![
                     line!["Agent mode on Windows uses an experimental sandbox to limit network and filesystem access.".bold()],
-                    line!["Learn more: https://developers.openai.com/codex/windows"],
+                    line!["Learn more: https://github.com/xujian519/BCIP"],
                 ])
                 .wrap(Wrap { trim: false }),
             ));
@@ -249,7 +249,7 @@ impl ChatWidget {
         let mut header = ColumnRenderable::new();
         header.push(*Box::new(
             Paragraph::new(vec![
-                line!["Set up the BCIP agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/codex/windows>"],
+                line!["Set up the BCIP agent sandbox to protect your files and control network access. Learn more <https://github.com/xujian519/BCIP>"],
             ])
             .wrap(Wrap { trim: false }),
         ));
@@ -343,9 +343,7 @@ impl ChatWidget {
         lines.push(line![
             "You can still use BCIP in a non-admin sandbox. It carries greater risk if prompt injected."
         ]);
-        lines.push(line![
-            "Learn more <https://developers.openai.com/codex/windows>"
-        ]);
+        lines.push(line!["Learn more <https://github.com/xujian519/BCIP>"]);
 
         let mut header = ColumnRenderable::new();
         header.push(*Box::new(Paragraph::new(lines).wrap(Wrap { trim: false })));
@@ -378,7 +376,7 @@ impl ChatWidget {
                 ..Default::default()
             },
             SelectionItem {
-                name: "Use BCIP with non-admin sandbox".to_string(),
+                name: "使用非管理员沙箱运行云熙专利智能体".to_string(),
                 description: None,
                 actions: vec![Box::new({
                     let otel = self.session_telemetry.clone();

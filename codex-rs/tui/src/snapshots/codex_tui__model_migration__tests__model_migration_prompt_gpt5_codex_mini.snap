@@ -1,9 +1,10 @@
 ---
 source: tui/src/model_migration.rs
+assertion_line: 532
 expression: terminal.backend()
 ---
 
-> BCIP just got an upgrade. Introducing gpt-5.1-codex-mini.
+> 云熙专利智能体刚刚升级。 gpt-5.1-codex-mini.
 
   We recommend switching from gpt-5-codex-mini to
   gpt-5.1-codex-mini.

@@ -1,0 +1,13 @@
+[package]
+name = "codex-im-common"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+codex-im-protocol = { path = "../codex-im-protocol" }
+chrono = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }

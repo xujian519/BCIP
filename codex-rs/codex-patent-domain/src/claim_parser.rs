@@ -49,6 +49,15 @@ impl ClaimParser {
         intersection / union
     }
 
+    /// 计算两个文本的 Jaccard 相似度
+    pub fn feature_text_similarity(a: &str, b: &str) -> f64 {
+        let set_a: std::collections::HashSet<&str> = a.split_whitespace().collect();
+        let set_b: std::collections::HashSet<&str> = b.split_whitespace().collect();
+        let intersection = set_a.intersection(&set_b).count() as f64;
+        let union = set_a.union(&set_b).count().max(1) as f64;
+        intersection / union
+    }
+
     /// 根据相似度值判定对应关系类型
     pub fn classify_correspondence(similarity: f64) -> CorrespondenceType {
         if similarity >= 0.9 {

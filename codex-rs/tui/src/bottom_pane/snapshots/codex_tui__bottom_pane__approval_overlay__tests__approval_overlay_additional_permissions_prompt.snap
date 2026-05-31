@@ -1,5 +1,6 @@
 ---
 source: tui/src/bottom_pane/approval_overlay.rs
+assertion_line: 2037
 expression: "normalize_snapshot_paths(render_overlay_lines(&view, 120))"
 ---
 
@@ -12,6 +13,6 @@ expression: "normalize_snapshot_paths(render_overlay_lines(&view, 120))"
   $ cat /tmp/readme.txt
 
 › 1. Yes, proceed (y)
-  2. No, and tell BCIP what to do differently (esc)
+  2. 不 ， 并 告 知 云 熙 专 利 智 能 体 如 何 改 进  (esc)
 
   Press enter to confirm or esc to cancel

@@ -128,6 +128,7 @@ mod external_agent_config_migration;
 mod external_agent_config_migration_startup;
 mod external_editor;
 mod file_search;
+mod follow_up;
 mod frames;
 mod get_git_diff;
 mod git_action_directives;
@@ -183,11 +184,13 @@ mod terminal_title;
 mod text_formatting;
 mod theme_picker;
 mod token_usage;
+#[allow(dead_code)]
 mod tooltips;
 mod transcript_reflow;
 mod tui;
 mod ui_consts;
 pub(crate) mod update_action;
+mod yunxi_greeting;
 pub use update_action::UpdateAction;
 #[cfg(not(debug_assertions))]
 pub use update_action::get_update_action;
@@ -906,7 +909,7 @@ pub async fn run_main(
     let codex_home = match find_codex_home() {
         Ok(codex_home) => codex_home.to_path_buf(),
         Err(err) => {
-            eprintln!("Error finding codex home: {err}");
+            eprintln!("Error finding BCIP home: {err}");
             std::process::exit(1);
         }
     };
@@ -1450,7 +1453,7 @@ async fn run_ratatui_app(
             thread_name: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(format!(
-                "No saved session found with ID {id_str}. Run `codex {action}` without an ID to choose from existing sessions."
+                "No saved session found with ID {id_str}. Run `bcip {action}` without an ID to choose from existing sessions."
             )),
         })
     };

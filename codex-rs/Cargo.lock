@@ -2257,6 +2257,7 @@ dependencies = [
  "codex-utils-absolute-path",
  "codex-utils-cargo-bin",
  "codex-utils-cli",
+ "codex-utils-home-dir",
  "codex-utils-path",
  "codex-windows-sandbox",
  "crossterm",
@@ -2523,6 +2524,8 @@ dependencies = [
  "codex-models-manager",
  "codex-network-proxy",
  "codex-otel",
+ "codex-patent-agents",
+ "codex-patent-constitutional",
  "codex-patent-tools",
  "codex-plugin",
  "codex-protocol",
@@ -3013,6 +3016,70 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-im-bridge"
+version = "0.1.0"
+dependencies = [
+ "codex-im-protocol",
+ "futures",
+ "rusqlite",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "codex-im-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "codex-im-protocol",
+ "rand 0.9.3",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "codex-im-feishu"
+version = "0.1.0"
+dependencies = [
+ "codex-im-bridge",
+ "codex-im-common",
+ "codex-im-protocol",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "codex-im-protocol"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "codex-im-telegram"
+version = "0.1.0"
+dependencies = [
+ "codex-im-bridge",
+ "codex-im-common",
+ "codex-im-protocol",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "codex-install-context"
 version = "0.0.1"
 dependencies = [
@@ -3422,10 +3489,24 @@ dependencies = [
 name = "codex-patent-agents"
 version = "0.1.0"
 dependencies = [
+ "codex-patent-knowledge",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "codex-patent-constitutional"
+version = "0.1.0"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -3457,10 +3538,28 @@ name = "codex-patent-knowledge"
 version = "0.1.0"
 dependencies = [
  "codex-patent-core",
+ "codex-patent-text",
+ "regex",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "codex-patent-scheduler"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "notify",
+ "rand 0.9.3",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3474,12 +3573,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-patent-text"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "codex-patent-tools"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "codex-patent-agents",
  "codex-patent-core",
  "codex-patent-domain",
  "codex-patent-knowledge",
+ "codex-patent-text",
  "regex",
  "reqwest",
  "serde",

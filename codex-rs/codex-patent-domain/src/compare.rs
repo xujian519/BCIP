@@ -1,7 +1,9 @@
 //! 专利对比矩阵与特征匹配。
 
-use codex_patent_core::{CompareFeature, InfringementType};
-use serde::{Deserialize, Serialize};
+use codex_patent_core::CompareFeature;
+use codex_patent_core::InfringementType;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashSet;
 
 /// 特征矩阵单元格

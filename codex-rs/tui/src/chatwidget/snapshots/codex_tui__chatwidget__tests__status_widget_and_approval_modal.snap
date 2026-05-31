@@ -1,5 +1,6 @@
 ---
 source: tui/src/chatwidget/tests/status_and_layout.rs
+assertion_line: 1841
 expression: normalized_backend_snapshot(terminal.backend())
 ---
 "                                                                                                    "
@@ -12,6 +13,6 @@ expression: normalized_backend_snapshot(terminal.backend())
 "                                                                                                    "
 "› 1. Yes, proceed (y)                                                                               "
 "  2. Yes, and don't ask again for commands that start with `echo 'hello world'` (p)                 "
-"  3. No, and tell BCIP what to do differently (esc)                                                "
+"  3. 不，并告知云熙专利智能体如何改进 (esc)                                                         " Hidden by multi-width symbols: [(6, " "), (8, " "), (10, " "), (12, " "), (14, " "), (16, " "), (18, " "), (20, " "), (22, " "), (24, " "), (26, " "), (28, " "), (30, " "), (32, " "), (34, " "), (36, " ")]
 "                                                                                                    "
 "  Press enter to confirm or esc to cancel                                                           "

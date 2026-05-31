@@ -4,6 +4,7 @@ use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use rusqlite::params;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -76,10 +77,10 @@ impl SqliteKnowledgeGraph {
 
         {
             let cache = self.query_cache.lock().unwrap();
-            if let Some(cached) = cache.get(&cache_key) {
-                if cached.len() >= limit {
-                    return Ok(cached[..limit].to_vec());
-                }
+            if let Some(cached) = cache.get(&cache_key)
+                && cached.len() >= limit
+            {
+                return Ok(cached[..limit].to_vec());
             }
         }
 
@@ -162,6 +163,95 @@ impl SqliteKnowledgeGraph {
         Ok(nodes)
     }
 
+    /// 多跳 BFS 遍历：从 node_id 出发，按 relation_type 过滤，最大 depth 跳
+    pub fn traverse(
+        &self,
+        start_id: &str,
+        relation_filter: Option<&[&str]>,
+        max_depth: usize,
+    ) -> Result<Vec<(KgEdge, usize)>, String> {
+        let mut visited = HashSet::new();
+        let mut results = Vec::new();
+        let mut current = vec![start_id.to_string()];
+        let mut depth = 0;
+
+        while depth < max_depth && !current.is_empty() {
+            depth += 1;
+            let mut next = Vec::new();
+            for node_id in &current {
+                if !visited.insert(node_id.clone()) {
+                    continue;
+                }
+                let edges = self.get_edges(node_id)?;
+                for edge in edges {
+                    if let Some(filter) = relation_filter {
+                        if !filter.contains(&edge.relation.as_str()) {
+                            continue;
+                        }
+                    }
+                    results.push((edge.clone(), depth));
+                    let neighbor = if edge.source == *node_id {
+                        edge.target.clone()
+                    } else {
+                        edge.source.clone()
+                    };
+                    if !visited.contains(&neighbor) {
+                        next.push(neighbor);
+                    }
+                }
+            }
+            current = next;
+        }
+
+        Ok(results)
+    }
+
+    /// 查找两个节点之间的路径（BFS）
+    pub fn find_path(
+        &self,
+        from: &str,
+        to: &str,
+        max_depth: usize,
+    ) -> Result<Vec<Vec<KgEdge>>, String> {
+        if from == to {
+            return Ok(vec![Vec::new()]);
+        }
+
+        let mut paths = Vec::new();
+        let mut visited = HashSet::new();
+        let mut queue = Vec::new();
+        queue.push((from.to_string(), Vec::new()));
+
+        let mut depth = 0;
+        while depth < max_depth && !queue.is_empty() && paths.is_empty() {
+            depth += 1;
+            let mut next_queue = Vec::new();
+            for (node_id, path) in &queue {
+                if !visited.insert(node_id.clone()) {
+                    continue;
+                }
+                let edges = self.get_edges(node_id)?;
+                for edge in &edges {
+                    let neighbor = if edge.source == *node_id {
+                        &edge.target
+                    } else {
+                        &edge.source
+                    };
+                    let mut new_path = path.clone();
+                    new_path.push(edge.clone());
+                    if neighbor == to {
+                        paths.push(new_path);
+                    } else {
+                        next_queue.push((neighbor.clone(), new_path));
+                    }
+                }
+            }
+            queue = next_queue;
+        }
+
+        Ok(paths)
+    }
+
     pub fn node_type_distribution(&self) -> Result<Vec<NodeTypeCount>, String> {
         let sql =
             "SELECT node_type, COUNT(*) as cnt FROM nodes GROUP BY node_type ORDER BY cnt DESC";
@@ -205,10 +295,8 @@ impl SqliteKnowledgeGraph {
             .map_err(|e| format!("{e}"))?;
 
         let mut nodes = Vec::new();
-        for row in rows {
-            if let Ok(node) = row {
-                nodes.push(node);
-            }
+        for node in rows.flatten() {
+            nodes.push(node);
         }
         Ok(nodes)
     }
