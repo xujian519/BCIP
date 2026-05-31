@@ -12,7 +12,9 @@ pub enum RealtimeWebrtcError {
     Message(String),
     #[error("realtime WebRTC is not supported on this platform")]
     UnsupportedPlatform,
-    #[error("realtime WebRTC native stack was disabled at build time (enable feature native-webrtc)")]
+    #[error(
+        "realtime WebRTC native stack was disabled at build time (enable feature native-webrtc)"
+    )]
     DisabledAtBuildTime,
 }
 

@@ -407,12 +407,27 @@ Rules:
     #[cfg(feature = "patent-tools")]
     fn patent_roles() -> Vec<(String, AgentRoleConfig)> {
         let definitions: &[(&str, &str)] = &[
-            ("retriever", "专利检索专家 — 多源专利检索、检索式构建、对比文件筛选"),
-            ("analyzer", "专利技术分析专家 — 权利要求解析、技术特征提取、四层对比分析"),
+            (
+                "retriever",
+                "专利检索专家 — 多源专利检索、检索式构建、对比文件筛选",
+            ),
+            (
+                "analyzer",
+                "专利技术分析专家 — 权利要求解析、技术特征提取、四层对比分析",
+            ),
             ("writer", "专利文件撰写专家 — 说明书/权利要求书/摘要撰写"),
-            ("novelty_checker", "新颖性评估专家 — 三步法新颖性判断、逐特征对比"),
-            ("creativity_checker", "创造性评估专家 — 问题-解决方案法创造性分析"),
-            ("infringement_checker", "侵权分析专家 — 全面覆盖+等同原则侵权分析"),
+            (
+                "novelty_checker",
+                "新颖性评估专家 — 三步法新颖性判断、逐特征对比",
+            ),
+            (
+                "creativity_checker",
+                "创造性评估专家 — 问题-解决方案法创造性分析",
+            ),
+            (
+                "infringement_checker",
+                "侵权分析专家 — 全面覆盖+等同原则侵权分析",
+            ),
             ("invalidity_checker", "无效分析专家 — 无效理由和证据分析"),
             ("reviewer", "文件审查专家 — 格式规范和内容质量审查"),
             ("quality_checker", "质量评估专家 — 多维度专利质量评估"),

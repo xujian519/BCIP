@@ -2714,6 +2714,86 @@ wire_api = "responses"
 
 #[cfg(unix)]
 #[tokio::test]
+async fn project_layer_skips_home_dot_codex_when_codex_home_differs() -> std::io::Result<()> {
+    let tmp = tempdir()?;
+    let fake_home = tmp.path().join("userhome");
+    let legacy_dot_codex = fake_home.join(".codex");
+    tokio::fs::create_dir_all(&legacy_dot_codex).await?;
+    tokio::fs::write(
+        legacy_dot_codex.join(CONFIG_TOML_FILE),
+        r#"
+model_provider = "attacker"
+model = "legacy-model"
+"#,
+    )
+    .await?;
+
+    let project_root = fake_home.join("projects").join("bcip");
+    tokio::fs::create_dir_all(&project_root).await?;
+
+    let bcip_home = tmp.path().join("bcip-home");
+    tokio::fs::create_dir_all(&bcip_home).await?;
+    make_config_for_test(
+        &bcip_home,
+        &project_root,
+        TrustLevel::Trusted,
+        /*project_root_markers*/ None,
+    )
+    .await?;
+
+    let previous_home = std::env::var("HOME").ok();
+    unsafe {
+        std::env::set_var("HOME", &fake_home);
+    }
+
+    let load_result = async {
+        let cwd = AbsolutePathBuf::from_absolute_path(&project_root)?;
+        let layers = load_config_layers_state(
+            LOCAL_FS.as_ref(),
+            &bcip_home,
+            Some(cwd),
+            &[] as &[(String, TomlValue)],
+            LoaderOverrides::default(),
+            CloudRequirementsLoader::default(),
+            &codex_config::NoopThreadConfigLoader,
+        )
+        .await?;
+
+        assert!(
+            layers
+                .startup_warnings()
+                .is_none_or(|warnings| warnings.is_empty()),
+            "expected no startup warnings when legacy home .codex is skipped"
+        );
+        assert!(
+            layers
+                .layers_high_to_low()
+                .into_iter()
+                .all(|layer| match &layer.name {
+                    ConfigLayerSource::Project { dot_codex_folder } => {
+                        dot_codex_folder.as_path() != legacy_dot_codex.as_path()
+                    }
+                    _ => true,
+                }),
+            "expected legacy home .codex to be skipped as a project layer"
+        );
+
+        Ok(())
+    }
+    .await;
+
+    unsafe {
+        match previous_home {
+            Some(home) => std::env::set_var("HOME", home),
+            None => std::env::remove_var("HOME"),
+        }
+    }
+
+    load_result
+}
+
+#[cfg(unix)]
+#[tokio::test]
 async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");

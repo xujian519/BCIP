@@ -229,3 +229,42 @@ model = "gpt-dev"
     .await
     .expect("profile-v2 should allow unrelated legacy profiles in base user config");
 }
+
+#[test]
+fn skips_home_dot_codex_project_layer_when_codex_home_differs() {
+    let tmp = tempdir().expect("tempdir");
+    let fake_home = tmp.path().join("home");
+    std::fs::create_dir_all(fake_home.join(".codex")).expect("legacy codex home");
+
+    let legacy_dot_codex =
+        AbsolutePathBuf::from_absolute_path(fake_home.join(".codex")).expect("legacy dot codex");
+    let bcip_home =
+        AbsolutePathBuf::from_absolute_path(tmp.path().join(".bcip")).expect("bcip home");
+    let legacy_normalized = legacy_dot_codex.as_path();
+    let bcip_normalized = bcip_home.as_path();
+
+    let previous_home = std::env::var("HOME").ok();
+    unsafe {
+        std::env::set_var("HOME", &fake_home);
+    }
+
+    assert!(should_skip_dot_codex_project_layer(
+        &legacy_dot_codex,
+        legacy_normalized,
+        &bcip_home,
+        bcip_normalized,
+    ));
+    assert!(should_skip_dot_codex_project_layer(
+        &legacy_dot_codex,
+        legacy_normalized,
+        &legacy_dot_codex,
+        legacy_normalized,
+    ));
+
+    unsafe {
+        match previous_home {
+            Some(home) => std::env::set_var("HOME", home),
+            None => std::env::remove_var("HOME"),
+        }
+    }
+}

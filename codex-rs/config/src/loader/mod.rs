@@ -44,7 +44,6 @@ use dunce::canonicalize as normalize_path;
 use serde::Deserialize;
 use std::io;
 use std::path::Path;
-#[cfg(windows)]
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 
@@ -894,6 +893,41 @@ fn sanitize_project_config(config: &mut TomlValue) -> Vec<String> {
     ignored_keys
 }
 
+fn legacy_codex_home_dot_codex() -> Option<AbsolutePathBuf> {
+    let home = std::env::var_os("HOME").map(PathBuf::from)?;
+    AbsolutePathBuf::from_absolute_path(home.join(".codex")).ok()
+}
+
+/// Skip `$HOME/.codex` during project tree walks when it is not the active
+/// `codex_home`. That directory is the Codex Desktop user data home; BCIP uses
+/// a separate home (for example `~/.bcip`) and repos under `$HOME` would
+/// otherwise treat the desktop config as project-local config.
+fn should_skip_dot_codex_project_layer(
+    dot_codex_abs: &AbsolutePathBuf,
+    dot_codex_normalized: &Path,
+    codex_home_abs: &AbsolutePathBuf,
+    codex_home_normalized: &Path,
+) -> bool {
+    if dot_codex_abs == codex_home_abs || dot_codex_normalized == codex_home_normalized {
+        return true;
+    }
+
+    let Some(legacy_codex_home) = legacy_codex_home_dot_codex() else {
+        return false;
+    };
+    let legacy_codex_home_normalized = normalize_path(legacy_codex_home.as_path())
+        .unwrap_or_else(|_| legacy_codex_home.to_path_buf());
+
+    let is_legacy_codex_home = dot_codex_abs == &legacy_codex_home
+        || dot_codex_normalized == legacy_codex_home_normalized.as_path();
+    if !is_legacy_codex_home {
+        return false;
+    }
+
+    codex_home_abs != &legacy_codex_home
+        && codex_home_normalized != legacy_codex_home_normalized.as_path()
+}
+
 fn project_ignored_config_keys_warning(
     dot_codex_folder: &AbsolutePathBuf,
     ignored_keys: &[String],
@@ -1169,7 +1203,12 @@ async fn load_project_layers(
         let hooks_config_folder_override = trust_context.root_checkout_hooks_folder_for_dir(&dir);
         let dot_codex_normalized =
             normalize_path(dot_codex_abs.as_path()).unwrap_or_else(|_| dot_codex_abs.to_path_buf());
-        if dot_codex_abs == codex_home_abs || dot_codex_normalized == codex_home_normalized {
+        if should_skip_dot_codex_project_layer(
+            &dot_codex_abs,
+            &dot_codex_normalized,
+            &codex_home_abs,
+            &codex_home_normalized,
+        ) {
             continue;
         }
         let config_file = dot_codex_abs.join(CONFIG_TOML_FILE);
