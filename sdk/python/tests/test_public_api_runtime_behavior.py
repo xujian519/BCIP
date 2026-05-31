@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-import openai_codex.api as public_api_module
+import bcip_agent.api as public_api_module
 from bcip_agent.api import (
     ApprovalMode,
     AsyncCodex,

@@ -7,8 +7,8 @@ from typing import Any
 
 import tomllib
 
-import openai_codex
-import openai_codex.types as public_types
+import bcip_agent
+import bcip_agent.types as public_types
 from bcip_agent import (
     ApprovalMode,
     AppServerConfig,
@@ -196,30 +196,30 @@ def test_package_and_default_client_versions_follow_project_version() -> None:
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text())
 
-    assert openai_codex.__version__ == pyproject["project"]["version"]
-    assert AppServerConfig().client_version == openai_codex.__version__
+    assert bcip_agent.__version__ == pyproject["project"]["version"]
+    assert AppServerConfig().client_version == bcip_agent.__version__
 
 
 def test_package_includes_py_typed_marker() -> None:
     """The wheel should advertise that inline type information is available."""
-    marker = resources.files("openai_codex").joinpath("py.typed")
+    marker = resources.files("bcip_agent").joinpath("py.typed")
     assert marker.is_file()
 
 
 def test_package_root_exports_only_public_api() -> None:
     """The package root should expose the supported SDK surface, not internals."""
-    assert openai_codex.__all__ == EXPECTED_ROOT_EXPORTS
-    assert {name: hasattr(openai_codex, name) for name in EXPECTED_ROOT_EXPORTS} == dict.fromkeys(
+    assert bcip_agent.__all__ == EXPECTED_ROOT_EXPORTS
+    assert {name: hasattr(bcip_agent, name) for name in EXPECTED_ROOT_EXPORTS} == dict.fromkeys(
         EXPECTED_ROOT_EXPORTS, True
     )
     assert {
-        "AppServerClient": hasattr(openai_codex, "AppServerClient"),
-        "AsyncAppServerClient": hasattr(openai_codex, "AsyncAppServerClient"),
-        "InitializeResponse": hasattr(openai_codex, "InitializeResponse"),
-        "ThreadStartParams": hasattr(openai_codex, "ThreadStartParams"),
-        "TurnStartParams": hasattr(openai_codex, "TurnStartParams"),
-        "TurnCompletedNotification": hasattr(openai_codex, "TurnCompletedNotification"),
-        "TurnStatus": hasattr(openai_codex, "TurnStatus"),
+        "AppServerClient": hasattr(bcip_agent, "AppServerClient"),
+        "AsyncAppServerClient": hasattr(bcip_agent, "AsyncAppServerClient"),
+        "InitializeResponse": hasattr(bcip_agent, "InitializeResponse"),
+        "ThreadStartParams": hasattr(bcip_agent, "ThreadStartParams"),
+        "TurnStartParams": hasattr(bcip_agent, "TurnStartParams"),
+        "TurnCompletedNotification": hasattr(bcip_agent, "TurnCompletedNotification"),
+        "TurnStatus": hasattr(bcip_agent, "TurnStatus"),
     } == {
         "AppServerClient": False,
         "AsyncAppServerClient": False,
@@ -261,11 +261,11 @@ def test_examples_use_public_import_surfaces() -> None:
     """Examples should teach users the public root and type-module imports only."""
     examples_root = Path(__file__).resolve().parents[1] / "examples"
     private_import_markers = [
-        "openai_codex.api",
-        "openai_codex.client",
-        "openai_codex.generated",
-        "openai_codex.models",
-        "openai_codex.retry",
+        "bcip_agent.api",
+        "bcip_agent.client",
+        "bcip_agent.generated",
+        "bcip_agent.models",
+        "bcip_agent.retry",
     ]
 
     offenders = {

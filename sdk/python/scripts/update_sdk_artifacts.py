@@ -19,7 +19,7 @@ from typing import Any, Callable, Sequence, get_args, get_origin
 
 SDK_DISTRIBUTION_NAME = "bcip-agent"
 RUNTIME_DISTRIBUTION_NAME = "bcip-agent-cli-bin"
-RUNTIME_PACKAGE_ROOT = Path("src") / "codex_cli_bin"
+RUNTIME_PACKAGE_ROOT = Path("src") / "bcip_agent_cli_bin"
 CODEX_PACKAGE_METADATA = "codex-package.json"
 
 
@@ -114,7 +114,7 @@ def pinned_runtime_codex_path() -> Path:
         )
 
     try:
-        from codex_cli_bin import bundled_codex_path
+        from bcip_agent_cli_bin import bundled_codex_path
     except ImportError as exc:
         raise RuntimeError(
             f"Installed {RUNTIME_DISTRIBUTION_NAME} package does not expose bundled_codex_path."
@@ -236,7 +236,7 @@ def _rewrite_sdk_runtime_dependency(pyproject_text: str, runtime_version: str) -
 def stage_python_sdk_package(staging_dir: Path, codex_version: str) -> Path:
     package_version = normalize_codex_version(codex_version)
     _copy_package_tree(sdk_root(), staging_dir)
-    sdk_bin_dir = staging_dir / "src" / "openai_codex" / "bin"
+    sdk_bin_dir = staging_dir / "src" / "bcip_agent" / "bin"
     if sdk_bin_dir.exists():
         shutil.rmtree(sdk_bin_dir)
 
@@ -556,7 +556,7 @@ def _normalized_schema_bundle_text(schema_dir: Path) -> str:
 
 def generate_v2_all(schema_dir: Path) -> None:
     """Regenerate the Pydantic v2 protocol model module from runtime schemas."""
-    out_path = sdk_root() / "src" / "openai_codex" / "generated" / "v2_all.py"
+    out_path = sdk_root() / "src" / "bcip_agent" / "generated" / "v2_all.py"
     out_dir = out_path.parent
     old_package_dir = out_dir / "v2_all"
     if old_package_dir.exists():
@@ -605,7 +605,7 @@ def _notification_specs(schema_dir: Path) -> list[tuple[str, str]]:
     """Map each server notification method to its generated payload model class."""
     server_notifications = json.loads((schema_dir / "ServerNotification.json").read_text())
     one_of = server_notifications.get("oneOf", [])
-    generated_source = (sdk_root() / "src" / "openai_codex" / "generated" / "v2_all.py").read_text()
+    generated_source = (sdk_root() / "src" / "bcip_agent" / "generated" / "v2_all.py").read_text()
 
     specs: list[tuple[str, str]] = []
 
@@ -677,7 +677,7 @@ def _type_tuple_source(class_names: list[str]) -> str:
 
 def generate_notification_registry(schema_dir: Path) -> None:
     """Regenerate notification dispatch metadata from the runtime notification schema."""
-    out = sdk_root() / "src" / "openai_codex" / "generated" / "notification_registry.py"
+    out = sdk_root() / "src" / "bcip_agent" / "generated" / "notification_registry.py"
     specs = _notification_specs(schema_dir)
     class_names = sorted({class_name for _, class_name in specs})
     direct_turn_id_types, nested_turn_types = _notification_turn_id_specs(
@@ -804,7 +804,7 @@ def _load_public_fields(
 ) -> list[PublicFieldSpec]:
     """Load generated model fields used to render the ergonomic public methods."""
     exclude = exclude or set()
-    if module_name == "openai_codex.generated.v2_all":
+    if module_name == "bcip_agent.generated.v2_all":
         module = _load_generated_v2_all_module()
     else:
         module = importlib.import_module(module_name)
@@ -831,9 +831,9 @@ def _load_public_fields(
 
 def _load_generated_v2_all_module() -> types.ModuleType:
     """Import the freshly generated v2_all module without importing package init."""
-    module_name = "_openai_codex_generated_v2_all_for_artifacts"
+    module_name = "_bcip_agent_generated_v2_all_for_artifacts"
     sys.modules.pop(module_name, None)
-    module_path = sdk_root() / "src" / "openai_codex" / "generated" / "v2_all.py"
+    module_path = sdk_root() / "src" / "bcip_agent" / "generated" / "v2_all.py"
     spec = importlib.util.spec_from_file_location(module_name, module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to load generated module from {module_path}")
@@ -1099,7 +1099,7 @@ def _render_async_thread_block(
 def generate_public_api_flat_methods() -> None:
     """Regenerate the public convenience methods from generated protocol models."""
     src_dir = sdk_root() / "src"
-    public_api_path = src_dir / "openai_codex" / "api.py"
+    public_api_path = src_dir / "bcip_agent" / "api.py"
     if not public_api_path.exists():
         # PR2 can run codegen before the ergonomic public API layer is added.
         return
@@ -1109,26 +1109,26 @@ def generate_public_api_flat_methods() -> None:
 
     approval_fields = {"approval_policy", "approvals_reviewer"}
     thread_start_fields = _load_public_fields(
-        "openai_codex.generated.v2_all",
+        "bcip_agent.generated.v2_all",
         "ThreadStartParams",
         exclude=approval_fields,
     )
     thread_list_fields = _load_public_fields(
-        "openai_codex.generated.v2_all",
+        "bcip_agent.generated.v2_all",
         "ThreadListParams",
     )
     thread_resume_fields = _load_public_fields(
-        "openai_codex.generated.v2_all",
+        "bcip_agent.generated.v2_all",
         "ThreadResumeParams",
         exclude={"thread_id", *approval_fields},
     )
     thread_fork_fields = _load_public_fields(
-        "openai_codex.generated.v2_all",
+        "bcip_agent.generated.v2_all",
         "ThreadForkParams",
         exclude={"thread_id", *approval_fields},
     )
     turn_start_fields = _load_public_fields(
-        "openai_codex.generated.v2_all",
+        "bcip_agent.generated.v2_all",
         "TurnStartParams",
         exclude={"thread_id", "input", *approval_fields},
     )

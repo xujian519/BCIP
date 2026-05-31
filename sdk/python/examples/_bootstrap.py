@@ -34,7 +34,7 @@ def ensure_local_sdk_src() -> Path:
     """Add sdk/python/src to sys.path so examples run without installing the package."""
     sdk_python_dir = _SDK_PYTHON_DIR
     src_dir = sdk_python_dir / "src"
-    package_dir = src_dir / "openai_codex"
+    package_dir = src_dir / "bcip_agent"
     if not package_dir.exists():
         raise RuntimeError(f"Could not locate local SDK package at {package_dir}")
 

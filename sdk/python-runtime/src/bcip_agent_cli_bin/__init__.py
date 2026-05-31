@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-PACKAGE_NAME = "openai-codex-cli-bin"
+PACKAGE_NAME = "bcip-agent-cli-bin"
 PACKAGE_METADATA_FILENAME = "codex-package.json"
 
 
@@ -20,7 +20,7 @@ def bundled_codex_path() -> Path:
     path = bundled_package_dir() / "bin" / exe
     if not path.is_file():
         raise FileNotFoundError(
-            f"{PACKAGE_NAME} is installed but missing its packaged codex binary at {path}"
+            f"{PACKAGE_NAME} is installed but missing its packaged binary at {path}"
         )
     return path
 

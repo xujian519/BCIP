@@ -208,7 +208,7 @@ def test_generate_v2_all_uses_titles_for_generated_names() -> None:
 
 
 def test_runtime_package_template_has_no_checked_in_binaries() -> None:
-    runtime_root = ROOT.parent / "python-runtime" / "src" / "codex_cli_bin"
+    runtime_root = ROOT.parent / "python-runtime" / "src" / "bcip_agent_cli_bin"
     assert sorted(
         path.name
         for path in runtime_root.rglob("*")
@@ -367,12 +367,12 @@ def test_runtime_package_is_wheel_only_and_builds_platform_specific_wheels() -> 
 
     assert pyproject["project"]["name"] == "bcip-agent-cli-bin"
     assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"] == {
-        "packages": ["src/codex_cli_bin"],
+        "packages": ["src/bcip_agent_cli_bin"],
         "include": [
-            "src/codex_cli_bin/codex-package.json",
-            "src/codex_cli_bin/bin/**",
-            "src/codex_cli_bin/codex-resources/**",
-            "src/codex_cli_bin/codex-path/**",
+            "src/bcip_agent_cli_bin/codex-package.json",
+            "src/bcip_agent_cli_bin/bin/**",
+            "src/bcip_agent_cli_bin/codex-resources/**",
+            "src/bcip_agent_cli_bin/codex-path/**",
         ],
         "hooks": {"custom": {}},
     }
@@ -484,10 +484,10 @@ def test_runtime_package_layout_is_included_by_wheel_config(
 
     pyproject = tomllib.loads((staged / "pyproject.toml").read_text())
     assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["include"] == [
-        "src/codex_cli_bin/codex-package.json",
-        "src/codex_cli_bin/bin/**",
-        "src/codex_cli_bin/codex-resources/**",
-        "src/codex_cli_bin/codex-path/**",
+        "src/bcip_agent_cli_bin/codex-package.json",
+        "src/bcip_agent_cli_bin/bin/**",
+        "src/bcip_agent_cli_bin/codex-resources/**",
+        "src/bcip_agent_cli_bin/codex-path/**",
     ]
 
 
@@ -504,13 +504,13 @@ def test_stage_sdk_release_injects_exact_runtime_pin(tmp_path: Path) -> None:
     assert '"bcip-agent-cli-bin==0.116.0a1"' in pyproject
     assert (
         '__version__ = "0.116.0a1"'
-        not in (staged / "src" / "openai_codex" / "__init__.py").read_text()
+        not in (staged / "src" / "bcip_agent" / "__init__.py").read_text()
     )
     assert (
         'client_version: str = "0.116.0a1"'
-        not in (staged / "src" / "openai_codex" / "client.py").read_text()
+        not in (staged / "src" / "bcip_agent" / "client.py").read_text()
     )
-    assert not any((staged / "src" / "openai_codex").glob("bin/**"))
+    assert not any((staged / "src" / "bcip_agent").glob("bin/**"))
 
 
 def test_stage_sdk_release_replaces_existing_staging_dir(tmp_path: Path) -> None:

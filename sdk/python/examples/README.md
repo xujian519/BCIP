@@ -5,8 +5,8 @@ Each example folder contains runnable versions:
 - `sync.py` (public sync surface: `Codex`)
 - `async.py` (public async surface: `AsyncCodex`)
 
-All examples intentionally use only public SDK exports from `openai_codex`
-and `openai_codex.types`.
+All examples intentionally use only public SDK exports from `bcip_agent`
+and `bcip_agent.types`.
 
 Examples use plain strings for text-only turns and typed input objects for
 multimodal or structured input lists.

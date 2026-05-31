@@ -90,7 +90,7 @@ def _params_dict(
 
 def _installed_codex_path() -> Path:
     try:
-        from codex_cli_bin import bundled_codex_path
+        from bcip_agent_cli_bin import bundled_codex_path
     except ImportError as exc:
         raise FileNotFoundError(
             "Unable to locate the pinned BCIP runtime. Install the published SDK build "
@@ -103,7 +103,7 @@ def _installed_codex_path() -> Path:
 
 def _installed_codex_path_dirs() -> tuple[Path, ...]:
     try:
-        from codex_cli_bin import bundled_path_dir
+        from bcip_agent_cli_bin import bundled_path_dir
     except (ImportError, AttributeError):
         return ()
 

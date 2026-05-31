@@ -26,7 +26,7 @@ Existing Codex auth state is reused automatically. To authenticate from the SDK,
 use the flow that fits your app:
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 with Codex() as codex:
     codex.login_api_key("sk-...")
@@ -52,7 +52,7 @@ and `wait()`.
 ## 3) Run your first turn (sync)
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 with Codex() as codex:
     server = codex.metadata.serverInfo
@@ -79,7 +79,7 @@ What happened:
 ## 4) Continue the same thread (multi-turn)
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 with Codex() as codex:
     thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
@@ -98,7 +98,7 @@ initializes lazily, and context entry makes startup/shutdown explicit.
 
 ```python
 import asyncio
-from openai_codex import AsyncCodex
+from bcip_agent import AsyncCodex
 
 
 async def main() -> None:
@@ -114,7 +114,7 @@ asyncio.run(main())
 ## 6) Resume an existing thread
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 THREAD_ID = "thr_123"  # replace with a real id
 
@@ -130,7 +130,7 @@ The convenience wrappers live at the package root. Public app-server value and
 event types live under:
 
 ```python
-from openai_codex.types import ThreadReadResponse, Turn, TurnStatus
+from bcip_agent.types import ThreadReadResponse, Turn, TurnStatus
 ```
 
 ## 8) Next stops

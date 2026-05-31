@@ -117,7 +117,7 @@ def _installed_runtime_version(python_executable: str | Path) -> str | None:
     snippet = (
         "import importlib.metadata, json, sys\n"
         "try:\n"
-        "    from codex_cli_bin import bundled_codex_path\n"
+        "    from bcip_agent_cli_bin import bundled_codex_path\n"
         "    bundled_codex_path()\n"
         f"    print(json.dumps({{'version': importlib.metadata.version({PACKAGE_NAME!r})}}))\n"
         "except Exception:\n"

@@ -8,9 +8,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_TARGETS = [
-    Path("src/openai_codex/generated/notification_registry.py"),
-    Path("src/openai_codex/generated/v2_all.py"),
-    Path("src/openai_codex/api.py"),
+    Path("src/bcip_agent/generated/notification_registry.py"),
+    Path("src/bcip_agent/generated/v2_all.py"),
+    Path("src/bcip_agent/api.py"),
 ]
 
 

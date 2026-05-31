@@ -1,15 +1,15 @@
 from ._version import __version__
 from .api import (
     ApprovalMode,
+    AsyncBCIPAgent,
     AsyncChatgptLoginHandle,
     AsyncCodex,
     AsyncDeviceCodeLoginHandle,
     AsyncThread,
     AsyncTurnHandle,
-    AsyncBCIPAgent,
+    BCIPAgent,
     ChatgptLoginHandle,
     Codex,
-    BCIPAgent,
     DeviceCodeLoginHandle,
     ImageInput,
     Input,

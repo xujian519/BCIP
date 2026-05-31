@@ -6,7 +6,7 @@ The generated wire-model layer is sourced from the pinned `bcip-agent-cli-bin`
 runtime package and exposed as Pydantic models with snake_case Python fields
 that serialize back to the app-server’s camelCase wire format.
 The package root exports the ergonomic client API; public app-server value and
-event types live in `openai_codex.types`.
+event types live in `bcip_agent.types`.
 
 ## Install
 
@@ -23,7 +23,7 @@ when you intentionally want to run against a specific local app-server binary.
 ## Quickstart
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 with Codex() as codex:
     # Call login_api_key(...) first when this app-server session is not
@@ -43,7 +43,7 @@ phase-less assistant message item.
 Use the auth helper that matches your app:
 
 ```python
-from openai_codex import Codex
+from bcip_agent import Codex
 
 with Codex() as codex:
     codex.login_api_key("sk-...")

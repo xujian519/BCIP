@@ -27,7 +27,7 @@ def test_generated_params_models_are_snake_case_and_dump_by_alias() -> None:
 
 
 def test_generated_v2_bundle_has_single_shared_plan_type_definition() -> None:
-    source = (ROOT / "src" / "openai_codex" / "generated" / "v2_all.py").read_text()
+    source = (ROOT / "src" / "bcip_agent" / "generated" / "v2_all.py").read_text()
     assert source.count("class PlanType(") == 1
 
 
