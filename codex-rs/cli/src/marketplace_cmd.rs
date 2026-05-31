@@ -31,7 +31,7 @@ enum MarketplaceSubcommand {
     /// Add a local or Git marketplace to the configured marketplace sources.
     Add(AddMarketplaceArgs),
 
-    /// List plugin marketplaces BCIP is currently considering and their roots.
+    /// List plugin marketplaces YunPat is currently considering and their roots.
     List,
 
     /// Refresh configured Git marketplace snapshots.

@@ -4,7 +4,6 @@ use codex_patent_domain::examiner_simulator::ExaminerSimulator;
 use codex_patent_domain::oa_feedback::FeedbackAnalyzer;
 use codex_patent_domain::oa_feedback::FeedbackRecord;
 use codex_patent_domain::oa_feedback::FeedbackType;
-use codex_patent_domain::oa_pattern::OaResponseTrajectory;
 use codex_patent_domain::oa_pattern::PatternExtractor;
 use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use serde::Deserialize;
@@ -64,7 +63,7 @@ impl SimulatorTools {
     }
 
     pub fn examiner_respond(input: ExaminerRespondInput) -> Result<serde_json::Value, String> {
-        let mut simulator = ExaminerSimulator::new();
+        let simulator = ExaminerSimulator::new();
         if let Some(rt) = &input.rejection_type {
             let _ = ExaminerSimulator::detect_rejection_type(rt);
         }

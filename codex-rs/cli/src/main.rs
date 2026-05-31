@@ -82,7 +82,7 @@ use codex_protocol::protocol::AskForApproval;
 use codex_protocol::user_input::UserInput;
 use codex_terminal_detection::TerminalName;
 
-/// BCIP Agent
+/// YunPat Agent
 ///
 /// If no subcommand is specified, options will be forwarded to the interactive CLI.
 #[derive(Debug, Parser)]
@@ -116,7 +116,7 @@ struct MultitoolCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum Subcommand {
-    /// Run BCIP non-interactively.
+    /// Run YunPat non-interactively.
     #[clap(visible_alias = "e")]
     Exec(ExecCli),
 
@@ -129,13 +129,13 @@ enum Subcommand {
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
 
-    /// Manage external MCP servers for BCIP.
+    /// Manage external MCP servers.
     Mcp(McpCli),
 
-    /// Manage BCIP plugins.
+    /// Manage plugins.
     Plugin(PluginCli),
 
-    /// Start BCIP as an MCP server (stdio).
+    /// Start as an MCP server (stdio).
     McpServer(McpServerCommand),
 
     /// [experimental] Run the app server or related tooling.
@@ -144,20 +144,20 @@ enum Subcommand {
     /// [experimental] Manage the app-server daemon with remote control enabled.
     RemoteControl(RemoteControlCommand),
 
-    /// Launch the BCIP desktop app (opens the app installer if missing).
+    /// Launch the desktop app (opens the app installer if missing).
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     App(app_cmd::AppCommand),
 
     /// Generate shell completion scripts.
     Completion(CompletionCommand),
 
-    /// Update BCIP to the latest version.
+    /// Update to the latest version.
     Update,
 
-    /// Diagnose local BCIP installation, config, auth, and runtime health.
+    /// Diagnose local installation, config, auth, and runtime health.
     Doctor(DoctorCommand),
 
-    /// Run commands within a BCIP-provided sandbox.
+    /// Run commands within a sandbox.
     Sandbox(HostSandboxArgs),
 
     /// Debugging tools.
@@ -167,7 +167,7 @@ enum Subcommand {
     #[clap(hide = true)]
     Execpolicy(ExecpolicyCommand),
 
-    /// Apply the latest diff produced by BCIP agent as a `git apply` to your local working tree.
+    /// Apply the latest diff produced by the agent as a `git apply` to your local working tree.
     #[clap(visible_alias = "a")]
     Apply(ApplyCommand),
 
@@ -177,7 +177,7 @@ enum Subcommand {
     /// Fork a previous interactive session (picker by default; use --last to fork the most recent).
     Fork(ForkCommand),
 
-    /// [EXPERIMENTAL] Browse tasks from BCIP Cloud and apply changes locally.
+    /// [EXPERIMENTAL] Browse tasks from Cloud and apply changes locally.
     #[clap(name = "cloud", alias = "cloud-tasks")]
     Cloud(CloudTasksCli),
 
@@ -521,7 +521,7 @@ enum AppServerSubcommand {
     /// [experimental] Generate JSON Schema for the app server protocol.
     GenerateJsonSchema(GenerateJsonSchemaCommand),
 
-    /// [internal] Generate internal JSON Schema artifacts for BCIP tooling.
+    /// [internal] Generate internal JSON Schema artifacts for tooling.
     #[clap(hide = true)]
     GenerateInternalJsonSchema(GenerateInternalJsonSchemaCommand),
 }
@@ -669,7 +669,7 @@ fn handle_app_exit(exit_info: AppExitInfo) -> anyhow::Result<()> {
 fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     println!();
     let cmd_str = action.command_str();
-    println!("Updating BCIP via `{cmd_str}`...");
+    println!("Updating via `{cmd_str}`...");
 
     let status = {
         #[cfg(windows)]
@@ -704,7 +704,7 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     if !status.success() {
         anyhow::bail!("`{cmd_str}` failed with status {status}");
     }
-    println!("\n🎉 Update ran successfully! Please restart BCIP Agent.");
+    println!("\n🎉 Update ran successfully! Please restart YunPat Agent.");
     Ok(())
 }
 
@@ -712,7 +712,7 @@ fn run_update_command() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
     {
         anyhow::bail!(
-            "`bcip update` is not available in debug builds. Install a release build of BCIP to use this command."
+            "`bcip update` is not available in debug builds. Install a release build to use this command."
         );
     }
 
@@ -720,7 +720,7 @@ fn run_update_command() -> anyhow::Result<()> {
     {
         let Some(action) = codex_tui::get_update_action() else {
             anyhow::bail!(
-                "Could not detect the BCIP installation method. Please update manually: #"
+                "Could not detect the installation method. Please update manually: #"
             );
         };
         run_update_action(action)
@@ -1480,7 +1480,7 @@ async fn run_exec_server_command(
     let codex_self_exe = arg0_paths
         .codex_self_exe
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("BCIP executable path is not configured"))?;
+        .ok_or_else(|| anyhow::anyhow!("executable path is not configured"))?;
     let runtime_paths = codex_exec_server::ExecServerRuntimePaths::new(
         codex_self_exe,
         arg0_paths.codex_linux_sandbox_exe.clone(),
@@ -1986,7 +1986,7 @@ async fn run_interactive_tui(
         }
 
         eprintln!(
-            "WARNING: TERM is set to \"dumb\". BCIP Agent's interactive TUI may not work in this terminal."
+            "WARNING: TERM is set to \"dumb\". YunPat Agent's interactive TUI may not work in this terminal."
         );
         if !confirm("Continue anyway? [y/N]: ")? {
             return Ok(AppExitInfo::fatal(
@@ -2058,7 +2058,7 @@ async fn run_interactive_tui(
             Err(repair_err) => {
                 local_state_db::print_diagnostic_guidance(startup_error);
                 return Ok(AppExitInfo::fatal(format!(
-                    "failed to repair BCIP local data automatically: {repair_err}"
+                    "failed to repair local data automatically: {repair_err}"
                 )));
             }
         }

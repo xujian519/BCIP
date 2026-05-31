@@ -118,7 +118,7 @@ fn resolve_bin_from_env(key: &str, value: OsString) -> Result<PathBuf, CargoBinE
 /// compile-time environment variables that need to be captured at the call
 /// site.)
 ///
-/// This is expected to be used exclusively in test code because BCIP Agent is a
+/// This is expected to be used exclusively in test code because YunPat Agent is a
 /// standalone binary with no packaged resources.
 #[macro_export]
 macro_rules! find_resource {

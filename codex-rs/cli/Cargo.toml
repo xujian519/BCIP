@@ -9,9 +9,13 @@ build = "build.rs"
 name = "codex"
 path = "src/main.rs"
 
-# BCIP 本地开发用独立二进制名，避免与 PATH 里的官方 `codex` 混淆
+# 本地开发用独立二进制名，避免与 PATH 里的官方 `codex` 混淆
 [[bin]]
 name = "bcip"
+path = "src/main.rs"
+
+[[bin]]
+name = "yunpat"
 path = "src/main.rs"
 
 [lib]

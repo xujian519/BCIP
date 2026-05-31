@@ -652,8 +652,8 @@ impl Daemon {
 
         let managed_codex_path = self.managed_codex_bin.display();
         Err(anyhow!(
-            "managed standalone BCIP Agent install not found at {managed_codex_path}\n\n\
-             This command requires the standalone install managed by the BCIP Agent installer, because \
+            "managed standalone YunPat Agent install not found at {managed_codex_path}\n\n\
+             This command requires the standalone install managed by the YunPat Agent installer, because \
              the daemon starts and updates app-server from that fixed path.\n\n\
              Install it with:\n  curl -fsSL https://chatgpt.com/codex/install.sh | sh\n\n\
              Then rerun the command you just tried."

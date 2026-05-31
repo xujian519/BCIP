@@ -6,12 +6,10 @@
 use crate::common::ResponseEvent;
 use crate::common::ResponseStream;
 use crate::endpoint::chat_conversions::ChatCompletionsChunk;
-use crate::endpoint::chat_conversions::ChunkToolCall;
 use crate::error::ApiError;
 use crate::telemetry::SseTelemetry;
 use codex_client::ByteStream;
 use codex_client::StreamResponse;
-use codex_protocol::models::FunctionCallOutputPayload;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::TokenUsage;
 use eventsource_stream::Eventsource;

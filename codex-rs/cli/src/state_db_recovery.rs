@@ -17,8 +17,8 @@ pub(crate) fn is_locked(detail: &str) -> bool {
 }
 
 pub(crate) fn confirm_repair(startup_error: &LocalStateDbStartupError) -> std::io::Result<bool> {
-    eprintln!("BCIP couldn't start because its local database appears to be damaged.");
-    eprintln!("BCIP can try a safe repair by backing up those files and rebuilding them.");
+    eprintln!("YunPat couldn't start because its local database appears to be damaged.");
+    eprintln!("YunPat can try a safe repair by backing up those files and rebuilding them.");
     print_technical_details(startup_error);
     crate::confirm("Repair Codex local data now? [y/N]: ")
 }
@@ -75,14 +75,14 @@ pub(crate) fn print_repair_backups(backups: &[PathBuf]) {
 }
 
 pub(crate) fn print_diagnostic_guidance(startup_error: &LocalStateDbStartupError) {
-    eprintln!("BCIP couldn't start because its local database appears to be damaged.");
+    eprintln!("YunPat couldn't start because its local database appears to be damaged.");
     eprintln!("Run `bcip doctor` to check your setup and get next-step guidance.");
     eprintln!("If this keeps happening, share the technical details below when asking for help.");
     print_technical_details(startup_error);
 }
 
 pub(crate) fn print_locked_guidance(startup_error: &LocalStateDbStartupError) {
-    eprintln!("BCIP couldn't start because another BCIP process is using its local data.");
+    eprintln!("YunPat couldn't start because another process is using its local data.");
     eprintln!("Quit any other copies of Codex that may still be running, then try again.");
     print_technical_details(startup_error);
 }

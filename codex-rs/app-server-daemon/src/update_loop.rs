@@ -147,7 +147,7 @@ pub(crate) fn reexec_managed_updater(managed_codex_bin: &std::path::Path) -> Res
         .exec();
     Err(err).with_context(|| {
         format!(
-            "failed to replace updater with managed BCIP Agent binary {}",
+            "failed to replace updater with managed YunPat Agent binary {}",
             managed_codex_bin.display()
         )
     })
@@ -157,12 +157,12 @@ pub(crate) fn reexec_managed_updater(managed_codex_bin: &std::path::Path) -> Res
 async fn install_latest_standalone() -> Result<()> {
     let script = reqwest::get("https://chatgpt.com/codex/install.sh")
         .await
-        .context("failed to fetch standalone BCIP Agent updater")?
+        .context("failed to fetch standalone YunPat Agent updater")?
         .error_for_status()
-        .context("standalone BCIP Agent updater request failed")?
+        .context("standalone YunPat Agent updater request failed")?
         .bytes()
         .await
-        .context("failed to read standalone BCIP Agent updater")?;
+        .context("failed to read standalone YunPat Agent updater")?;
 
     let mut child = Command::new("/bin/sh")
         .arg("-s")
@@ -170,25 +170,25 @@ async fn install_latest_standalone() -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .context("failed to invoke standalone BCIP Agent updater")?;
+        .context("failed to invoke standalone YunPat Agent updater")?;
     let mut stdin = child
         .stdin
         .take()
-        .context("standalone BCIP Agent updater stdin was unavailable")?;
+        .context("standalone YunPat Agent updater stdin was unavailable")?;
     stdin
         .write_all(&script)
         .await
-        .context("failed to pass standalone BCIP Agent updater to shell")?;
+        .context("failed to pass standalone YunPat Agent updater to shell")?;
     drop(stdin);
     let status = child
         .wait()
         .await
-        .context("failed to wait for standalone BCIP Agent updater")?;
+        .context("failed to wait for standalone YunPat Agent updater")?;
 
     if status.success() {
         Ok(())
     } else {
-        anyhow::bail!("standalone BCIP Agent updater exited with status {status}")
+        anyhow::bail!("standalone YunPat Agent updater exited with status {status}")
     }
 }
 

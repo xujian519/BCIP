@@ -243,6 +243,7 @@ pub struct ChunkChoice {
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[allow(dead_code)]
 pub struct ChunkDelta {
     pub role: Option<String>,
     pub content: Option<String>,

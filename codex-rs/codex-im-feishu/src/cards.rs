@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct CardBuilder {
     header: Option<CardHeader>,
     elements: Vec<CardElement>,
@@ -17,6 +18,7 @@ pub enum CardElement {
     Action(Vec<CardAction>),
 }
 
+#[allow(dead_code)]
 pub struct CardAction {
     pub text: String,
     pub value: String,
@@ -30,6 +32,7 @@ pub enum ActionType {
     Danger,
 }
 
+#[allow(dead_code)]
 impl CardBuilder {
     pub fn new() -> Self {
         Self {

@@ -53,7 +53,7 @@ use tracing::warn;
 
 const DEFAULT_ISSUER: &str = "https://auth.openai.com";
 const DEFAULT_PORT: u16 = 1455;
-// Keep in sync with the BCIP Agent Hydra redirect URI allow-list.
+// Keep in sync with the YunPat Agent redirect URI allow-list.
 const FALLBACK_PORT: u16 = 1457;
 static LOGIN_ERROR_PAGE_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {
     Template::parse(include_str!("assets/error.html"))

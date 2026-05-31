@@ -3,6 +3,8 @@ use chrono::Datelike;
 use chrono::TimeDelta;
 use chrono::Timelike;
 use chrono::Utc;
+
+#[cfg(test)]
 use chrono::Weekday;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

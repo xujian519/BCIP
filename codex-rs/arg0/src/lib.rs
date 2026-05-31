@@ -24,7 +24,7 @@ pub struct Arg0DispatchPaths {
     ///
     /// Prefer this over [`std::env::current_exe()`] in code that may run under
     /// a test harness, where `current_exe()` can point at the harness binary
-    /// instead of the real BCIP Agent.
+    /// instead of the real YunPat Agent.
     pub codex_self_exe: Option<PathBuf>,
     pub codex_linux_sandbox_exe: Option<PathBuf>,
     pub main_execve_wrapper_exe: Option<PathBuf>,
@@ -149,7 +149,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
     }
 }
 
-/// While we want to deploy the BCIP Agent as a single executable for simplicity,
+/// While we want to deploy the YunPat Agent as a single executable for simplicity,
 /// we also want to expose some of its functionality as distinct CLIs, so we use
 /// the "arg0 trick" to determine which CLI to dispatch. This effectively allows
 /// us to simulate deploying multiple executables as a single binary on Mac and
@@ -276,7 +276,7 @@ where
 /// This temporary directory is prepended to the PATH environment variable so
 /// that `apply_patch` can be on the PATH without requiring the user to
 /// install a separate `apply_patch` executable, simplifying the deployment of
-/// BCIP Agent.
+/// YunPat Agent.
 /// Note: In debug builds the temp-dir guard is disabled to ease local testing.
 ///
 /// IMPORTANT: This function modifies the PATH environment variable, so it MUST

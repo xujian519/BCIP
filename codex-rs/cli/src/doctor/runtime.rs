@@ -17,7 +17,7 @@ use super::describe_install_context;
 use super::doctor_install_context;
 use super::push_path_detail;
 
-/// Builds the process provenance row for the current BCIP executable.
+/// Builds the process provenance row for the current YunPat executable.
 ///
 /// This check is informational and should not fail on its own; inconsistent
 /// install state is reported by the installation and update checks instead.

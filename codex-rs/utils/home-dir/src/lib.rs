@@ -5,11 +5,11 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-/// BCIP Agent 默认用户数据目录名（与官方 Codex 的 `.codex` 隔离）。
+/// YunPat Agent 默认用户数据目录名（与官方 Codex 的 `.codex` 隔离）。
 pub const BCIP_HOME_DIR_NAME: &str = ".bcip";
 
 /// BCIP 首次启动时写入的 `config.toml`（不含插件/MCP，避免与 Codex 桌面混用）。
-const DEFAULT_CONFIG_TOML: &str = r#"# BCIP Agent 专用配置（~/.bcip）
+const DEFAULT_CONFIG_TOML: &str = r#"# YunPat Agent 专用配置（~/.bcip）
 # 与本地 Codex 桌面版（~/.codex）完全隔离。按需修改 model / env_key。
 
 model_provider = "DeepSeek"
@@ -192,7 +192,7 @@ mod tests {
         let config_path = temp_home.path().join("config.toml");
         assert!(config_path.exists());
         let first = fs::read_to_string(&config_path).expect("read config");
-        assert!(first.contains("BCIP Agent"));
+        assert!(first.contains("YunPat Agent"));
 
         fs::write(&config_path, "custom = true\n").expect("overwrite config");
         ensure_bcip_home_layout(temp_home.path()).expect("seed again");

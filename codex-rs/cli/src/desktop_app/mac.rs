@@ -15,13 +15,13 @@ pub async fn run_mac_app_open_or_install(
 ) -> anyhow::Result<()> {
     if let Some(app_path) = find_existing_codex_app_path() {
         eprintln!(
-            "Opening BCIP Desktop at {app_path}...",
+            "Opening YunPat Desktop at {app_path}...",
             app_path = app_path.display()
         );
         open_codex_app(&app_path, &workspace).await?;
         return Ok(());
     }
-    eprintln!("BCIP Desktop not found; downloading installer...");
+    eprintln!("YunPat Desktop not found; downloading installer...");
     let download_url = download_url_override.unwrap_or_else(|| {
         let default_url = if is_apple_silicon_mac() {
             CODEX_DMG_URL_ARM64
@@ -32,9 +32,9 @@ pub async fn run_mac_app_open_or_install(
     });
     let installed_app = download_and_install_codex_to_user_applications(&download_url)
         .await
-        .context("failed to download/install BCIP Desktop")?;
+        .context("failed to download/install YunPat Desktop")?;
     eprintln!(
-        "Launching BCIP Desktop from {installed_app}...",
+        "Launching YunPat Desktop from {installed_app}...",
         installed_app = installed_app.display()
     );
     open_codex_app(&installed_app, &workspace).await?;
@@ -112,7 +112,7 @@ async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyho
     let dmg_path = tmp_root.join("Codex.dmg");
     download_dmg(dmg_url, &dmg_path).await?;
 
-    eprintln!("Mounting BCIP Desktop installer...");
+    eprintln!("Mounting YunPat Desktop installer...");
     let mount_point = mount_dmg(&dmg_path).await?;
     eprintln!(
         "Installer mounted at {mount_point}.",
@@ -139,7 +139,7 @@ async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyho
 async fn install_codex_app_bundle(app_in_volume: &Path) -> anyhow::Result<PathBuf> {
     for applications_dir in candidate_applications_dirs()? {
         eprintln!(
-            "Installing BCIP Desktop into {applications_dir}...",
+            "Installing YunPat Desktop into {applications_dir}...",
             applications_dir = applications_dir.display()
         );
         std::fs::create_dir_all(&applications_dir).with_context(|| {
