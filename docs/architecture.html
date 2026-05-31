@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BCIP Agent 系统架构图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e17;
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    color: #e2e8f0;
+    overflow: hidden;
+    height: 100vh;
+  }
+  canvas { display: block; }
+  #tooltip {
+    position: fixed;
+    display: none;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-width: 400px;
+    font-size: 13px;
+    line-height: 1.6;
+    pointer-events: none;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #tooltip h4 { color: #818cf8; margin-bottom: 6px; font-size: 14px; }
+  #tooltip p { color: #94a3b8; }
+  #legend {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 12px;
+    backdrop-filter: blur(10px);
+  }
+  #legend h5 { color: #818cf8; margin-bottom: 8px; font-size: 13px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  #controls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+  }
+  #controls button {
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  #controls button:hover { background: rgba(99, 102, 241, 0.3); }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="tooltip"><h4></h4><p></p></div>
+<div id="legend">
+  <h5>图例</h5>
+  <div class="legend-item"><div class="legend-dot" style="background:#818cf8"></div> 用户交互层</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f472b6"></div> 核心引擎层</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> 服务 & 基础设施层</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> 模型 & AI 层</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#38bdf8"></div> SDK & 扩展层</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fb923c"></div> 外部 LLM 服务</div>
+</div>
+<div id="controls">
+  <button onclick="zoom(1.15)">放大 +</button>
+  <button onclick="zoom(1/1.15)">缩小 -</button>
+  <button onclick="resetView()">重置</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+let W, H, scale = 1, offsetX = 0, offsetY = 0;
+let mouseX = 0, mouseY = 0;
+let hoveredNode = null;
+let animFrame = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', () => { resize(); });
+resize();
+
+// ---- Data Model ----
+const layers = [
+  { y: 0.06, label: '用户交互层', color: '#818cf8' },
+  { y: 0.22, label: '核心引擎层', color: '#f472b6' },
+  { y: 0.44, label: '服务 & 基础设施层', color: '#34d399' },
+  { y: 0.64, label: '模型 & AI 层', color: '#fbbf24' },
+  { y: 0.82, label: 'SDK & 扩展层', color: '#38bdf8' },
+  { y: 0.95, label: '外部 LLM 服务', color: '#fb923c' },
+];
+
+const nodes = [
+  // Layer 0 - User Interaction
+  { id: 'cli', layer: 0, x: 0.18, w: 0.12, label: 'CLI (codex-cli)', desc: '命令行入口，解析参数、子命令（exec/app/daemon 等），支持 Shell 补全', crate: 'codex-rs/cli' },
+  { id: 'tui', layer: 0, x: 0.38, w: 0.12, label: 'TUI (终端界面)', desc: '基于 ratatui 的终端交互界面，包含对话视图、文件编辑预览、快捷键绑定', crate: 'codex-rs/tui' },
+  { id: 'desktop', layer: 0, x: 0.58, w: 0.12, label: 'Desktop App', desc: '桌面应用（bcip app），基于 app-server 的 GUI 客户端', crate: 'codex-rs/app-server' },
+  { id: 'ide', layer: 0, x: 0.78, w: 0.12, label: 'IDE 插件', desc: 'VS Code / Cursor / Windsurf 编辑器扩展，通过 MCP 协议通信', crate: 'codex-mcp / IDE extension' },
+
+  // Layer 1 - Core Engine
+  { id: 'core', layer: 1, x: 0.10, w: 0.16, label: 'Core Engine', desc: '核心编排引擎：管理对话线程、调度工具调用、处理 LLM 响应、压缩上下文、执行审批流', crate: 'codex-rs/core' },
+  { id: 'core_api', layer: 1, x: 0.30, w: 0.10, label: 'Core API', desc: '核心对外接口定义：Provider trait、Session 配置、事件类型', crate: 'codex-rs/core-api' },
+  { id: 'protocol', layer: 1, x: 0.44, w: 0.12, label: 'Protocol', desc: '跨组件通信协议：消息类型、配置类型、权限模型、错误定义', crate: 'codex-rs/protocol' },
+  { id: 'config', layer: 1, x: 0.60, w: 0.12, label: 'Config', desc: '配置管理：config.toml 解析、权限配置、Hook 配置、MCP 服务器配置、Profile 管理', crate: 'codex-rs/config' },
+  { id: 'exec', layer: 1, x: 0.76, w: 0.12, label: 'Exec Server', desc: '命令执行服务器：管理沙箱内的 Shell 命令执行、进程生命周期', crate: 'codex-rs/exec-server' },
+
+  // Layer 2 - Services & Infrastructure
+  { id: 'mcp', layer: 2, x: 0.06, w: 0.10, label: 'MCP Server', desc: 'Model Context Protocol 服务器：IDE 集成通信桥、工具注册与发现', crate: 'codex-rs/codex-mcp' },
+  { id: 'sandbox', layer: 2, x: 0.20, w: 0.10, label: 'Sandboxing', desc: '沙箱隔离系统：Linux (bwrap)、macOS (Seatbelt)、网络代理、文件系统限制', crate: 'codex-rs/sandboxing' },
+  { id: 'tools', layer: 2, x: 0.34, w: 0.10, label: 'Tools', desc: '内置工具集：Shell 执行、文件编辑、Apply Patch、代码搜索', crate: 'codex-rs/tools' },
+  { id: 'connectors', layer: 2, x: 0.48, w: 0.10, label: 'Connectors', desc: '外部连接器：Git 操作、文件系统监控、终端检测', crate: 'codex-rs/connectors' },
+  { id: 'login', layer: 2, x: 0.62, w: 0.10, label: 'Login & Auth', desc: '认证管理：ChatGPT OAuth、API Key、Bearer Token、AWS SigV4', crate: 'codex-rs/login' },
+  { id: 'hooks', layer: 2, x: 0.76, w: 0.10, label: 'Hooks', desc: '生命周期钩子：Pre/Post tool call 钩子、用户自定义脚本触发', crate: 'codex-rs/hooks' },
+  { id: 'skills', layer: 2, x: 0.88, w: 0.08, label: 'Skills', desc: '技能系统：可扩展的能力模块、内置与自定义 Skill', crate: 'codex-rs/skills' },
+
+  // Layer 3 - Model & AI
+  { id: 'model_provider', layer: 3, x: 0.08, w: 0.14, label: 'Model Provider', desc: 'Provider 抽象层：统一的多模型接入接口，支持 OpenAI / Bedrock / Ollama / LM Studio', crate: 'codex-rs/model-provider' },
+  { id: 'models_mgr', layer: 3, x: 0.26, w: 0.12, label: 'Models Manager', desc: '模型目录管理：在线拉取模型列表、本地缓存、模型选择', crate: 'codex-rs/models-manager' },
+  { id: 'rollout', layer: 3, x: 0.42, w: 0.10, label: 'Rollout', desc: '响应流处理：SSE 流解析、重试逻辑、WebSocket 传输', crate: 'codex-rs/rollout' },
+  { id: 'agent_id', layer: 3, x: 0.56, w: 0.10, label: 'Agent Identity', desc: 'Agent 身份管理：会话标识、上下文追踪', crate: 'codex-rs/agent-identity' },
+  { id: 'memories', layer: 3, x: 0.70, w: 0.10, label: 'Memories', desc: '持久记忆系统：跨会话的上下文记忆、用户偏好存储', crate: 'codex-rs/memories' },
+  { id: 'analytics', layer: 3, x: 0.84, w: 0.10, label: 'Analytics', desc: '使用分析：事件收集、遥测、使用统计上报', crate: 'codex-rs/analytics' },
+
+  // Layer 4 - SDK & Extensions
+  { id: 'python_sdk', layer: 4, x: 0.15, w: 0.14, label: 'Python SDK', desc: 'Python 客户端 SDK：bcip_agent 包，提供同步/异步 API、类型定义', crate: 'sdk/python' },
+  { id: 'ts_sdk', layer: 4, x: 0.35, w: 0.14, label: 'TypeScript SDK', desc: 'TypeScript 客户端 SDK：@bcip/agent 包，Node.js 环境支持', crate: 'sdk/typescript' },
+  { id: 'plugin_sys', layer: 4, x: 0.56, w: 0.12, label: 'Plugin System', desc: '插件系统：第三方扩展加载、插件生命周期管理', crate: 'codex-rs/plugin' },
+  { id: 'rmcp', layer: 4, x: 0.73, w: 0.10, label: 'RMCP Client', desc: 'Rust MCP 客户端：流式 HTTP、OAuth 认证、资源管理', crate: 'codex-rs/rmcp-client' },
+
+  // Layer 5 - External LLM
+  { id: 'openai', layer: 5, x: 0.08, w: 0.14, label: 'OpenAI API', desc: 'OpenAI Responses API (/v1/responses)，支持 GPT-4o、o3 等模型', crate: 'https://api.openai.com' },
+  { id: 'chatgpt', layer: 5, x: 0.28, w: 0.14, label: 'ChatGPT', desc: 'ChatGPT 登录集成：Plus/Pro/Business/Enterprise 用户直接使用', crate: 'https://chatgpt.com' },
+  { id: 'bedrock', layer: 5, x: 0.48, w: 0.14, label: 'Amazon Bedrock', desc: 'AWS Bedrock Mantle API，支持 GPT-5.4、GPT-OSS 等模型', crate: 'bedrock-mantle.us-east-1.api.aws' },
+  { id: 'ollama_srv', layer: 5, x: 0.68, w: 0.12, label: 'Ollama', desc: '本地 Ollama 服务 (端口 11434)，支持开源模型本地推理', crate: 'http://localhost:11434' },
+  { id: 'lmstudio_srv', layer: 5, x: 0.84, w: 0.12, label: 'LM Studio', desc: '本地 LM Studio 服务 (端口 1234)，支持本地模型加载', crate: 'http://localhost:1234' },
+];
+
+const edges = [
+  // User -> Core
+  { from: 'cli', to: 'core', label: '启动' },
+  { from: 'tui', to: 'core', label: '交互' },
+  { from: 'tui', to: 'config', label: '读取配置' },
+  { from: 'desktop', to: 'core', label: 'gRPC' },
+  { from: 'ide', to: 'mcp', label: 'MCP 协议' },
+
+  // Core internals
+  { from: 'core', to: 'core_api', label: '实现 trait' },
+  { from: 'core', to: 'protocol', label: '消息定义' },
+  { from: 'core', to: 'config', label: '配置' },
+  { from: 'core', to: 'exec', label: '执行命令' },
+  { from: 'core', to: 'model_provider', label: '调用模型' },
+  { from: 'core', to: 'tools', label: '使用工具' },
+  { from: 'core', to: 'sandbox', label: '沙箱执行' },
+  { from: 'core', to: 'memories', label: '读写记忆' },
+  { from: 'core', to: 'rollout', label: '流处理' },
+  { from: 'core', to: 'hooks', label: '触发钩子' },
+  { from: 'core', to: 'skills', label: '加载技能' },
+
+  // Services
+  { from: 'mcp', to: 'core', label: '转发请求' },
+  { from: 'mcp', to: 'protocol', label: '协议' },
+  { from: 'exec', to: 'sandbox', label: '隔离执行' },
+  { from: 'connectors', to: 'core', label: '文件/Git' },
+  { from: 'login', to: 'model_provider', label: '认证' },
+
+  // Model layer
+  { from: 'model_provider', to: 'models_mgr', label: '模型目录' },
+  { from: 'rollout', to: 'model_provider', label: '请求' },
+  { from: 'agent_id', to: 'analytics', label: '遥测' },
+
+  // SDK
+  { from: 'python_sdk', to: 'protocol', label: 'HTTP/gRPC' },
+  { from: 'ts_sdk', to: 'protocol', label: 'HTTP/gRPC' },
+  { from: 'plugin_sys', to: 'core_api', label: '扩展' },
+  { from: 'rmcp', to: 'mcp', label: 'MCP 客户端' },
+
+  // External
+  { from: 'model_provider', to: 'openai', label: 'API' },
+  { from: 'login', to: 'chatgpt', label: 'OAuth' },
+  { from: 'model_provider', to: 'bedrock', label: 'SigV4' },
+  { from: 'model_provider', to: 'ollama_srv', label: '本地' },
+  { from: 'model_provider', to: 'lmstudio_srv', label: '本地' },
+];
+
+// ---- Helpers ----
+function getNodeRect(n) {
+  const boxW = n.w * W * scale;
+  const boxH = 48;
+  const boxX = n.x * W * scale + offsetX - boxW / 2;
+  const boxY = layers[n.layer].y * H * scale + offsetY - boxH / 2;
+  return { x: boxX, y: boxY, w: boxW, h: boxH, cx: boxX + boxW / 2, cy: boxY + boxH / 2 };
+}
+
+function getNodeById(id) { return nodes.find(n => n.id === id); }
+
+function drawRoundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ---- Drawing ----
+function draw() {
+  animFrame++;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background gradient
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0a0e17');
+  bg.addColorStop(1, '#0f172a');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.save();
+  ctx.font = 'bold 22px -apple-system, "SF Pro Display", sans-serif';
+  ctx.fillStyle = '#e2e8f0';
+  ctx.textAlign = 'center';
+  ctx.fillText('BCIP Agent 系统架构图', W / 2, 32);
+  ctx.font = '12px -apple-system, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('基于 Rust 的本地智能编码代理  ·  源码: codex-rs/  sdk/', W / 2, 52);
+  ctx.restore();
+
+  // Layer backgrounds
+  for (const layer of layers) {
+    const y = layer.y * H * scale + offsetY - 24;
+    ctx.save();
+    ctx.fillStyle = layer.color + '08';
+    ctx.fillRect(0, y, W, 80 * scale);
+    ctx.strokeStyle = layer.color + '15';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillStyle = layer.color + '80';
+    ctx.textAlign = 'left';
+    ctx.fillText(layer.label, 14, y + 14);
+    ctx.restore();
+  }
+
+  // Edges
+  ctx.save();
+  for (const edge of edges) {
+    const fromNode = getNodeById(edge.from);
+    const toNode = getNodeById(edge.to);
+    if (!fromNode || !toNode) continue;
+
+    const from = getNodeRect(fromNode);
+    const to = getNodeRect(toNode);
+
+    const isHovered = hoveredNode && (hoveredNode.id === edge.from || hoveredNode.id === edge.to);
+    const alpha = isHovered ? 0.6 : 0.12;
+
+    const fromLayerY = layers[fromNode.layer].y;
+    const toLayerY = layers[toNode.layer].y;
+
+    let sx, sy, ex, ey;
+    if (Math.abs(fromLayerY - toLayerY) < 0.01) {
+      // Same layer - horizontal
+      const goRight = from.cx < to.cx;
+      sx = goRight ? from.x + from.w : from.x;
+      sy = from.cy;
+      ex = goRight ? to.x : to.x + to.w;
+      ey = to.cy;
+    } else if (fromLayerY < toLayerY) {
+      // Down
+      sx = from.cx;
+      sy = from.y + from.h;
+      ex = to.cx;
+      ey = to.y;
+    } else {
+      // Up
+      sx = from.cx;
+      sy = from.y;
+      ex = to.cx;
+      ey = to.y + to.h;
+    }
+
+    const fromColor = layers[fromNode.layer].color;
+    const toColor = layers[toNode.layer].color;
+
+    const grad = ctx.createLinearGradient(sx, sy, ex, ey);
+    grad.addColorStop(0, fromColor + (isHovered ? 'cc' : '40'));
+    grad.addColorStop(1, toColor + (isHovered ? 'cc' : '40'));
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = isHovered ? 2 : 1;
+    ctx.setLineDash(isHovered ? [] : [4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+
+    if (Math.abs(fromLayerY - toLayerY) < 0.01) {
+      // Horizontal curve
+      const midY = sy + (fromLayerY < 0.5 ? 20 : -20) * scale;
+      ctx.quadraticCurveTo((sx + ex) / 2, midY, ex, ey);
+    } else {
+      const midY = (sy + ey) / 2;
+      ctx.bezierCurveTo(sx, midY, ex, midY, ex, ey);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Arrow
+    const arrowSize = isHovered ? 6 : 4;
+    const angle = Math.atan2(ey - (sy + ey) / 2, ex - (sx + ex) / 2);
+    ctx.fillStyle = toColor + (isHovered ? 'cc' : '40');
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - arrowSize * Math.cos(angle - 0.4), ey - arrowSize * Math.sin(angle - 0.4));
+    ctx.lineTo(ex - arrowSize * Math.cos(angle + 0.4), ey - arrowSize * Math.sin(angle + 0.4));
+    ctx.closePath();
+    ctx.fill();
+
+    // Edge label
+    if (isHovered && edge.label) {
+      const mx = (sx + ex) / 2;
+      const my = (sy + ey) / 2;
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.fillText(edge.label, mx, my - 4);
+    }
+  }
+  ctx.restore();
+
+  // Nodes
+  for (const node of nodes) {
+    const r = getNodeRect(node);
+    const isHovered = hoveredNode && hoveredNode.id === node.id;
+    const color = layers[node.layer].color;
+
+    // Glow
+    if (isHovered) {
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      drawRoundRect(r.x, r.y, r.w, r.h, 8);
+      ctx.fillStyle = color + '30';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Box
+    drawRoundRect(r.x, r.y, r.w, r.h, 8);
+    const bgAlpha = isHovered ? '35' : '18';
+    ctx.fillStyle = color + bgAlpha;
+    ctx.fill();
+    ctx.strokeStyle = color + (isHovered ? '80' : '40');
+    ctx.lineWidth = isHovered ? 1.5 : 1;
+    ctx.stroke();
+
+    // Label
+    ctx.save();
+    ctx.font = `${isHovered ? 'bold ' : ''}12px -apple-system, "SF Pro Display", sans-serif`;
+    ctx.fillStyle = isHovered ? '#ffffff' : '#cbd5e1';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const text = node.label;
+    const maxTextW = r.w - 12;
+    let displayText = text;
+    if (ctx.measureText(text).width > maxTextW) {
+      while (ctx.measureText(displayText + '…').width > maxTextW && displayText.length > 0) {
+        displayText = displayText.slice(0, -1);
+      }
+      displayText += '…';
+    }
+    ctx.fillText(displayText, r.cx, r.cy);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+// ---- Interaction ----
+canvas.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+
+  hoveredNode = null;
+  for (const node of nodes) {
+    const r = getNodeRect(node);
+    if (mouseX >= r.x && mouseX <= r.x + r.w && mouseY >= r.y && mouseY <= r.y + r.h) {
+      hoveredNode = node;
+      break;
+    }
+  }
+
+  if (hoveredNode) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = Math.min(mouseX + 15, W - 420) + 'px';
+    tooltip.style.top = Math.min(mouseY + 15, H - 120) + 'px';
+    tooltip.querySelector('h4').textContent = hoveredNode.label;
+    tooltip.querySelector('p').textContent = hoveredNode.desc;
+    canvas.style.cursor = 'pointer';
+  } else {
+    tooltip.style.display = 'none';
+    canvas.style.cursor = 'default';
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
+  const newScale = Math.max(0.5, Math.min(3, scale * factor));
+  const dx = (mouseX - offsetX) * (1 - factor);
+  const dy = (mouseY - offsetY) * (1 - factor);
+  scale = newScale;
+  offsetX += dx;
+  offsetY += dy;
+}, { passive: false });
+
+let dragStart = null;
+canvas.addEventListener('mousedown', (e) => {
+  dragStart = { x: e.clientX - offsetX, y: e.clientY - offsetY };
+});
+canvas.addEventListener('mousemove', (e) => {
+  if (dragStart && !hoveredNode) {
+    offsetX = e.clientX - dragStart.x;
+    offsetY = e.clientY - dragStart.y;
+  }
+});
+canvas.addEventListener('mouseup', () => { dragStart = null; });
+
+function zoom(factor) {
+  const newScale = Math.max(0.5, Math.min(3, scale * factor));
+  const cx = W / 2, cy = H / 2;
+  offsetX = cx - (cx - offsetX) * (newScale / scale);
+  offsetY = cy - (cy - offsetY) * (newScale / scale);
+  scale = newScale;
+}
+
+function resetView() {
+  scale = 1;
+  offsetX = 0;
+  offsetY = 0;
+}
+
+draw();
+</script>
+</body>
+</html>
