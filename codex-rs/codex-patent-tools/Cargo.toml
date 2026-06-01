@@ -9,6 +9,7 @@ codex-patent-core = { path = "../codex-patent-core" }
 codex-patent-domain = { path = "../codex-patent-domain" }
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
 codex-patent-text = { path = "../codex-patent-text" }
+codex-web-search = { path = "../web-search" }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

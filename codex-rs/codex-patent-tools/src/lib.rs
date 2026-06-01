@@ -14,6 +14,7 @@ pub mod quality_tools;
 pub mod review_tools;
 pub mod search_tools;
 pub mod simulator_tools;
+pub mod web_search_tools;
 
 pub use search_tools::register_search_tools;
 
@@ -29,6 +30,7 @@ pub type ToolHandler =
 /// 注册全部专利工具
 pub fn register_all_tools() -> HashMap<String, ToolHandler> {
     let mut tools = search_tools::register_search_tools();
+    tools.extend(web_search_tools::register_web_search_tools());
     tools.extend(register_drafting_tools());
     tools.extend(register_oa_tools());
     tools.extend(register_quality_tools());
