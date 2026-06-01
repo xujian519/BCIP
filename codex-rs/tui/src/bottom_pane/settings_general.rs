@@ -118,3 +118,68 @@ impl SettingsGeneralView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use super::*;
+
+    #[test]
+    fn test_initial_values() {
+        let view = SettingsGeneralView::new(
+            /*animations*/ true,
+            /*show_tooltips*/ false,
+            /*raw_output_mode*/ true,
+        );
+        let (anim, tips, raw) = view.current_values();
+        assert_eq!(anim, true);
+        assert_eq!(tips, false);
+        assert_eq!(raw, true);
+    }
+
+    #[test]
+    fn test_toggle_animation_with_space() {
+        let mut view = SettingsGeneralView::new(true, false, false);
+        view.handle_key_event(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+        let (anim, ..) = view.current_values();
+        assert_eq!(anim, false);
+
+        view.handle_key_event(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+        let (anim, ..) = view.current_values();
+        assert_eq!(anim, true);
+    }
+
+    #[test]
+    fn test_focus_navigation() {
+        let mut view = SettingsGeneralView::new(true, false, false);
+        assert_eq!(view.focus_idx, 0);
+
+        view.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(view.focus_idx, 1);
+
+        view.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(view.focus_idx, 0);
+    }
+
+    #[test]
+    fn test_focus_stays_in_bounds() {
+        let mut view = SettingsGeneralView::new(true, false, false);
+        view.focus_idx = 2;
+        let before = view.focus_idx;
+        view.handle_key_event(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(view.focus_idx, before);
+
+        view.focus_idx = 0;
+        view.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(view.focus_idx, 0);
+    }
+
+    #[test]
+    fn test_toggle_different_settings() {
+        let mut view = SettingsGeneralView::new(true, true, false);
+        view.focus_idx = 1;
+        view.handle_key_event(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
+        let (_, tips, _) = view.current_values();
+        assert_eq!(tips, false);
+    }
+}
