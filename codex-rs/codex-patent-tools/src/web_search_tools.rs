@@ -130,14 +130,23 @@ async fn web_search(input: serde_json::Value) -> Result<serde_json::Value, Strin
     let provider = make_provider();
     let query = input_to_query(parsed);
     let results = provider.search(query).await?;
-    serde_json::to_value(results).map_err(|e| format!("{e}"))
+    let formatted = format_search_results(&results);
+    Ok(serde_json::json!({
+        "results": results,
+        "formatted": formatted,
+        "count": results.len(),
+    }))
 }
 
 async fn web_extract(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebExtractInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
     let provider = make_provider();
     let result = provider.extract(&parsed.url).await?;
-    serde_json::to_value(result).map_err(|e| format!("{e}"))
+    Ok(serde_json::json!({
+        "url": result.url,
+        "content": result.content,
+        "length": result.length,
+    }))
 }
 
 async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
@@ -145,7 +154,26 @@ async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value,
     let provider = make_provider();
     let queries: Vec<SearchQuery> = parsed.queries.into_iter().map(input_to_query).collect();
     let results = provider.batch_search(queries).await?;
-    serde_json::to_value(results).map_err(|e| format!("{e}"))
+    let formatted: Vec<String> = results.iter().map(|g| format_search_results(g)).collect();
+    Ok(serde_json::json!({
+        "groups": results,
+        "formatted": formatted,
+    }))
+}
+
+fn format_search_results(results: &[SearchResult]) -> String {
+    let mut out = String::new();
+    for (i, r) in results.iter().enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        out.push_str(&format!("{}. {} ({})", i + 1, r.title, r.url));
+        if !r.content.is_empty() {
+            let preview: String = r.content.chars().take(200).collect();
+            out.push_str(&format!("\n   {}", preview));
+        }
+    }
+    out
 }
 
 pub fn register_web_search_tools() -> HashMap<String, crate::ToolHandler> {
