@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SearchQuery {
     pub query: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -14,19 +14,6 @@ pub struct SearchQuery {
     pub freshness: Option<Freshness>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zone: Option<Zone>,
-}
-
-impl Default for SearchQuery {
-    fn default() -> Self {
-        Self {
-            query: String::new(),
-            domain: None,
-            sub_domain: None,
-            max_results: None,
-            freshness: None,
-            zone: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

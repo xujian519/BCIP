@@ -127,6 +127,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local codex-patent-assets directory"]
     fn test_link_graph_build() {
         let graph = LinkGraph::build("../codex-patent-assets");
         assert!(graph.is_ok());
@@ -139,6 +140,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local codex-patent-assets directory"]
     fn test_link_graph_search_by_concept() {
         let graph = LinkGraph::build("../codex-patent-assets").unwrap();
         let links = graph.search_by_concept("创造性");

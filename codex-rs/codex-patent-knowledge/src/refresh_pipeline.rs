@@ -162,6 +162,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires local codex-patent-assets directory"]
     fn test_detect_changes_on_real_kb() {
         let pipeline = RefreshPipeline::new(
             "../codex-patent-assets",
