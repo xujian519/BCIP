@@ -23,6 +23,29 @@ pub struct LegalBasisInput {
     pub patent_type: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct IpcSearchInput {
+    pub query: String,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TriangleQueryInput {
+    pub ipc: Option<String>,
+    pub concept: Option<String>,
+    pub clause: Option<String>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DecisionSearchInput {
+    pub law_article: Option<String>,
+    pub reason: Option<String>,
+    pub conclusion: Option<String>,
+    pub ipc: Option<String>,
+    pub limit: Option<usize>,
+}
+
 pub struct LegalTools;
 
 impl LegalTools {
@@ -208,5 +231,132 @@ impl LegalTools {
             .map_err(|e| format!("无法打开知识图谱: {e}"))?;
         let edges = kg.get_edges(node_id).map_err(|e| e.to_string())?;
         serde_json::to_value(&edges).map_err(|e| e.to_string())
+    }
+
+    /// IPC 技术领域搜索
+    pub fn ipc_search(input: IpcSearchInput) -> Result<serde_json::Value, String> {
+        let limit = input.limit.unwrap_or(10);
+        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
+            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let results = kg
+            .search_ipc(&input.query, limit)
+            .map_err(|e| format!("IPC 搜索失败: {e}"))?;
+        let total = results.len();
+        Ok(serde_json::json!({
+            "query": input.query,
+            "results": results,
+            "total": total
+        }))
+    }
+
+    /// 三角关联查询：通过 IPC/法条/概念任意组合查找关联节点
+    pub fn triangle_query(input: TriangleQueryInput) -> Result<serde_json::Value, String> {
+        let limit = input.limit.unwrap_or(20);
+        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
+            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let results = kg
+            .search_by_triangle(
+                input.ipc.as_deref(),
+                input.concept.as_deref(),
+                input.clause.as_deref(),
+                limit,
+            )
+            .map_err(|e| format!("三角查询失败: {e}"))?;
+        let total = results.len();
+        Ok(serde_json::json!({
+            "query": {
+                "ipc": input.ipc,
+                "concept": input.concept,
+                "clause": input.clause,
+            },
+            "results": results.iter().map(|n| {
+                let content_preview = n.content.as_deref().map(|c| &c[..c.len().min(200)]).unwrap_or("");
+                serde_json::json!({
+                    "id": n.id,
+                    "node_type": n.node_type,
+                    "title": n.title,
+                    "content": content_preview,
+                })
+            }).collect::<Vec<_>>(),
+            "total": total
+        }))
+    }
+
+    /// 复审决定搜索：按法条、无效理由、结论、IPC 搜索
+    pub fn decision_search(input: DecisionSearchInput) -> Result<serde_json::Value, String> {
+        let limit = input.limit.unwrap_or(20);
+        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
+            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+
+        // 构建搜索查询
+        let mut query_parts = Vec::new();
+        if let Some(ref reason) = input.reason {
+            query_parts.push(reason.clone());
+        }
+        if let Some(ref conclusion) = input.conclusion {
+            query_parts.push(conclusion.clone());
+        }
+        let query = if query_parts.is_empty() {
+            "无效".to_string()
+        } else {
+            query_parts.join(" ")
+        };
+
+        let nodes = kg
+            .search_nodes(&query, Some("InvalidDecision"), limit)
+            .map_err(|e| format!("复审决定搜索失败: {e}"))?;
+
+        // 按 IPC/法条三角查询补充
+        let triangle_nodes = if input.ipc.is_some() || input.law_article.is_some() {
+            let clause = input.law_article.as_deref();
+            kg.search_by_triangle(input.ipc.as_deref(), None, clause, limit)
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|n| n.node_type == "InvalidDecision")
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+
+        // 合并去重
+        let mut seen = std::collections::HashSet::new();
+        let mut results = Vec::new();
+        for n in nodes.iter().chain(triangle_nodes.iter()) {
+            if seen.insert(n.id.clone()) {
+                let matches_reason = input.reason.as_ref().map_or(true, |r| {
+                    n.chapter.as_deref().map_or(false, |ch| ch.contains(r))
+                });
+                let matches_conclusion = input
+                    .conclusion
+                    .as_ref()
+                    .map_or(true, |c| n.title.contains(c));
+                if matches_reason && matches_conclusion {
+                    let content_preview = n
+                        .content
+                        .as_deref()
+                        .map(|c| &c[..c.len().min(200)])
+                        .unwrap_or("");
+                    results.push(serde_json::json!({
+                        "id": n.id,
+                        "title": n.title,
+                        "content": content_preview,
+                        "chapter": n.chapter,
+                        "article_number": n.article_number,
+                    }));
+                }
+            }
+        }
+        results.truncate(limit);
+        let total = results.len();
+        Ok(serde_json::json!({
+            "query": {
+                "law_article": input.law_article,
+                "reason": input.reason,
+                "conclusion": input.conclusion,
+                "ipc": input.ipc,
+            },
+            "results": results,
+            "total": total
+        }))
     }
 }

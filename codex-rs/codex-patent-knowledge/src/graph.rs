@@ -20,7 +20,7 @@ pub struct NodeTypeCount {
     pub count: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IpcSearchResult {
     pub code: String,
     pub description: String,

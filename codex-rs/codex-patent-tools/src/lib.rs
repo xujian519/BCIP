@@ -445,6 +445,27 @@ pub fn register_legal_tools() -> HashMap<String, ToolHandler> {
             legal_tools::LegalTools::graph_neighbors(node_id)
         })
     });
+    t.insert("IpcSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: legal_tools::IpcSearchInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            legal_tools::LegalTools::ipc_search(parsed)
+        })
+    });
+    t.insert("TriangleQuery".into(), |input| {
+        Box::pin(async move {
+            let parsed: legal_tools::TriangleQueryInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            legal_tools::LegalTools::triangle_query(parsed)
+        })
+    });
+    t.insert("DecisionSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: legal_tools::DecisionSearchInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            legal_tools::LegalTools::decision_search(parsed)
+        })
+    });
     t.insert("LinkGraph".into(), |input| {
         Box::pin(async move {
             let keyword = input.get("keyword").and_then(|v| v.as_str()).unwrap_or("");
