@@ -4335,6 +4335,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "codex-web-search"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "codex-windows-sandbox"
 version = "0.0.1"
 dependencies = [
