@@ -17,6 +17,7 @@ pub use cards::CardIndex;
 pub use citation_tracker::CitationTracker;
 pub use cnipa::CnipaParser;
 pub use cnipa::CnipaSearchBuilder;
+pub use graph::IpcSearchResult;
 pub use graph::SqliteKnowledgeGraph;
 pub use keyword_search::KeywordSearch;
 pub use law_db::LawDatabase;

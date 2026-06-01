@@ -62,6 +62,7 @@ members = [
     "codex-im-telegram",
     "codex-im-feishu",
     "codex-mcp",
+    "patent-kg-sync",
     "codex-patent-core",
     "codex-patent-domain",
     "codex-patent-knowledge",
@@ -211,6 +212,7 @@ codex-network-proxy = { path = "network-proxy" }
 codex-ollama = { path = "ollama" }
 codex-opentelemetry = { path = "otel" }
 codex-otel = { path = "otel" }
+patent-kg-sync = { path = "patent-kg-sync" }
 codex-patent-agents = { path = "codex-patent-agents" }
 codex-patent-core = { path = "codex-patent-core" }
 codex-patent-domain = { path = "codex-patent-domain" }

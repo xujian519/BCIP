@@ -20,6 +20,14 @@ pub struct NodeTypeCount {
     pub count: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct IpcSearchResult {
+    pub code: String,
+    pub description: String,
+    pub level: i32,
+    pub parent_code: Option<String>,
+}
+
 pub struct SqliteKnowledgeGraph {
     conn: Connection,
     query_cache: Mutex<HashMap<String, Vec<KgNode>>>,
@@ -249,6 +257,143 @@ impl SqliteKnowledgeGraph {
         }
 
         Ok(paths)
+    }
+
+    /// 搜索 IPC 分类（通过 FTS5 索引）
+    pub fn search_ipc(&self, query: &str, limit: usize) -> Result<Vec<IpcSearchResult>, String> {
+        let fts_query = format!("\"{}\"", query.replace('"', "\"\""));
+        let sql = "SELECT code, description, level, parent_code FROM ipc_fts WHERE ipc_fts MATCH ? ORDER BY rank LIMIT ?";
+        let mut stmt = self
+            .conn
+            .prepare(sql)
+            .map_err(|e| format!("search_ipc prepare failed (query={:?}): {e}", fts_query))?;
+        let rows = stmt
+            .query_map(params![fts_query, limit], |row| {
+                Ok(IpcSearchResult {
+                    code: row.get(0)?,
+                    description: row.get(1)?,
+                    level: row.get(2)?,
+                    parent_code: row.get(3)?,
+                })
+            })
+            .map_err(|e| format!("search_ipc query failed: {e}"))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    /// 三角查询：通过 IPC/Concept/Clause 中的任意组合查找关联节点
+    pub fn search_by_triangle(
+        &self,
+        ipc: Option<&str>,
+        concept: Option<&str>,
+        clause: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<KgNode>, String> {
+        let mut node_ids = HashSet::new();
+
+        // IPC → CLASSIFIED_AS → Decision
+        if let Some(ipc_code) = ipc {
+            let ipc_id = format!("IPC_{}", ipc_code);
+            let edges = self.get_edges(&ipc_id)?;
+            for e in &edges {
+                if e.relation == "CLASSIFIED_AS" {
+                    node_ids.insert(e.source.clone());
+                    node_ids.insert(e.target.clone());
+                }
+            }
+        }
+
+        // Concept → INVOLVES/DECIDES → Decision/Judgment
+        if let Some(concept_name) = concept {
+            let concept_nodes = self.search_nodes(concept_name, Some("Concept"), 10)?;
+            for cn in &concept_nodes {
+                let edges = self.get_edges(&cn.id)?;
+                for e in &edges {
+                    if matches!(e.relation.as_str(), "INVOLVES" | "DECIDES" | "REFERENCES") {
+                        node_ids.insert(e.source.clone());
+                        node_ids.insert(e.target.clone());
+                    }
+                }
+            }
+        }
+
+        // Clause → APPLIES/CITES → Decision/Judgment
+        if let Some(clause_id) = clause {
+            let edges = self.get_edges(clause_id)?;
+            for e in &edges {
+                if matches!(e.relation.as_str(), "APPLIES" | "CITES") {
+                    node_ids.insert(e.source.clone());
+                    node_ids.insert(e.target.clone());
+                }
+            }
+        }
+
+        // 批量获取节点详情（替代逐条 get_node_by_id）
+        if node_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: Vec<&String> = node_ids.iter().take(limit).collect();
+        self.get_nodes_by_ids(&ids)
+    }
+
+    /// 根据 ID 列表批量获取节点
+    fn get_nodes_by_ids(&self, ids: &[&String]) -> Result<Vec<KgNode>, String> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let placeholders: Vec<String> = ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("?{}", i + 1))
+            .collect();
+        let sql = format!(
+            "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
+             FROM nodes WHERE id IN ({})",
+            placeholders.join(",")
+        );
+        let mut stmt = self.conn.prepare(&sql).map_err(|e| format!("{e}"))?;
+        let params: Vec<&String> = ids.iter().map(|s| *s).collect();
+        let rows = stmt
+            .query_map(
+                rusqlite::params_from_iter(params.iter().map(|s| *s as &dyn rusqlite::ToSql)),
+                |row| {
+                    Ok(KgNode {
+                        id: row.get(0)?,
+                        node_type: row.get(1)?,
+                        name: row.get(2)?,
+                        title: row.get(3)?,
+                        content: row.get(4)?,
+                        law_refs_count: row.get(5)?,
+                        source: row.get(6)?,
+                        full_ref: row.get(7)?,
+                        chapter: row.get(8)?,
+                        article_number: row.get(9)?,
+                    })
+                },
+            )
+            .map_err(|e| format!("get_nodes_by_ids query failed: {e}"))?;
+        Ok(rows.filter_map(|r| r.ok()).collect())
+    }
+
+    /// 根据 ID 获取单个节点
+    pub fn get_node_by_id(&self, id: &str) -> Result<KgNode, String> {
+        let sql = "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
+                   FROM nodes WHERE id = ?";
+        self.conn
+            .query_row(sql, params![id], |row| {
+                Ok(KgNode {
+                    id: row.get(0)?,
+                    node_type: row.get(1)?,
+                    name: row.get(2)?,
+                    title: row.get(3)?,
+                    content: row.get(4)?,
+                    law_refs_count: row.get(5)?,
+                    source: row.get(6)?,
+                    full_ref: row.get(7)?,
+                    chapter: row.get(8)?,
+                    article_number: row.get(9)?,
+                })
+            })
+            .map_err(|e| format!("{e}"))
     }
 
     pub fn node_type_distribution(&self) -> Result<Vec<NodeTypeCount>, String> {
