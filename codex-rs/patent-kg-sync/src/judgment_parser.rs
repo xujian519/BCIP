@@ -3,7 +3,8 @@ use regex::Regex;
 use std::path::Path;
 
 use crate::models::JudgmentEntry;
-use crate::utils::{chinese_to_number, truncate};
+use crate::utils::chinese_to_number;
+use crate::utils::truncate;
 
 /// 解析指导性判决文书目录
 pub fn parse_guiding_judgments(dir: &Path) -> Result<Vec<JudgmentEntry>> {
@@ -13,9 +14,7 @@ pub fn parse_guiding_judgments(dir: &Path) -> Result<Vec<JudgmentEntry>> {
     for entry in walkdir::WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_type().is_file() && e.path().extension().map_or(false, |ext| ext == "md")
-        })
+        .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "md"))
     {
         let path = entry.path();
         match parse_single_guiding_judgment(path) {
@@ -41,9 +40,7 @@ pub fn parse_general_judgments(dir: &Path) -> Result<Vec<JudgmentEntry>> {
     for entry in walkdir::WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_type().is_file() && e.path().extension().map_or(false, |ext| ext == "md")
-        })
+        .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "md"))
     {
         let path = entry.path();
         match parse_single_general_judgment(path) {
@@ -99,13 +96,7 @@ fn parse_single_guiding_judgment(path: &Path) -> Result<JudgmentEntry> {
     let summary = if !key_points.is_empty() {
         key_points.clone()
     } else {
-        truncate(
-            &content
-                .replace('#', " ")
-                .replace('*', " ")
-                .replace('|', " "),
-            500,
-        )
+        truncate(&content.replace(['#', '*', '|'], " "), 500)
     };
 
     Ok(JudgmentEntry {
@@ -149,13 +140,7 @@ fn parse_single_general_judgment(path: &Path) -> Result<JudgmentEntry> {
     // 法条引用
     let law_articles = extract_law_articles(&content);
 
-    let summary = truncate(
-        &content
-            .replace('#', " ")
-            .replace('*', " ")
-            .replace('|', " "),
-        500,
-    );
+    let summary = truncate(&content.replace(['#', '*', '|'], " "), 500);
 
     Ok(JudgmentEntry {
         case_number,
@@ -199,7 +184,7 @@ fn extract_keywords(content: &str) -> Vec<String> {
         return Vec::new();
     }
     section
-        .split(|c: char| c == ' ' || c == '\t' || c == '、' || c == ',')
+        .split([' ', '\t', '、', ','])
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()

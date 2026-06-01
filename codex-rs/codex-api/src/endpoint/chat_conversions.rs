@@ -3,6 +3,7 @@
 //! (DeepSeek, ZhiPu GLM, Kimi/Moonshot).
 
 use codex_protocol::models::ContentItem;
+use codex_protocol::models::LocalShellAction;
 use codex_protocol::models::ResponseItem;
 use serde::Deserialize;
 use serde_json::Value;
@@ -26,10 +27,6 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
     for item in &request.input {
         match item {
             ResponseItem::Message { role, content, .. } => {
-                // Flush any pending assistant message before adding a new one
-                if let Some(msg) = pending_assistant.take() {
-                    messages.push(msg);
-                }
                 let chat_content = convert_content_items(content);
                 // Map Roles API `developer` to Chat Completions `system` for
                 // Chinese LLM providers (DeepSeek, ZhiPu, Kimi) that don't
@@ -39,6 +36,32 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                 } else {
                     role.as_str()
                 };
+
+                if chat_role == "assistant" {
+                    if let Some(ref mut pending) = pending_assistant {
+                        // Scenario A: FunctionCall was already accumulated into
+                        // pending_assistant.  Merge the text content into the same
+                        // assistant message instead of emitting a separate one,
+                        // because the Chat Completions API requires tool responses
+                        // to immediately follow the assistant message with tool_calls.
+                        if !content.is_empty() {
+                            pending["content"] = chat_content;
+                        }
+                        continue;
+                    }
+                    // No pending tool_calls — push as a standalone assistant message.
+                    // If FunctionCall items follow, they will pop this and merge.
+                    messages.push(serde_json::json!({
+                        "role": "assistant",
+                        "content": chat_content,
+                    }));
+                    continue;
+                }
+
+                // Non-assistant message — flush any pending assistant first.
+                if let Some(msg) = pending_assistant.take() {
+                    messages.push(msg);
+                }
                 messages.push(serde_json::json!({
                     "role": chat_role,
                     "content": chat_content,
@@ -50,7 +73,6 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                 call_id,
                 ..
             } => {
-                // Accumulate tool_calls into the current assistant message
                 let tool_call = serde_json::json!({
                     "id": call_id,
                     "type": "function",
@@ -59,18 +81,7 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         "arguments": arguments,
                     }
                 });
-                match &mut pending_assistant {
-                    Some(msg) => {
-                        msg["tool_calls"].as_array_mut().unwrap().push(tool_call);
-                    }
-                    None => {
-                        pending_assistant = Some(serde_json::json!({
-                            "role": "assistant",
-                            "content": null,
-                            "tool_calls": [tool_call],
-                        }));
-                    }
-                }
+                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
             }
             ResponseItem::FunctionCallOutput { call_id, output } => {
                 // Flush pending assistant first
@@ -98,18 +109,7 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         "arguments": input,
                     }
                 });
-                match &mut pending_assistant {
-                    Some(msg) => {
-                        msg["tool_calls"].as_array_mut().unwrap().push(tool_call);
-                    }
-                    None => {
-                        pending_assistant = Some(serde_json::json!({
-                            "role": "assistant",
-                            "content": null,
-                            "tool_calls": [tool_call],
-                        }));
-                    }
-                }
+                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
             }
             ResponseItem::CustomToolCallOutput {
                 call_id, output, ..
@@ -124,9 +124,39 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                     "content": content,
                 }));
             }
+            // Convert LocalShellCall with a call_id into an assistant message with
+            // tool_calls so the paired FunctionCallOutput (tool message) has a valid
+            // preceding assistant that contains the matching tool_call_id.
+            // Without this, the Chat Completions API rejects the request with:
+            //  "Messages with role 'tool' must be a response to a preceding
+            //   message with 'tool_calls'".
+            ResponseItem::LocalShellCall {
+                call_id: Some(call_id),
+                action,
+                ..
+            } => {
+                let (tool_name, args_json) = match action {
+                    LocalShellAction::Exec(exec) => {
+                        let args = serde_json::json!({
+                            "command": exec.command,
+                        });
+                        ("shell", serde_json::to_string(&args).unwrap_or_default())
+                    }
+                };
+                let tool_call = serde_json::json!({
+                    "id": call_id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_name,
+                        "arguments": args_json,
+                    }
+                });
+                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
+            }
+            // LocalShellCall without a call_id: no paired output can exist, skip.
+            ResponseItem::LocalShellCall { call_id: None, .. } => {}
             // Skip items without Chat Completions equivalents
             ResponseItem::Reasoning { .. }
-            | ResponseItem::LocalShellCall { .. }
             | ResponseItem::ToolSearchCall { .. }
             | ResponseItem::ToolSearchOutput { .. }
             | ResponseItem::WebSearchCall { .. }
@@ -164,9 +194,40 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
     body
 }
 
+/// Push a tool_call object into a pending or existing assistant message.
+fn accumulate_tool_call(
+    tool_call: Value,
+    pending_assistant: &mut Option<Value>,
+    messages: &mut Vec<Value>,
+) {
+    if pending_assistant.is_none()
+        && let Some(last) = messages.pop()
+        && last["role"] == "assistant"
+    {
+        *pending_assistant = Some(last);
+    }
+    match pending_assistant {
+        Some(msg) => {
+            if msg["tool_calls"].is_null() {
+                msg["tool_calls"] = Value::Array(vec![tool_call]);
+            } else if let Some(arr) = msg["tool_calls"].as_array_mut() {
+                arr.push(tool_call);
+            }
+        }
+        None => {
+            *pending_assistant = Some(serde_json::json!({
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [tool_call],
+            }));
+        }
+    }
+}
+
 /// For every assistant message that contains `tool_calls`, ensure each `tool_call_id`
-/// has a matching `tool` role message in the list. Missing responses are filled with
-/// "aborted" to satisfy the Chat Completions API constraint.
+/// has a matching `tool` role message **immediately following** the assistant message.
+/// Missing responses are filled with "aborted" to satisfy the Chat Completions API
+/// constraint that tool messages must directly follow their assistant tool_calls message.
 fn ensure_tool_responses(messages: &mut Vec<Value>) {
     // Collect (index, call_ids) for each assistant message with tool_calls
     let mut assistant_tool_calls: Vec<(usize, Vec<String>)> = Vec::new();
@@ -185,18 +246,23 @@ fn ensure_tool_responses(messages: &mut Vec<Value>) {
         }
     }
 
-    // Collect all existing tool_call_ids from tool messages
-    let existing_tool_ids: std::collections::HashSet<String> = messages
-        .iter()
-        .filter(|m| m["role"] == "tool")
-        .filter_map(|m| m["tool_call_id"].as_str().map(String::from))
-        .collect();
+    // Collect tool_call_ids that appear immediately after each assistant message.
+    let mut responded_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for (assistant_idx, _) in &assistant_tool_calls {
+        let mut scan = *assistant_idx + 1;
+        while scan < messages.len() && messages[scan]["role"] == "tool" {
+            if let Some(id) = messages[scan]["tool_call_id"].as_str() {
+                responded_ids.insert(id.to_string());
+            }
+            scan += 1;
+        }
+    }
 
-    // Insert synthetic tool responses for missing call_ids
+    // Insert synthetic tool responses for call_ids without an immediately following response.
     let mut insertions: Vec<(usize, Value)> = Vec::new();
     for (assistant_idx, call_ids) in &assistant_tool_calls {
         for call_id in call_ids {
-            if !existing_tool_ids.contains(call_id) {
+            if !responded_ids.contains(call_id) {
                 insertions.push((
                     *assistant_idx,
                     serde_json::json!({
@@ -421,5 +487,129 @@ mod tests {
         let tc = &chunk.choices[0].delta.tool_calls.as_ref().unwrap()[0];
         assert_eq!(tc.id.as_deref(), Some("call_1"));
         assert_eq!(tc.function.as_ref().unwrap().name.as_deref(), Some("run"));
+    }
+
+    #[test]
+    fn merges_function_call_with_following_assistant_text() {
+        // Scenario A: FunctionCall → assistant text → FunctionCallOutput
+        let req = make_request(vec![
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "search".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_1".to_string(),
+            },
+            ResponseItem::Message {
+                id: None,
+                role: "assistant".to_string(),
+                content: vec![ContentItem::OutputText {
+                    text: "Let me search for that.".to_string(),
+                }],
+                phase: None,
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_1".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "result".to_string(),
+                ),
+            },
+        ]);
+        let body = convert_request(&req);
+        let messages = body["messages"].as_array().unwrap();
+        // assistant(text + tool_calls) + tool(response) — NOT two assistant messages
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "assistant");
+        assert_eq!(messages[0]["content"], "Let me search for that.");
+        assert!(messages[0]["tool_calls"].is_array());
+        assert_eq!(messages[1]["role"], "tool");
+        assert_eq!(messages[1]["tool_call_id"], "call_1");
+    }
+
+    #[test]
+    fn merges_assistant_text_with_following_function_call() {
+        // Scenario B: assistant text → FunctionCall → FunctionCallOutput
+        let req = make_request(vec![
+            ResponseItem::Message {
+                id: None,
+                role: "assistant".to_string(),
+                content: vec![ContentItem::OutputText {
+                    text: "I will look that up.".to_string(),
+                }],
+                phase: None,
+            },
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "lookup".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_2".to_string(),
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_2".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "found".to_string(),
+                ),
+            },
+        ]);
+        let body = convert_request(&req);
+        let messages = body["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "assistant");
+        assert_eq!(messages[0]["content"], "I will look that up.");
+        assert!(messages[0]["tool_calls"].is_array());
+        assert_eq!(messages[1]["role"], "tool");
+        assert_eq!(messages[1]["tool_call_id"], "call_2");
+    }
+
+    #[test]
+    fn merges_multiple_function_calls_with_assistant_text() {
+        // FunctionCall(A) → FunctionCall(B) → assistant text → Output(A) → Output(B)
+        let req = make_request(vec![
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "search".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_a".to_string(),
+            },
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "analyze".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_b".to_string(),
+            },
+            ResponseItem::Message {
+                id: None,
+                role: "assistant".to_string(),
+                content: vec![ContentItem::OutputText {
+                    text: "Searching and analyzing.".to_string(),
+                }],
+                phase: None,
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_a".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "search result".to_string(),
+                ),
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_b".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "analysis result".to_string(),
+                ),
+            },
+        ]);
+        let body = convert_request(&req);
+        let messages = body["messages"].as_array().unwrap();
+        // assistant(text + tool_calls[A,B]) + tool(A) + tool(B)
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0]["role"], "assistant");
+        assert_eq!(messages[0]["content"], "Searching and analyzing.");
+        let tool_calls = messages[0]["tool_calls"].as_array().unwrap();
+        assert_eq!(tool_calls.len(), 2);
+        assert_eq!(messages[1]["tool_call_id"], "call_a");
+        assert_eq!(messages[2]["tool_call_id"], "call_b");
     }
 }

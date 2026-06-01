@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::Context;
+use anyhow::Result;
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::path::Path;
@@ -401,20 +402,12 @@ pub fn sanitize_id(name: &str) -> String {
     regex::Regex::new(r"_+")
         .unwrap()
         .replace_all(
-            &name
-                .replace(' ', "_")
-                .replace('/', "_")
-                .replace('\\', "_")
-                .replace('(', "_")
-                .replace(')', "_")
-                .replace('（', "_")
-                .replace('）', "_")
-                .replace('、', "_")
-                .replace('，', "_")
-                .replace('；', "_")
-                .replace('：', "_")
-                .replace('？', "_")
-                .replace('！', "_"),
+            &name.replace(
+                [
+                    ' ', '/', '\\', '(', ')', '（', '）', '、', '，', '；', '：', '？', '！',
+                ],
+                "_",
+            ),
             "_",
         )
         .to_string()
@@ -426,7 +419,6 @@ fn sanitize_judgment_id(case_number: &str) -> String {
         case_number
             .replace('（', "(")
             .replace('）', ")")
-            .replace(' ', "_")
-            .replace('/', "_")
+            .replace([' ', '/'], "_")
     )
 }

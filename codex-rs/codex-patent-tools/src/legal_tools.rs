@@ -323,13 +323,14 @@ impl LegalTools {
         let mut results = Vec::new();
         for n in nodes.iter().chain(triangle_nodes.iter()) {
             if seen.insert(n.id.clone()) {
-                let matches_reason = input.reason.as_ref().map_or(true, |r| {
-                    n.chapter.as_deref().map_or(false, |ch| ch.contains(r))
-                });
+                let matches_reason = input
+                    .reason
+                    .as_ref()
+                    .is_none_or(|r| n.chapter.as_deref().is_some_and(|ch| ch.contains(r)));
                 let matches_conclusion = input
                     .conclusion
                     .as_ref()
-                    .map_or(true, |c| n.title.contains(c));
+                    .is_none_or(|c| n.title.contains(c));
                 if matches_reason && matches_conclusion {
                     let content_preview = n
                         .content

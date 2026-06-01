@@ -7,7 +7,11 @@ ignoredBuiltDependencies:
   - esbuild
 
 minimumReleaseAge: 10080
-minimumReleaseAgeExclude: []
+minimumReleaseAgeExclude:
+  - "@eigenpal/docx-editor-react"
+  - "@eigenpal/docx-editor-i18n"
+  - "@eigenpal/docx-editor-agents"
+  - "@eigenpal/docx-editor-core"
 
 blockExoticSubdeps: true
 strictDepBuilds: true

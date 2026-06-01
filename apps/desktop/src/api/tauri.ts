@@ -8,6 +8,8 @@ import type {
   FileInfo,
   CodexHomeInfo,
   BcipCheckResult,
+  DocConvertResult,
+  LibreOfficeStatus,
 } from './types';
 
 export async function readDir(path: string): Promise<FileEntry[]> {
@@ -93,6 +95,14 @@ export async function getAppServerUrl(): Promise<string> {
 
 export async function getCodexHomeInfo(): Promise<CodexHomeInfo> {
   return invoke<CodexHomeInfo>('get_codex_home_info');
+}
+
+export async function convertDocToDocx(inputPath: string): Promise<DocConvertResult> {
+  return invoke<DocConvertResult>('convert_doc_to_docx', { inputPath });
+}
+
+export async function getLibreOfficeStatus(): Promise<LibreOfficeStatus> {
+  return invoke<LibreOfficeStatus>('libreoffice_status');
 }
 
 /** Tauri 2 默认不注入 __TAURI__，优先用官方 API 检测 */

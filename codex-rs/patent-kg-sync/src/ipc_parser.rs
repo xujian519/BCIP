@@ -11,7 +11,7 @@ pub fn parse_ipc_files(dir: &Path) -> Result<Vec<IpcEntry>> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "txt") {
+        if path.extension().is_some_and(|e| e == "txt") {
             let file_name = path.file_name().unwrap_or_default().to_string_lossy();
             if !file_name.contains("2026.01") {
                 continue;
@@ -49,6 +49,7 @@ fn parse_single_ipc_file(path: &Path) -> Result<Vec<IpcEntry>> {
     // 页眉/页脚过滤
     let page_header_re = Regex::new(r"^\s*\d{4}\.\d{2}版IPC分类表")?;
     let page_footer_re = Regex::new(r"^\s*第\s*\d+\s*页")?;
+    let version_tag_re = Regex::new(r"\[\d{4}\.\d{2}\]")?;
 
     let mut entries = Vec::new();
     let mut pending_class_code: Option<String> = None;
@@ -149,10 +150,7 @@ fn parse_single_ipc_file(path: &Path) -> Result<Vec<IpcEntry>> {
                 pending_class_desc.push(' ');
             }
             // 去掉版本标签
-            let cleaned = Regex::new(r"\[\d{4}\.\d{2}\]")?
-                .replace_all(line, "")
-                .trim()
-                .to_string();
+            let cleaned = version_tag_re.replace_all(line, "").trim().to_string();
             pending_class_desc.push_str(&cleaned);
         }
     }

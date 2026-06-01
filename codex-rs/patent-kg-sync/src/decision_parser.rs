@@ -3,7 +3,8 @@ use regex::Regex;
 use std::path::Path;
 
 use crate::models::InvalidDecision;
-use crate::utils::{chinese_to_number, truncate};
+use crate::utils::chinese_to_number;
+use crate::utils::truncate;
 
 /// 解析目录下所有复审决定 MD 文件
 pub fn parse_decisions(dir: &Path) -> Result<Vec<InvalidDecision>> {
@@ -13,9 +14,7 @@ pub fn parse_decisions(dir: &Path) -> Result<Vec<InvalidDecision>> {
     let entries: Vec<_> = walkdir::WalkDir::new(dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_type().is_file() && e.path().extension().map_or(false, |ext| ext == "md")
-        })
+        .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "md"))
         .collect();
 
     let total = entries.len();

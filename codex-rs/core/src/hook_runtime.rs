@@ -127,7 +127,7 @@ pub(crate) async fn run_pending_session_start_hooks(
         let request = codex_hooks::SessionStartRequest {
             session_id: sess.session_id().into(),
             #[allow(deprecated)]
-            cwd: turn_context.cwd.clone(),
+            cwd: turn_context.primary_cwd().clone(),
             transcript_path: sess.hook_transcript_path().await,
             model: turn_context.model_info.slug.clone(),
             permission_mode: hook_permission_mode(turn_context),
@@ -169,7 +169,7 @@ pub(crate) async fn run_pre_tool_use_hooks(
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.clone(),
+        cwd: turn_context.primary_cwd().clone(),
         transcript_path: sess.hook_transcript_path().await,
         model: turn_context.model_info.slug.clone(),
         permission_mode: hook_permission_mode(turn_context),
@@ -230,7 +230,7 @@ pub(crate) async fn run_permission_request_hooks(
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.to_path_buf(),
+        cwd: turn_context.primary_cwd().to_path_buf(),
         transcript_path: sess.hook_transcript_path().await,
         model: turn_context.model_info.slug.clone(),
         permission_mode: hook_permission_mode(turn_context),
@@ -272,7 +272,7 @@ pub(crate) async fn run_post_tool_use_hooks(
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.clone(),
+        cwd: turn_context.primary_cwd().clone(),
         transcript_path: sess.hook_transcript_path().await,
         model: turn_context.model_info.slug.clone(),
         permission_mode: hook_permission_mode(turn_context),
@@ -345,7 +345,7 @@ pub(crate) async fn run_turn_stop_hooks(
         session_id: sess.session_id().into(),
         turn_id: turn_context.sub_id.clone(),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.clone(),
+        cwd: turn_context.primary_cwd().clone(),
         transcript_path,
         model: turn_context.model_info.slug.clone(),
         permission_mode: hook_permission_mode(turn_context),
@@ -371,7 +371,7 @@ pub(crate) async fn run_pre_compact_hooks(
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.clone(),
+        cwd: turn_context.primary_cwd().clone(),
         transcript_path: sess.hook_transcript_path().await,
         model: turn_context.model_info.slug.clone(),
         trigger: compaction_trigger_label(trigger).to_string(),
@@ -410,7 +410,7 @@ pub(crate) async fn run_post_compact_hooks(
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
-        cwd: turn_context.cwd.clone(),
+        cwd: turn_context.primary_cwd().clone(),
         transcript_path: sess.hook_transcript_path().await,
         model: turn_context.model_info.slug.clone(),
         trigger: compaction_trigger_label(trigger).to_string(),
@@ -446,7 +446,7 @@ pub(crate) async fn run_legacy_after_agent_hook(
         .dispatch(codex_hooks::HookPayload {
             session_id: sess.session_id().into(),
             #[allow(deprecated)]
-            cwd: turn_context.cwd.clone(),
+            cwd: turn_context.primary_cwd().clone(),
             client: turn_context.app_server_client_name.clone(),
             triggered_at: chrono::Utc::now(),
             hook_event: codex_hooks::HookEvent::AfterAgent {
@@ -506,7 +506,7 @@ pub(crate) async fn inspect_pending_input(
                 turn_id: turn_context.sub_id.clone(),
                 subagent: thread_spawn_subagent_hook_context(sess, turn_context),
                 #[allow(deprecated)]
-                cwd: turn_context.cwd.clone(),
+                cwd: turn_context.primary_cwd().clone(),
                 transcript_path: sess.hook_transcript_path().await,
                 model: turn_context.model_info.slug.clone(),
                 permission_mode: hook_permission_mode(turn_context),

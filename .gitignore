@@ -148,6 +148,9 @@ scripts/config/
 # 临时报告
 codex-rs/reports/
 
+# Agent generated files
+.yunxi/
+
 # 实施计划文档（不推送）
 docs/plans/
 docs/comprehensive-review-report.md
@@ -157,3 +160,4 @@ docs/implementation-plan.md
 docs/phase1-agent-checklist.md
 docs/phase2-skill-checklist.md
 docs/phase3-6-checklist.md
+DESKTOP_USER_GUIDE.md

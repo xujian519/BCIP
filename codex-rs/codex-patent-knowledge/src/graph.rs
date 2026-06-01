@@ -351,7 +351,7 @@ impl SqliteKnowledgeGraph {
             placeholders.join(",")
         );
         let mut stmt = self.conn.prepare(&sql).map_err(|e| format!("{e}"))?;
-        let params: Vec<&String> = ids.iter().map(|s| *s).collect();
+        let params: Vec<&String> = ids.to_vec();
         let rows = stmt
             .query_map(
                 rusqlite::params_from_iter(params.iter().map(|s| *s as &dyn rusqlite::ToSql)),

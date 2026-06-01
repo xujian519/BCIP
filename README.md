@@ -111,7 +111,7 @@ npm run desktop:smoke               # 上述 + Tauri cargo check + app-server RP
 npm run tauri:dev                   # 本地桌面调试（Mac）
 ```
 
-详见 [apps/desktop/README.md](apps/desktop/README.md) 与 [桌面落地计划](docs/plans/2026-05-30-desktop-implementation-plan.md)。
+详见 [apps/desktop/README.md](apps/desktop/README.md)、[桌面端操作指南](DESKTOP_USER_GUIDE.md) 与 [桌面落地计划](docs/plans/2026-05-30-desktop-implementation-plan.md)。
 
 <details>
 <summary>You can also go to the <a href="https://github.com/xujian519/BCIP/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>

@@ -62,10 +62,6 @@ pub struct TurnContext {
     pub(crate) session_source: SessionSource,
     pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) environments: ResolvedTurnEnvironments,
-    /// The session's absolute working directory. All relative paths provided
-    /// by the model as well as sandbox policies are resolved against this path
-    /// instead of `std::env::current_dir()`.
-    #[deprecated(note = "use the selected turn environment cwd instead")]
     pub(crate) cwd: AbsolutePathBuf,
     pub(crate) current_date: Option<String>,
     pub(crate) timezone: Option<String>,
@@ -98,6 +94,15 @@ pub struct TurnContext {
     pub(crate) model_verification_emitted: AtomicBool,
 }
 impl TurnContext {
+    /// Returns the working directory of the primary turn environment, falling
+    /// back to the session-wide config cwd when no environment is selected.
+    pub(crate) fn primary_cwd(&self) -> &AbsolutePathBuf {
+        self.environments
+            .primary()
+            .map(|env| &env.cwd)
+            .unwrap_or(&self.config.cwd)
+    }
+
     pub(crate) fn permission_profile(&self) -> PermissionProfile {
         self.permission_profile.clone()
     }
@@ -117,8 +122,7 @@ impl TurnContext {
             &self.permission_profile,
             &file_system_sandbox_policy,
             network_sandbox_policy,
-            #[allow(deprecated)]
-            &self.cwd,
+            self.primary_cwd(),
         )
     }
 
@@ -222,8 +226,7 @@ impl TurnContext {
             session_source: self.session_source.clone(),
             thread_source: self.thread_source,
             environments: self.environments.clone(),
-            #[allow(deprecated)]
-            cwd: self.cwd.clone(),
+            cwd: self.primary_cwd().clone(),
             current_date: self.current_date.clone(),
             timezone: self.timezone.clone(),
             app_server_client_name: self.app_server_client_name.clone(),
@@ -260,11 +263,11 @@ impl TurnContext {
         }
     }
 
-    #[deprecated(note = "resolve paths from the selected turn environment cwd instead")]
     pub(crate) fn resolve_path(&self, path: Option<String>) -> AbsolutePathBuf {
-        #[allow(deprecated)]
-        path.as_ref()
-            .map_or_else(|| self.cwd.clone(), |path| self.cwd.join(path))
+        path.as_ref().map_or_else(
+            || self.primary_cwd().clone(),
+            |path| self.primary_cwd().join(path),
+        )
     }
 
     pub(crate) fn file_system_sandbox_context(
@@ -307,8 +310,7 @@ impl TurnContext {
         let legacy_file_system_sandbox_policy =
             FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
                 &self.sandbox_policy(),
-                #[allow(deprecated)]
-                &self.cwd,
+                self.primary_cwd(),
             );
         let file_system_sandbox_policy = self.file_system_sandbox_policy();
         (file_system_sandbox_policy != legacy_file_system_sandbox_policy)
@@ -324,8 +326,7 @@ impl TurnContext {
     pub(crate) fn to_turn_context_item(&self) -> TurnContextItem {
         TurnContextItem {
             turn_id: Some(self.sub_id.clone()),
-            #[allow(deprecated)]
-            cwd: self.cwd.to_path_buf(),
+            cwd: self.primary_cwd().to_path_buf(),
             current_date: self.current_date.clone(),
             timezone: self.timezone.clone(),
             approval_policy: self.approval_policy.value(),

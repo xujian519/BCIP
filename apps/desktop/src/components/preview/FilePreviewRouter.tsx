@@ -68,6 +68,8 @@ export default function FilePreviewRouter({ filePath }: FilePreviewRouterProps) 
         return <MarkdownPreview filePath={filePath} />;
       case 'docx':
         return <DocxEditorWithErrorFallback filePath={filePath} />;
+      case 'doc':
+        return <DocxPreview filePath={filePath} legacyDoc />;
       case 'text':
       case 'code':
         return <TextPreview filePath={filePath} fileType={fileType} />;

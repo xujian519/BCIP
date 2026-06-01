@@ -55,3 +55,13 @@ export interface WriteFileBinaryParams {
   content: number[];
 }
 
+export interface DocConvertResult {
+  outputPath: string;
+  fromCache: boolean;
+}
+
+export interface LibreOfficeStatus {
+  available: boolean;
+  path: string | null;
+}
+

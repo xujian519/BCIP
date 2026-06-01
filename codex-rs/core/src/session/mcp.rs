@@ -332,8 +332,7 @@ impl Session {
             ),
             None => McpRuntimeContext::new(
                 Arc::clone(&self.services.environment_manager),
-                #[allow(deprecated)]
-                turn_context.cwd.to_path_buf(),
+                turn_context.primary_cwd().to_path_buf(),
             ),
         };
         {
