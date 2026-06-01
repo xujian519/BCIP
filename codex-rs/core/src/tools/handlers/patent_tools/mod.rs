@@ -173,6 +173,10 @@ fn tool_description(name: &str) -> String {
         "OaPatternExtract" => "OA模式提取 — 从历史答复轨迹中提取可复用的工作流模式，基于成功率和最小支持度筛选。输出可复用模式列表。".into(),
         "ScenarioDispatch" => "场景编排调度 — 根据任务类型返回预设的DAG编排计划（含并行分组、依赖关系、HITL节点）。支持 oa_strategy/novelty_analysis/inventiveness_rejection/infringement_analysis/quality_review 五种场景。".into(),
 
+        "WebSearch" => "网页搜索 — 通用网页搜索和垂直领域搜索（学术/法律/金融/代码等），支持中英文查询".into(),
+        "WebExtract" => "网页提取 — 从URL提取网页内容，返回Markdown格式文本".into(),
+        "WebBatchSearch" => "批量搜索 — 并行执行2-5个独立搜索查询".into(),
+
         _ => format!("{name} - 专利工具"),
     }
 }
@@ -436,6 +440,16 @@ fn tool_parameters(name: &str) -> serde_json::Value {
         }
         "ScenarioDispatch" => {
             json!({"type":"object","properties":{"task_type":{"type":"string","description":"任务类型","enum":["oa_strategy","novelty_analysis","inventiveness_rejection","infringement_analysis","quality_review"]}},"required":["task_type"]})
+        }
+
+        "WebSearch" => {
+            json!({"type":"object","properties":{"query":{"type":"string","description":"搜索查询"},"domain":{"type":"string","description":"垂直领域(academic/legal/finance/code等)"},"sub_domain":{"type":"string","description":"子领域(如academic.general)"},"max_results":{"type":"integer","description":"最大结果数(1-100)","default":10},"freshness":{"type":"string","description":"时效过滤(day/week/month/year)","enum":["day","week","month","year"]},"zone":{"type":"string","description":"搜索区域(cn/intl)","enum":["cn","intl"]}},"required":["query"]})
+        }
+        "WebExtract" => {
+            json!({"type":"object","properties":{"url":{"type":"string","description":"目标URL"}},"required":["url"]})
+        }
+        "WebBatchSearch" => {
+            json!({"type":"object","properties":{"queries":{"type":"array","items":{"type":"object","properties":{"query":{"type":"string"},"domain":{"type":"string"},"max_results":{"type":"integer"}},"required":["query"]},"description":"2-5个搜索查询"}},"required":["queries"]})
         }
 
         _ => fallback(),

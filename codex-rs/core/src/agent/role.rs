@@ -337,6 +337,7 @@ mod built_in {
     /// Returns the cached built-in role declarations defined in this module.
     pub(super) fn configs() -> &'static BTreeMap<String, AgentRoleConfig> {
         static CONFIG: LazyLock<BTreeMap<String, AgentRoleConfig>> = LazyLock::new(|| {
+            #[allow(unused_mut)]
             let mut roles = BTreeMap::from([
                 (
                     DEFAULT_ROLE_NAME.to_string(),
@@ -394,7 +395,7 @@ Rules:
         match path.to_str()? {
             "explorer.toml" => Some(EXPLORER),
             "awaiter.toml" => Some(AWAITER),
-            other => {
+            _other => {
                 #[cfg(feature = "patent-tools")]
                 if let Some(content) = patent_config_file_contents(other) {
                     return Some(content);

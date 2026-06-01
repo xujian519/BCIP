@@ -760,6 +760,7 @@ fn add_extension_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Pl
     );
 }
 
+#[cfg_attr(not(feature = "patent-tools"), allow(unused_variables))]
 fn add_patent_tools(_context: &CoreToolPlanContext<'_>, planned_tools: &mut PlannedTools) {
     #[cfg(feature = "patent-tools")]
     {
