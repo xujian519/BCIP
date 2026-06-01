@@ -14,7 +14,11 @@ async fn test_search_returns_results() {
         ..Default::default()
     };
     let results = provider.search(query).await;
-    assert!(results.is_ok(), "search should succeed: {:?}", results.err());
+    assert!(
+        results.is_ok(),
+        "search should succeed: {:?}",
+        results.err()
+    );
     let results = results.unwrap();
     assert!(!results.is_empty(), "should return at least one result");
     assert!(!results[0].title.is_empty());
@@ -31,7 +35,11 @@ async fn test_search_chinese_query() {
         ..Default::default()
     };
     let results = provider.search(query).await;
-    assert!(results.is_ok(), "Chinese search should succeed: {:?}", results.err());
+    assert!(
+        results.is_ok(),
+        "Chinese search should succeed: {:?}",
+        results.err()
+    );
 }
 
 #[tokio::test]
@@ -45,7 +53,11 @@ async fn test_search_vertical_academic() {
         ..Default::default()
     };
     let results = provider.search(query).await;
-    assert!(results.is_ok(), "vertical search should succeed: {:?}", results.err());
+    assert!(
+        results.is_ok(),
+        "vertical search should succeed: {:?}",
+        results.err()
+    );
 }
 
 #[tokio::test]
@@ -64,7 +76,11 @@ async fn test_batch_search() {
         },
     ];
     let results = provider.batch_search(queries).await;
-    assert!(results.is_ok(), "batch_search should succeed: {:?}", results.err());
+    assert!(
+        results.is_ok(),
+        "batch_search should succeed: {:?}",
+        results.err()
+    );
     let groups = results.unwrap();
     assert_eq!(groups.len(), 2);
 }

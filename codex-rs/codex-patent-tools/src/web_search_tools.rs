@@ -1,6 +1,8 @@
 use codex_web_search::anysearch::AnySearchProvider;
 use codex_web_search::provider::SearchProvider;
-use codex_web_search::types::{Freshness, SearchQuery, Zone};
+use codex_web_search::types::Freshness;
+use codex_web_search::types::SearchQuery;
+use codex_web_search::types::Zone;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -54,8 +56,7 @@ fn input_to_query(input: WebSearchInput) -> SearchQuery {
 }
 
 async fn web_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
-    let parsed: WebSearchInput =
-        serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+    let parsed: WebSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
     let provider = AnySearchProvider::new(None);
     let query = input_to_query(parsed);
     let results = provider.search(query).await.map_err(|e| format!("{e}"))?;
@@ -63,16 +64,17 @@ async fn web_search(input: serde_json::Value) -> Result<serde_json::Value, Strin
 }
 
 async fn web_extract(input: serde_json::Value) -> Result<serde_json::Value, String> {
-    let parsed: WebExtractInput =
-        serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+    let parsed: WebExtractInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
     let provider = AnySearchProvider::new(None);
-    let result = provider.extract(&parsed.url).await.map_err(|e| format!("{e}"))?;
+    let result = provider
+        .extract(&parsed.url)
+        .await
+        .map_err(|e| format!("{e}"))?;
     serde_json::to_value(result).map_err(|e| format!("{e}"))
 }
 
 async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
-    let parsed: WebBatchSearchInput =
-        serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+    let parsed: WebBatchSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
     let provider = AnySearchProvider::new(None);
     let queries: Vec<SearchQuery> = parsed.queries.into_iter().map(input_to_query).collect();
     let results = provider

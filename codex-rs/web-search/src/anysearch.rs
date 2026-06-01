@@ -1,7 +1,12 @@
 use crate::error::WebSearchError;
 use crate::provider::SearchProvider;
-use crate::types::{ExtractResult, Freshness, SearchQuery, SearchResult, Zone};
-use serde::{Deserialize, Serialize};
+use crate::types::ExtractResult;
+use crate::types::Freshness;
+use crate::types::SearchQuery;
+use crate::types::SearchResult;
+use crate::types::Zone;
+use serde::Deserialize;
+use serde::Serialize;
 
 pub struct AnySearchProvider {
     client: reqwest::Client,
@@ -84,7 +89,10 @@ impl SearchQuery {
             domain: self.domain.clone(),
             sub_domain: self.sub_domain.clone(),
             max_results: self.max_results,
-            freshness: self.freshness.map(AnySearchProvider::freshness_str).map(String::from),
+            freshness: self
+                .freshness
+                .map(AnySearchProvider::freshness_str)
+                .map(String::from),
             zone: self.zone.map(AnySearchProvider::zone_str).map(String::from),
         }
     }
@@ -169,12 +177,11 @@ impl SearchProvider for AnySearchProvider {
             });
         }
 
-        let extract_resp: ExtractResponse = serde_json::from_str(&body).map_err(|e| {
-            WebSearchError::Api {
+        let extract_resp: ExtractResponse =
+            serde_json::from_str(&body).map_err(|e| WebSearchError::Api {
                 code: status.as_u16() as i32,
                 message: format!("Failed to parse extract response: {e}"),
-            }
-        })?;
+            })?;
 
         if extract_resp.code != 0 {
             return Err(WebSearchError::Api {
@@ -206,8 +213,7 @@ impl SearchProvider for AnySearchProvider {
             ));
         }
 
-        let req_queries: Vec<SearchRequest> =
-            queries.into_iter().map(|q| q.to_request()).collect();
+        let req_queries: Vec<SearchRequest> = queries.into_iter().map(|q| q.to_request()).collect();
 
         let builder = self
             .client
