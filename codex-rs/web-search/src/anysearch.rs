@@ -107,23 +107,6 @@ fn item_to_result(item: SearchItem) -> SearchResult {
     }
 }
 
-#[derive(Serialize)]
-struct BatchSearchRequest {
-    queries: Vec<SearchRequest>,
-}
-
-#[derive(Deserialize)]
-struct BatchSearchResponse {
-    code: i32,
-    message: String,
-    data: Option<Vec<BatchSearchResultGroup>>,
-}
-
-#[derive(Deserialize)]
-struct BatchSearchResultGroup {
-    results: Vec<SearchItem>,
-}
-
 #[derive(Deserialize)]
 struct ExtractResponse {
     code: i32,
@@ -213,35 +196,9 @@ impl SearchProvider for AnySearchProvider {
             ));
         }
 
-        let req_queries: Vec<SearchRequest> = queries.into_iter().map(|q| q.to_request()).collect();
-
-        let builder = self
-            .client
-            .post(format!("{}/v1/batch_search", self.base_url))
-            .json(&BatchSearchRequest {
-                queries: req_queries,
-            });
-        let builder = self.add_auth(builder);
-        let resp: BatchSearchResponse = builder.send().await?.json().await?;
-
-        if resp.code != 0 {
-            return Err(WebSearchError::Api {
-                code: resp.code,
-                message: resp.message,
-            });
-        }
-
-        let results = resp
-            .data
-            .map(|groups| {
-                groups
-                    .into_iter()
-                    .map(|g| g.results.into_iter().map(item_to_result).collect())
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        Ok(results)
+        let futures: Vec<_> = queries.into_iter().map(|q| self.search(q)).collect();
+        let results = futures::future::join_all(futures).await;
+        results.into_iter().collect()
     }
 }
 
