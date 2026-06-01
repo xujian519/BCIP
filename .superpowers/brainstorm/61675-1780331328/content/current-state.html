@@ -1,0 +1,77 @@
+<h2>当前 TUI 设置现状</h2>
+<p class="subtitle">你提到的项目，哪些已有 UI？哪些没有？</p>
+
+<div class="section">
+  <h3>✅ 已有 UI（通过 / 命令）</h3>
+  <div class="options" data-multiselect>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>MCP 接入</h3>
+        <p>已有 <code>/mcp</code> 命令 + 启动状态显示 + 审批弹窗</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>Skill 接入</h3>
+        <p>已有 <code>/skills</code> 命令 + 启停切换弹窗</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>动画开关</h3>
+        <p>ConfigToml 有 <code>tui.animations</code>，但<strong>无 UI</strong></p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>通知设置</h3>
+        <p>ConfigToml 有 <code>tui.notification_settings</code> + <code>notify</code>，但<strong>无 UI</strong></p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>原始输出模式</h3>
+        <p>ConfigToml 有 <code>tui.raw_output_mode</code>，但<strong>无 UI</strong></p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✓</div>
+      <div class="content">
+        <h3>提示工具提示开关</h3>
+        <p>ConfigToml 有 <code>tui.show_tooltips</code>，但<strong>无 UI</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>❌ 没有对应配置，完全缺失</h3>
+  <div class="options" data-multiselect>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✗</div>
+      <div class="content">
+        <h3>知识库</h3>
+        <p>无 ConfigToml 字段、无 UI、无 slash 命令</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✗</div>
+      <div class="content">
+        <h3>知识图谱</h3>
+        <p>无 ConfigToml 字段、无 UI、无 slash 命令</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">✗</div>
+      <div class="content">
+        <h3>语义库接入</h3>
+        <p>无 ConfigToml 字段、无 UI、无 slash 命令</p>
+      </div>
+    </div>
+  </div>
+</div>

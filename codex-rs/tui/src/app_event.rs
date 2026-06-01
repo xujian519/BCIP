@@ -780,6 +780,13 @@ pub(crate) enum AppEvent {
         generate_memories: bool,
     },
 
+    /// Update general TUI display/behavior settings.
+    UpdateGeneralSettings {
+        animations: bool,
+        show_tooltips: bool,
+        raw_output_mode: bool,
+    },
+
     /// Clear all persisted local memory artifacts via the app-server.
     ResetMemories,
 

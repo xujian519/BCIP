@@ -4,6 +4,8 @@ node_modules
 .pnpm-store
 .pnpm-debug.log
 
+# npm lock file — root uses pnpm (see pnpm-workspace.yaml)
+package-lock.json
 # Keep pnpm-lock.yaml
 !pnpm-lock.yaml
 
@@ -121,26 +123,8 @@ codex-rs/codex-patent-assets/card-index.json
 apps/
 
 # 业务数据产物（数据库、知识库、知识图谱、语义库）
-codex-rs/codex-patent-assets/.yunpat-semantic-index.sqlite
-codex-rs/codex-patent-assets/eval_queries.json
-codex-rs/codex-patent-assets/constitutional/
-codex-rs/codex-patent-assets/ipc-classification/
-codex-rs/codex-patent-assets/legal-system/
-codex-rs/codex-patent-assets/rules/
-codex-rs/codex-patent-assets/专利侵权/
-codex-rs/codex-patent-assets/专利创造性诊断提示词_v1.0.md
-codex-rs/codex-patent-assets/专利判决/
-codex-rs/codex-patent-assets/专利实务/
-codex-rs/codex-patent-assets/专利说明书撰写提示词_v1.0.md
-codex-rs/codex-patent-assets/个人笔记/
-codex-rs/codex-patent-assets/书籍/
-codex-rs/codex-patent-assets/商标/
-codex-rs/codex-patent-assets/复审无效/
-codex-rs/codex-patent-assets/多智能体创新性评估系统提示词_v1.0.md
-codex-rs/codex-patent-assets/审查指南/
-codex-rs/codex-patent-assets/法律法规/
-codex-rs/codex-patent-assets/All-Concepts*.md
-codex-rs/codex-patent-assets/Concept-Index.md
+codex-rs/codex-patent-assets/
+codex-rs/codex-patent-knowledge/
 
 # IM 模块本地配置
 scripts/config/

@@ -1,0 +1,84 @@
+<h2>第一期：设置面板布局设计</h2>
+<p class="subtitle">整体结构和导航方式</p>
+
+<div class="section">
+  <h3>入口方式</h3>
+  <div class="options" data-multiselect>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content"><h3><code>/settings</code> 命令</h3><p>输入 /settings 打开设置面板，与现有 /model /theme 同级</p></div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content"><h3>Tab 快捷键（可选）</h3><p>如 <code>Cmd+,</code> 打开设置，后续可加</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>面板结构</h3>
+  <div class="mockup">
+    <div class="mockup-header"><code>/settings</code> 设置</div>
+  <div style="display:flex;border-bottom:1px solid #333;background:#1a1a2e;">
+    <div style="padding:6px 14px;border-bottom:2px solid #7c3aed;color:#a78bfa;font-weight:bold;">通用</div>
+    <div style="padding:6px 14px;color:#888;">模型</div>
+    <div style="padding:6px 14px;color:#888;">权限</div>
+    <div style="padding:6px 14px;color:#888;">外观</div>
+  </div>
+  <div style="padding:16px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="width:16px;height:16px;border:2px solid #7c3aed;border-radius:3px;"></div>
+      <div><strong>启用动画</strong><br><span style="font-size:12px;color:#888;">启动动画、闪烁效果等</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="width:16px;height:16px;border:2px solid #7c3aed;border-radius:3px;background:#7c3aed;"><div style="color:white;font-size:12px;text-align:center;">✓</div></div>
+      <div><strong>显示启动提示</strong><br><span style="font-size:12px;color:#888;">启动时显示工具提示</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="width:16px;height:16px;border:2px solid #7c3aed;border-radius:3px;"></div>
+      <div><strong>默认原始输出模式</strong><br><span style="font-size:12px;color:#888;">启动时默认使用原始滚动模式</span></div>
+    </div>
+    <div style="border-top:1px solid #333;padding-top:12px;margin-top:4px;">
+      <strong>通知设置</strong>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0 0 12px;">
+        <div style="width:16px;height:16px;border:2px solid #7c3aed;border-radius:3px;background:#7c3aed;"><div style="color:white;font-size:12px;text-align:center;">✓</div></div>
+        <span>代理回合完成时通知</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0 0 12px;">
+        <div style="width:16px;height:16px;border:2px solid #7c3aed;border-radius:3px;background:#7c3aed;"><div style="color:white;font-size:12px;text-align:center;">✓</div></div>
+        <span>审批请求时通知</span>
+      </div>
+    </div>
+  </div>
+  <div class="mockup-header" style="border-top:1px solid #333;">Enter 切换 | Tab 切换页签 | Esc 关闭</div>
+</div>
+</div>
+
+<div class="section">
+  <h3>Other 页签内容（复用现有弹窗）</h3>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:120px;border:1px solid #333;border-radius:8px;padding:12px;">
+      <div style="color:#a78bfa;font-weight:bold;">模型</div>
+      <div style="font-size:12px;color:#888;">/model 弹窗内容<br>模型选择<br>推理强度<br>服务层级</div>
+    </div>
+    <div style="flex:1;min-width:120px;border:1px solid #333;border-radius:8px;padding:12px;">
+      <div style="color:#a78bfa;font-weight:bold;">权限</div>
+      <div style="font-size:12px;color:#888;">/permissions 弹窗内容<br>审批策略<br>沙箱模式<br>权限配置</div>
+    </div>
+    <div style="flex:1;min-width:120px;border:1px solid #333;border-radius:8px;padding:12px;">
+      <div style="color:#a78bfa;font-weight:bold;">外观</div>
+      <div style="font-size:12px;color:#888;">/theme + /pets 内容<br>主题选择<br>宠物选择<br>状态栏配置</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="background:#1a1a2e;border-radius:8px;padding:12px;">
+  <h3>交互方式</h3>
+  <ul>
+    <li><strong>Tab / Shift+Tab</strong> — 切换页签</li>
+    <li><strong>↑↓</strong> — 在设置项间导航</li>
+    <li><strong>Enter / Space</strong> — 切换开关</li>
+    <li><strong>Esc</strong> — 关闭面板</li>
+    <li><strong>变更即时生效</strong> — 通过 config/batchWrite RPC 写入，无需"保存"按钮</li>
+  </ul>
+</div>

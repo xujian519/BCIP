@@ -672,6 +672,60 @@ impl App {
         }
     }
 
+    pub(super) async fn update_general_settings_with_app_server(
+        &mut self,
+        app_server: &mut AppServerSession,
+        animations: bool,
+        show_tooltips: bool,
+        raw_output_mode: bool,
+    ) {
+        let edits = crate::config_update::build_general_settings_edits(
+            animations,
+            show_tooltips,
+            raw_output_mode,
+        );
+
+        let write_response = match crate::config_update::write_config_batch(
+            app_server.request_handle(),
+            edits,
+        )
+        .await
+        {
+            Ok(response) => response,
+            Err(err) => {
+                tracing::error!(error = %err, "failed to persist general settings");
+                self.chat_widget
+                    .add_error_message(format!("写入配置失败: {err}"));
+                return;
+            }
+        };
+
+        if write_response.status == WriteStatus::OkOverridden {
+            let message = overridden_write_message(&write_response);
+            tracing::warn!(
+                message,
+                "general settings config write was overridden by effective config"
+            );
+            self.chat_widget.add_error_message(format!(
+                "通用设置变更已保存但未应用: {message}"
+            ));
+            let Some(effective_config) = self
+                .read_effective_config_after_overridden_write(app_server, "通用设置变更")
+                .await
+            else {
+                return;
+            };
+            if !self.sync_general_state_from_effective_config(&effective_config) {
+                return;
+            };
+        } else {
+            self.config.animations = animations;
+            self.config.show_tooltips = show_tooltips;
+            self.config.tui_raw_output_mode = raw_output_mode;
+            self.chat_widget.set_raw_output_mode(raw_output_mode);
+        }
+    }
+
     pub(super) async fn reset_memories_with_app_server(
         &mut self,
         app_server: &mut AppServerSession,
@@ -906,6 +960,47 @@ impl App {
         self.config.memories.generate_memories = generate_memories;
         self.chat_widget
             .set_memory_settings(use_memories, generate_memories);
+        true
+    }
+
+    fn sync_general_state_from_effective_config(
+        &mut self,
+        effective_config: &ConfigReadResponse,
+    ) -> bool {
+        let animations = effective_config
+            .config
+            .additional
+            .get("tui")
+            .and_then(|tui| {
+                tui.as_object()
+                    .and_then(|obj| obj.get("animations"))
+                    .and_then(|v| v.as_bool())
+            })
+            .unwrap_or(self.config.animations);
+        let show_tooltips = effective_config
+            .config
+            .additional
+            .get("tui")
+            .and_then(|tui| {
+                tui.as_object()
+                    .and_then(|obj| obj.get("show_tooltips"))
+                    .and_then(|v| v.as_bool())
+            })
+            .unwrap_or(self.config.show_tooltips);
+        let raw_output_mode = effective_config
+            .config
+            .additional
+            .get("tui")
+            .and_then(|tui| {
+                tui.as_object()
+                    .and_then(|obj| obj.get("raw_output_mode"))
+                    .and_then(|v| v.as_bool())
+            })
+            .unwrap_or(self.config.tui_raw_output_mode);
+        self.config.animations = animations;
+        self.config.show_tooltips = show_tooltips;
+        self.config.tui_raw_output_mode = raw_output_mode;
+        self.chat_widget.set_raw_output_mode(raw_output_mode);
         true
     }
 

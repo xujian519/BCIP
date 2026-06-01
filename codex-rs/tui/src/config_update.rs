@@ -122,6 +122,18 @@ pub(crate) fn build_memory_settings_edits(
     ]
 }
 
+pub(crate) fn build_general_settings_edits(
+    animations: bool,
+    show_tooltips: bool,
+    raw_output_mode: bool,
+) -> Vec<ConfigEdit> {
+    vec![
+        replace_config_value("tui.animations", serde_json::json!(animations)),
+        replace_config_value("tui.show_tooltips", serde_json::json!(show_tooltips)),
+        replace_config_value("tui.raw_output_mode", serde_json::json!(raw_output_mode)),
+    ]
+}
+
 pub(crate) async fn write_config_batch(
     request_handle: AppServerRequestHandle,
     edits: Vec<ConfigEdit>,

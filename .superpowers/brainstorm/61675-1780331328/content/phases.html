@@ -1,0 +1,37 @@
+<h2>建议分期方案</h2>
+<p class="subtitle">从易到难，每期独立可交付</p>
+
+<div class="section">
+  <div class="options">
+    <div class="option" onclick="toggleSelect(this)" data-choice="phases">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>第一期：设置面板骨架 + 简单开关</h3>
+        <p>搭建统一的 <code>/settings</code> 面板框架（分页签布局）</p>
+        <p>加入：动画开关、通知设置、原始输出模式、提示工具提示开关</p>
+        <p>将 <code>/model</code>、<code>/permissions</code>、<code>/theme</code> 等现有弹窗整合进面板</p>
+        <p><strong>难度：低</strong> — 已有 ConfigToml 字段和现有弹窗组件</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)" data-choice="phases">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>第二期：LLM + 搜索引擎 + MCP/Skill 配置</h3>
+        <p>LLM 配置页签：模型提供商选择、API Key 管理、模型选择、上下文窗口、推理设置</p>
+        <p>搜索引擎配置页签：默认搜索模式、API Key、自定义端点</p>
+        <p>MCP/Skill 管理页签：服务器状态查看、启动/停止、Skill 启停</p>
+        <p><strong>难度：中</strong> — 需要新的 ConfigToml 字段 + UI 表单组件</p>
+      </div>
+    </div>
+    <div class="option" onclick="toggleSelect(this)" data-choice="phases">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>第三期：知识体系配置</h3>
+        <p>知识库页签：向量数据库连接、索引管理、数据源配置</p>
+        <p>知识图谱页签：图谱启用/禁用、图谱路径、重建索引</p>
+        <p>语义库页签：语义引擎选择、嵌入模型选择、索引状态</p>
+        <p><strong>难度：高</strong> — 需要新的 ConfigToml、新的后端服务、新的 UI 组件</p>
+      </div>
+    </div>
+  </div>
+</div>

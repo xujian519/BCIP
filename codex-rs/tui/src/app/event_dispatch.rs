@@ -1590,6 +1590,19 @@ impl App {
                 )
                 .await;
             }
+            AppEvent::UpdateGeneralSettings {
+                animations,
+                show_tooltips,
+                raw_output_mode,
+            } => {
+                self.update_general_settings_with_app_server(
+                    app_server,
+                    animations,
+                    show_tooltips,
+                    raw_output_mode,
+                )
+                .await;
+            }
             AppEvent::ResetMemories => {
                 self.reset_memories_with_app_server(app_server).await;
             }
