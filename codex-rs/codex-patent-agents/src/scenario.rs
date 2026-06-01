@@ -70,14 +70,11 @@ impl ScenarioStep {
 impl ScenarioProcessing {
     pub fn topological_order(&self) -> Vec<&ScenarioStep> {
         let steps = &self.steps;
-        let name_set: std::collections::HashSet<&str> =
-            steps.iter().map(|s| s.name.as_str()).collect();
         let mut visited = std::collections::HashSet::new();
         let mut result = Vec::with_capacity(steps.len());
         fn visit<'a>(
             step: &'a ScenarioStep,
             steps: &'a [ScenarioStep],
-            name_set: &std::collections::HashSet<&str>,
             visited: &mut std::collections::HashSet<String>,
             result: &mut Vec<&'a ScenarioStep>,
         ) {
@@ -86,13 +83,13 @@ impl ScenarioProcessing {
             }
             for dep in &step.depends_on {
                 if let Some(dep_step) = steps.iter().find(|s| s.name == *dep) {
-                    visit(dep_step, steps, name_set, visited, result);
+                    visit(dep_step, steps, visited, result);
                 }
             }
             result.push(step);
         }
         for step in steps {
-            visit(step, steps, &name_set, &mut visited, &mut result);
+            visit(step, steps, &mut visited, &mut result);
         }
         result
     }

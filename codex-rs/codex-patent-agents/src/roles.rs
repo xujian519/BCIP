@@ -138,13 +138,10 @@ pub fn find_skills_shared_dir() -> Option<PathBuf> {
         ),
     ];
 
-    for candidate in candidates.into_iter().flatten() {
-        if candidate.is_dir() {
-            return Some(candidate);
-        }
-    }
-
-    None
+    candidates
+        .into_iter()
+        .flatten()
+        .find(|candidate| candidate.is_dir())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -269,13 +266,13 @@ impl PatentAgentRole {
                     dir.join(format!("{}.toml", include.trim_start_matches("_shared/")));
                 if let Ok(content) = std::fs::read_to_string(&include_path)
                     && let Ok(def) = toml::from_str::<serde_json::Value>(&content)
-                        && let Some(instructions) = def.get("instructions").and_then(|v| v.as_str())
-                        {
-                            prompt.push_str("\n\n");
-                            prompt.push_str(&format!(
-                                "<!-- include: {include} -->\n{instructions}\n<!-- /include: {include} -->"
-                            ));
-                        }
+                    && let Some(instructions) = def.get("instructions").and_then(|v| v.as_str())
+                {
+                    prompt.push_str("\n\n");
+                    prompt.push_str(&format!(
+                        "<!-- include: {include} -->\n{instructions}\n<!-- /include: {include} -->"
+                    ));
+                }
             }
         }
 

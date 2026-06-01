@@ -2,7 +2,7 @@
  * 按扩展名路由到对应预览组件（spec §8.2）
  * PDF 使用自带工具栏，避免与 PreviewToolbar 重复。
  */
-import { useMemo, useState, Suspense } from 'react';
+import React, { useMemo, useState } from 'react';
 import { getFileType } from '@/lib/fileType';
 import PdfPreview from './PdfPreview';
 import ImagePreview from './ImagePreview';

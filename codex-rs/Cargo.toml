@@ -521,14 +521,16 @@ debug = "none"
 strip = "symbols"
 
 [profile.release]
-lto = "fat"
+lto = "thin"
 split-debuginfo = "off"
 # Because we bundle some of these executables with the TypeScript CLI, we
 # remove everything to make the binary as small as possible.
 strip = "symbols"
 
-# See https://github.com/xujian519/BCIP/issues/1411 for details.
-codegen-units = 1
+# codegen-units=16 keeps peak RSS within CI runner limits (7 GB).
+# For maximum binary size optimization locally, override with:
+#   CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 cargo build --release
+codegen-units = 16
 
 [profile.profiling]
 inherits = "release"

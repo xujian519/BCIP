@@ -191,7 +191,7 @@ impl LegalTools {
         relation_filter: Option<Vec<String>>,
         max_depth: usize,
     ) -> Result<serde_json::Value, String> {
-        let kg = SqliteKnowledgeGraph::open(&codex_patent_knowledge::paths::kg_db_path())
+        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
             .map_err(|e| format!("无法打开知识图谱: {e}"))?;
         let filter: Option<Vec<&str>> = relation_filter
             .as_ref()
@@ -200,13 +200,13 @@ impl LegalTools {
         let edges = kg
             .traverse(start_id, filter_ref, max_depth)
             .map_err(|e| format!("图遍历失败: {e}"))?;
-        serde_json::to_value(&edges).map_err(|e| format!("{e}"))
+        serde_json::to_value(&edges).map_err(|e| e.to_string())
     }
 
     pub fn graph_neighbors(node_id: &str) -> Result<serde_json::Value, String> {
-        let kg = SqliteKnowledgeGraph::open(&codex_patent_knowledge::paths::kg_db_path())
+        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
             .map_err(|e| format!("无法打开知识图谱: {e}"))?;
-        let edges = kg.get_edges(node_id).map_err(|e| format!("{e}"))?;
-        serde_json::to_value(&edges).map_err(|e| format!("{e}"))
+        let edges = kg.get_edges(node_id).map_err(|e| e.to_string())?;
+        serde_json::to_value(&edges).map_err(|e| e.to_string())
     }
 }

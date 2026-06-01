@@ -15,7 +15,11 @@ pub enum AgentProvider {
 pub fn detect_provider(model: &str) -> AgentProvider {
     let lower = model.to_ascii_lowercase();
 
-    if lower.starts_with("claude-") || lower.contains("opus") || lower.contains("sonnet") || lower.contains("haiku") {
+    if lower.starts_with("claude-")
+        || lower.contains("opus")
+        || lower.contains("sonnet")
+        || lower.contains("haiku")
+    {
         return AgentProvider::Anthropic;
     }
 
@@ -47,7 +51,12 @@ pub fn detect_provider(model: &str) -> AgentProvider {
         };
     }
 
-    if lower.starts_with("gpt-") || lower.starts_with("o1-") || lower.starts_with("o3-") || lower.starts_with("o4-") || lower.contains("chatgpt") {
+    if lower.starts_with("gpt-")
+        || lower.starts_with("o1-")
+        || lower.starts_with("o3-")
+        || lower.starts_with("o4-")
+        || lower.contains("chatgpt")
+    {
         return AgentProvider::OpenAiCompatible {
             base_url: "https://api.openai.com/v1".to_string(),
             api_key_env: "OPENAI_API_KEY".to_string(),
@@ -60,9 +69,10 @@ pub fn detect_provider(model: &str) -> AgentProvider {
 /// 从环境变量解析 API key
 pub fn resolve_api_key(env_var: &str) -> String {
     if let Ok(val) = std::env::var(env_var)
-        && !val.is_empty() {
-            return val;
-        }
+        && !val.is_empty()
+    {
+        return val;
+    }
 
     resolve_api_key_from_config(env_var)
 }

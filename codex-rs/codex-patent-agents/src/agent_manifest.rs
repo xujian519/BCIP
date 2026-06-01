@@ -2,7 +2,8 @@
 //!
 //! 提供agent元数据的持久化存储和查询功能。
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use std::cell::RefCell;
 use std::path::PathBuf;
 
@@ -109,8 +110,7 @@ pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, String> {
         return Ok(Vec::new());
     }
 
-    let entries = std::fs::read_dir(&store_dir)
-        .map_err(|error| error.to_string())?;
+    let entries = std::fs::read_dir(&store_dir).map_err(|error| error.to_string())?;
 
     let mut manifests = Vec::new();
 

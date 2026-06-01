@@ -50,10 +50,10 @@ async fn call_python_bridge(request: serde_json::Value) -> Result<serde_json::Va
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         // 即使 exit code 非零，stdout 可能仍有 JSON 错误消息
-        if let Ok(err_val) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
-            if let Some(err_msg) = err_val.get("error").and_then(|v| v.as_str()) {
-                return Err(format!("Council 引擎错误: {err_msg}"));
-            }
+        if let Ok(err_val) = serde_json::from_slice::<serde_json::Value>(&output.stdout)
+            && let Some(err_msg) = err_val.get("error").and_then(|v| v.as_str())
+        {
+            return Err(format!("Council 引擎错误: {err_msg}"));
         }
         return Err(format!(
             "Python 桥接失败 (exit={}): {stderr}",

@@ -1355,9 +1355,7 @@ impl MessageProcessor {
             ClientRequest::AgentStatus { params, .. } => {
                 self.agent_runtime_processor.agent_status(params)
             }
-            ClientRequest::AgentList { .. } => {
-                self.agent_runtime_processor.agent_list()
-            }
+            ClientRequest::AgentList { .. } => self.agent_runtime_processor.agent_list(),
             ClientRequest::AgentCancel { params, .. } => {
                 self.agent_runtime_processor.agent_cancel(params)
             }

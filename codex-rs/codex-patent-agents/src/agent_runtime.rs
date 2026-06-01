@@ -2,7 +2,13 @@
 //!
 //! 提供不依赖 Codex core 的独立 agent 执行能力。
 
-use crate::agent_manifest::{agent_store_dir, iso8601_now, load_manifest, list_agent_manifests, make_agent_id, persist_manifest, AgentManifest};
+use crate::agent_manifest::AgentManifest;
+use crate::agent_manifest::agent_store_dir;
+use crate::agent_manifest::iso8601_now;
+use crate::agent_manifest::list_agent_manifests;
+use crate::agent_manifest::load_manifest;
+use crate::agent_manifest::make_agent_id;
+use crate::agent_manifest::persist_manifest;
 use crate::provider_router::detect_provider;
 use crate::roles::PatentAgentRole;
 
@@ -61,7 +67,12 @@ impl PatentAgentRuntime {
 
 {}
 ",
-            agent_id, agent_name, input.description, normalized_subagent_type, created_at, input.prompt
+            agent_id,
+            agent_name,
+            input.description,
+            normalized_subagent_type,
+            created_at,
+            input.prompt
         );
 
         std::fs::write(&output_file, output_contents).map_err(|error| error.to_string())?;
@@ -189,7 +200,8 @@ fn spawn_agent_thread(
             match result {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => {
-                    let _ = persist_agent_terminal_state(&manifest_clone, "failed", None, Some(error));
+                    let _ =
+                        persist_agent_terminal_state(&manifest_clone, "failed", None, Some(error));
                 }
                 Err(_) => {
                     let _ = persist_agent_terminal_state(

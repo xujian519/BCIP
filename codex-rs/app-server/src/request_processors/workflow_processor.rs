@@ -1,10 +1,10 @@
 use super::*;
-use std::sync::Arc;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
-use codex_patent_workflow::orchestrator::Orchestrator;
 use codex_patent_workflow::orchestrator::OrchestrationStatus;
+use codex_patent_workflow::orchestrator::Orchestrator;
 use codex_patent_workflow::plan::PlanGenerator;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub(crate) struct WorkflowRequestProcessor {
@@ -12,6 +12,7 @@ pub(crate) struct WorkflowRequestProcessor {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct WorkflowState {
     plan_id: String,
     status: String,
@@ -41,9 +42,9 @@ impl WorkflowRequestProcessor {
             orchestrator = orchestrator.with_max_retries(max_retries);
         }
 
-        let result = orchestrator.orchestrate_with_retry(&params.goal).map_err(|err| {
-            invalid_request(format!("workflow orchestration failed: {err}"))
-        })?;
+        let result = orchestrator
+            .orchestrate_with_retry(&params.goal)
+            .map_err(|err| invalid_request(format!("workflow orchestration failed: {err}")))?;
 
         let status_str = match result.status {
             OrchestrationStatus::Running => "running",
@@ -64,18 +65,24 @@ impl WorkflowRequestProcessor {
         let mut workflows = self.active_workflows.write().await;
         workflows.insert(workflow_id.clone(), state);
 
-        let status = workflows.get(&workflow_id).map(|s| s.status.clone()).unwrap_or_default();
+        let status = workflows
+            .get(&workflow_id)
+            .map(|s| s.status.clone())
+            .unwrap_or_default();
 
-        let plan = workflows.get(&workflow_id).and_then(|w| {
+        let plan = workflows.get(&workflow_id).and_then(|_w| {
             // Plan details not available from state; return None
             None::<ExecutionPlanDto>
         });
 
-        Ok(Some(WorkflowStartResponse {
-            workflow_id,
-            status,
-            plan,
-        }.into()))
+        Ok(Some(
+            WorkflowStartResponse {
+                workflow_id,
+                status,
+                plan,
+            }
+            .into(),
+        ))
     }
 
     pub(crate) async fn workflow_resume(
@@ -90,10 +97,13 @@ impl WorkflowRequestProcessor {
             )));
         };
 
-        Ok(Some(WorkflowResumeResponse {
-            workflow_id: params.workflow_id,
-            status: "running".to_string(),
-        }.into()))
+        Ok(Some(
+            WorkflowResumeResponse {
+                workflow_id: params.workflow_id,
+                status: "running".to_string(),
+            }
+            .into(),
+        ))
     }
 
     pub(crate) async fn workflow_status(
@@ -108,14 +118,17 @@ impl WorkflowRequestProcessor {
             )));
         };
 
-        Ok(Some(WorkflowStatusResponse {
-            workflow_id: params.workflow_id,
-            status: state.status.clone(),
-            progress: state.progress,
-            completed_steps: state.completed_steps.clone(),
-            failed_steps: state.failed_steps.clone(),
-            errors: state.errors.clone(),
-        }.into()))
+        Ok(Some(
+            WorkflowStatusResponse {
+                workflow_id: params.workflow_id,
+                status: state.status.clone(),
+                progress: state.progress,
+                completed_steps: state.completed_steps.clone(),
+                failed_steps: state.failed_steps.clone(),
+                errors: state.errors.clone(),
+            }
+            .into(),
+        ))
     }
 }
 

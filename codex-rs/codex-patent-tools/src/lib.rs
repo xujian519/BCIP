@@ -454,7 +454,7 @@ pub fn register_legal_tools() -> HashMap<String, ToolHandler> {
                 .map(String::from)
                 .unwrap_or_else(codex_patent_knowledge::paths::kb_root);
             let graph =
-                codex_patent_knowledge::LinkGraph::build(&link_root).map_err(|e| format!("{e}"))?;
+                codex_patent_knowledge::LinkGraph::build(&link_root).map_err(|e| e.to_string())?;
             let links: Vec<serde_json::Value> = if keyword.is_empty() {
                 graph
                     .all_links()
@@ -517,10 +517,10 @@ pub fn register_legal_tools() -> HashMap<String, ToolHandler> {
                 Some(&codex_patent_knowledge::paths::card_index_path()),
                 &codex_patent_knowledge::paths::eval_queries_path(),
             )
-            .map_err(|e| format!("{e}"))?;
+            .map_err(|e| e.to_string())?;
             let results = evaluator.run(mode);
             let summary = codex_patent_knowledge::SearchEval::summary(&results);
-            serde_json::to_value(&summary).map_err(|e| format!("{e}"))
+            serde_json::to_value(&summary).map_err(|e| e.to_string())
         })
     });
     t
