@@ -211,6 +211,7 @@ use crate::render::Insets;
 use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
+use crate::style::input_text_style;
 use crate::style::user_message_style;
 use codex_protocol::ThreadId;
 use codex_protocol::user_input::ByteRange;
@@ -4653,11 +4654,12 @@ impl ChatComposer {
             } else {
                 let highlight_ranges = self.history_search_highlight_ranges();
                 if highlight_ranges.is_empty() {
-                    StatefulWidgetRef::render_ref(
-                        &(&self.draft.textarea),
+                    self.draft.textarea.render_ref_styled_with_highlights(
                         textarea_rect,
                         buf,
                         &mut state,
+                        input_text_style(),
+                        &[],
                     );
                 } else {
                     let highlight_style =
@@ -4670,7 +4672,7 @@ impl ChatComposer {
                         textarea_rect,
                         buf,
                         &mut state,
-                        Style::default(),
+                        input_text_style(),
                         &highlights,
                     );
                 }

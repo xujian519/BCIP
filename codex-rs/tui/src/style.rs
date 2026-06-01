@@ -23,6 +23,19 @@ pub(crate) fn accent_style() -> Style {
     accent_style_for(default_bg())
 }
 
+/// 输入框文字样式：根据终端背景自动选择高对比前景色。
+pub(crate) fn input_text_style() -> Style {
+    input_text_style_for(default_bg())
+}
+
+pub(crate) fn input_text_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
+    match terminal_bg {
+        Some(bg) if is_light(bg) => Style::default().fg(Color::Black),
+        Some(_) => Style::default().fg(Color::White),
+        None => Style::default(),
+    }
+}
+
 /// 云熙品牌名样式：品红加粗，知性但不张扬。
 pub(crate) fn yunxi_name_style() -> Style {
     Style::default()
