@@ -124,7 +124,7 @@ apps/
 
 # 业务数据产物（数据库、知识库、知识图谱、语义库）
 codex-rs/codex-patent-assets/
-codex-rs/codex-patent-knowledge/
+codex-rs/codex-patent-knowledge/*.db
 
 # IM 模块本地配置
 scripts/config/
