@@ -143,6 +143,10 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
         messages.push(msg);
     }
 
+    // Ensure every assistant message with tool_calls has corresponding tool responses.
+    // Missing outputs can occur after context compaction or interrupted tool calls.
+    ensure_tool_responses(&mut messages);
+
     // Convert tools
     let tools = convert_tools(&request.tools);
 
@@ -158,6 +162,57 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
     }
 
     body
+}
+
+/// For every assistant message that contains `tool_calls`, ensure each `tool_call_id`
+/// has a matching `tool` role message in the list. Missing responses are filled with
+/// "aborted" to satisfy the Chat Completions API constraint.
+fn ensure_tool_responses(messages: &mut Vec<Value>) {
+    // Collect (index, call_ids) for each assistant message with tool_calls
+    let mut assistant_tool_calls: Vec<(usize, Vec<String>)> = Vec::new();
+    for (idx, msg) in messages.iter().enumerate() {
+        if msg["role"] != "assistant" {
+            continue;
+        }
+        if let Some(calls) = msg["tool_calls"].as_array() {
+            let call_ids: Vec<String> = calls
+                .iter()
+                .filter_map(|c| c["id"].as_str().map(String::from))
+                .collect();
+            if !call_ids.is_empty() {
+                assistant_tool_calls.push((idx, call_ids));
+            }
+        }
+    }
+
+    // Collect all existing tool_call_ids from tool messages
+    let existing_tool_ids: std::collections::HashSet<String> = messages
+        .iter()
+        .filter(|m| m["role"] == "tool")
+        .filter_map(|m| m["tool_call_id"].as_str().map(String::from))
+        .collect();
+
+    // Insert synthetic tool responses for missing call_ids
+    let mut insertions: Vec<(usize, Value)> = Vec::new();
+    for (assistant_idx, call_ids) in &assistant_tool_calls {
+        for call_id in call_ids {
+            if !existing_tool_ids.contains(call_id) {
+                insertions.push((
+                    *assistant_idx,
+                    serde_json::json!({
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "content": "aborted",
+                    }),
+                ));
+            }
+        }
+    }
+
+    // Insert in reverse order to preserve indices
+    for (after_idx, tool_msg) in insertions.into_iter().rev() {
+        messages.insert(after_idx + 1, tool_msg);
+    }
 }
 
 fn convert_content_items(items: &[ContentItem]) -> Value {
