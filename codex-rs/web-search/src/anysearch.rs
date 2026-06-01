@@ -238,3 +238,7 @@ impl SearchProvider for AnySearchProvider {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+#[path = "anysearch_test.rs"]
+mod tests;
