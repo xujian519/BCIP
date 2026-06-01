@@ -129,6 +129,15 @@ of strings; comma-separated strings are not supported. Use \
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct WebSearchConfigToml {
+    pub provider: Option<String>,
+    pub api_key: Option<String>,
+    pub max_results: Option<u32>,
+    pub zone: Option<String>,
+}
+
 /// Base config deserialized from ~/.codex/config.toml.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -404,7 +413,8 @@ pub struct ConfigToml {
     /// Controls the web search tool mode: disabled, cached, or live.
     pub web_search: Option<WebSearchMode>,
 
-    /// Nested tools section for feature toggles
+    pub web_search_config: Option<WebSearchConfigToml>,
+
     pub tools: Option<ToolsToml>,
 
     /// Additional discoverable tools that can be suggested for installation.
