@@ -23,7 +23,6 @@ impl ConversationHistory {
     }
 }
 
-// TODO: this is temporary and will disappear in the next PR (as we make codex-extension-api generic on Invocation.
 #[derive(Clone, Debug)]
 pub struct ToolCall {
     pub turn_id: String,

@@ -1,7 +1,11 @@
 use codex_web_search::anysearch::AnySearchProvider;
+use codex_web_search::exa::ExaProvider;
 use codex_web_search::provider::SearchProvider;
+use codex_web_search::tavily::TavilyProvider;
+use codex_web_search::types::ExtractResult;
 use codex_web_search::types::Freshness;
 use codex_web_search::types::SearchQuery;
+use codex_web_search::types::SearchResult;
 use codex_web_search::types::Zone;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -55,32 +59,92 @@ fn input_to_query(input: WebSearchInput) -> SearchQuery {
     }
 }
 
+fn get_api_key() -> Option<String> {
+    let key = std::env::var("BCIP_WEB_SEARCH_API_KEY")
+        .or_else(|_| std::env::var("ANYSEARCH_API_KEY"))
+        .ok();
+    if key.as_deref() == Some("") {
+        return None;
+    }
+    key
+}
+
+fn get_provider_name() -> String {
+    std::env::var("BCIP_WEB_SEARCH_PROVIDER").unwrap_or_else(|_| "anysearch".to_string())
+}
+
+fn make_provider() -> Provider {
+    match get_provider_name().as_str() {
+        "tavily" => {
+            let key = std::env::var("TAVILY_API_KEY").unwrap_or_default();
+            Provider::Tavily(TavilyProvider::new(key))
+        }
+        "exa" => {
+            let key = std::env::var("EXA_API_KEY").unwrap_or_default();
+            Provider::Exa(ExaProvider::new(key))
+        }
+        _ => Provider::AnySearch(AnySearchProvider::new(get_api_key())),
+    }
+}
+
+enum Provider {
+    AnySearch(AnySearchProvider),
+    Tavily(TavilyProvider),
+    Exa(ExaProvider),
+}
+
+impl Provider {
+    async fn search(&self, query: SearchQuery) -> Result<Vec<SearchResult>, String> {
+        match self {
+            Provider::AnySearch(p) => p.search(query).await,
+            Provider::Tavily(p) => p.search(query).await,
+            Provider::Exa(p) => p.search(query).await,
+        }
+        .map_err(|e| format!("{e}"))
+    }
+
+    async fn extract(&self, url: &str) -> Result<ExtractResult, String> {
+        match self {
+            Provider::AnySearch(p) => p.extract(url).await,
+            Provider::Tavily(p) => p.extract(url).await,
+            Provider::Exa(p) => p.extract(url).await,
+        }
+        .map_err(|e| format!("{e}"))
+    }
+
+    async fn batch_search(
+        &self,
+        queries: Vec<SearchQuery>,
+    ) -> Result<Vec<Vec<SearchResult>>, String> {
+        match self {
+            Provider::AnySearch(p) => p.batch_search(queries).await,
+            Provider::Tavily(p) => p.batch_search(queries).await,
+            Provider::Exa(p) => p.batch_search(queries).await,
+        }
+        .map_err(|e| format!("{e}"))
+    }
+}
+
 async fn web_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-    let provider = AnySearchProvider::new(None);
+    let provider = make_provider();
     let query = input_to_query(parsed);
-    let results = provider.search(query).await.map_err(|e| format!("{e}"))?;
+    let results = provider.search(query).await?;
     serde_json::to_value(results).map_err(|e| format!("{e}"))
 }
 
 async fn web_extract(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebExtractInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-    let provider = AnySearchProvider::new(None);
-    let result = provider
-        .extract(&parsed.url)
-        .await
-        .map_err(|e| format!("{e}"))?;
+    let provider = make_provider();
+    let result = provider.extract(&parsed.url).await?;
     serde_json::to_value(result).map_err(|e| format!("{e}"))
 }
 
 async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebBatchSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-    let provider = AnySearchProvider::new(None);
+    let provider = make_provider();
     let queries: Vec<SearchQuery> = parsed.queries.into_iter().map(input_to_query).collect();
-    let results = provider
-        .batch_search(queries)
-        .await
-        .map_err(|e| format!("{e}"))?;
+    let results = provider.batch_search(queries).await?;
     serde_json::to_value(results).map_err(|e| format!("{e}"))
 }
 

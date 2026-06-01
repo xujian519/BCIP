@@ -395,7 +395,8 @@ Rules:
         match path.to_str()? {
             "explorer.toml" => Some(EXPLORER),
             "awaiter.toml" => Some(AWAITER),
-            _other => {
+            #[allow(unused_variables)]
+            other => {
                 #[cfg(feature = "patent-tools")]
                 if let Some(content) = patent_config_file_contents(other) {
                     return Some(content);

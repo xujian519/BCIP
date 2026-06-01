@@ -1,7 +1,10 @@
 use crate::error::WebSearchError;
 use crate::provider::SearchProvider;
-use crate::types::{ExtractResult, SearchQuery, SearchResult};
-use serde::{Deserialize, Serialize};
+use crate::types::ExtractResult;
+use crate::types::SearchQuery;
+use crate::types::SearchResult;
+use serde::Deserialize;
+use serde::Serialize;
 
 pub struct ExaProvider {
     client: reqwest::Client,
@@ -100,12 +103,14 @@ impl SearchProvider for ExaProvider {
             .await?
             .json()
             .await?;
-        let result = resp.results.into_iter().next().ok_or_else(|| {
-            WebSearchError::Api {
+        let result = resp
+            .results
+            .into_iter()
+            .next()
+            .ok_or_else(|| WebSearchError::Api {
                 code: -1,
                 message: "No content result".to_string(),
-            }
-        })?;
+            })?;
         let content = result.text.unwrap_or_default();
         let length = content.len();
         Ok(ExtractResult {
