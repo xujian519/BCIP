@@ -12,8 +12,8 @@ use ratatui::widgets::Widget;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
-use crate::bottom_pane::bottom_pane_view::BottomPaneView;
 use crate::bottom_pane::CancellationEvent;
+use crate::bottom_pane::bottom_pane_view::BottomPaneView;
 use crate::bottom_pane::selection_tabs;
 use crate::bottom_pane::selection_tabs::SelectionTab;
 use crate::render::Insets;
@@ -43,7 +43,12 @@ impl SettingsTab {
     }
 
     fn all() -> [SettingsTab; 4] {
-        [SettingsTab::General, SettingsTab::Model, SettingsTab::Permissions, SettingsTab::Appearance]
+        [
+            SettingsTab::General,
+            SettingsTab::Model,
+            SettingsTab::Permissions,
+            SettingsTab::Appearance,
+        ]
     }
 
     fn command_name(self) -> &'static str {
@@ -73,11 +78,7 @@ impl SettingsPanel {
     ) -> Self {
         Self {
             active_tab: SettingsTab::General,
-            general_view: SettingsGeneralView::new(
-                animations,
-                show_tooltips,
-                raw_output_mode,
-            ),
+            general_view: SettingsGeneralView::new(animations, show_tooltips, raw_output_mode),
             complete: false,
             app_event_tx,
             footer_hint: vec![
@@ -85,7 +86,8 @@ impl SettingsPanel {
                 "↑↓ 导航 ".dim(),
                 "Space 切换 ".dim(),
                 "Esc 关闭".dim(),
-            ].into(),
+            ]
+            .into(),
         }
     }
 
@@ -102,16 +104,22 @@ impl SettingsPanel {
     }
 
     fn tab_bar_items(&self) -> Vec<SelectionTab> {
-        SettingsTab::all().iter().map(|tab| SelectionTab {
-            id: tab.label().to_string(),
-            label: tab.label().to_string(),
-            header: Box::new(ColumnRenderable::new()),
-            items: Vec::new(),
-        }).collect()
+        SettingsTab::all()
+            .iter()
+            .map(|tab| SelectionTab {
+                id: tab.label().to_string(),
+                label: tab.label().to_string(),
+                header: Box::new(ColumnRenderable::new()),
+                items: Vec::new(),
+            })
+            .collect()
     }
 
     fn active_tab_idx(&self) -> usize {
-        SettingsTab::all().iter().position(|t| *t == self.active_tab).unwrap_or(0)
+        SettingsTab::all()
+            .iter()
+            .position(|t| *t == self.active_tab)
+            .unwrap_or(0)
     }
 
     fn save_and_close(&mut self) {
@@ -130,15 +138,24 @@ impl SettingsPanel {
 impl BottomPaneView for SettingsPanel {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event {
-            KeyEvent { code: KeyCode::Tab, modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent {
+                code: KeyCode::Tab,
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
                 self.next_tab();
             }
-            KeyEvent { code: KeyCode::BackTab, .. } => {
+            KeyEvent {
+                code: KeyCode::BackTab,
+                ..
+            } => {
                 self.prev_tab();
             }
             _ if self.active_tab == SettingsTab::General
                 && self.general_view.handle_key_event(key_event) => {}
-            KeyEvent { code: KeyCode::Esc, .. } => {
+            KeyEvent {
+                code: KeyCode::Esc, ..
+            } => {
                 self.save_and_close();
             }
             _ => {}
@@ -170,13 +187,15 @@ impl Renderable for SettingsPanel {
 
         let tabs = self.tab_bar_items();
         let active_idx = self.active_tab_idx();
-        let tab_bar_h = selection_tabs::tab_bar_height(&tabs, active_idx, content_area.width.saturating_sub(4));
+        let tab_bar_h =
+            selection_tabs::tab_bar_height(&tabs, active_idx, content_area.width.saturating_sub(4));
         let inset = content_area.inset(Insets::vh(1, 2));
         let [tab_bar_area, _, body_area] = Layout::vertical([
             Constraint::Length(tab_bar_h),
             Constraint::Length(1),
             Constraint::Fill(1),
-        ]).areas(inset);
+        ])
+        .areas(inset);
 
         selection_tabs::render_tab_bar(&tabs, active_idx, tab_bar_area, buf);
 
@@ -194,14 +213,25 @@ impl Renderable for SettingsPanel {
                 let lines = vec![
                     Line::from(format!("  {hint}")).bold(),
                     Line::from(""),
-                    Line::from(format!("  请使用 /{} 命令打开独立设置", other.command_name())).dim(),
+                    Line::from(format!(
+                        "  请使用 /{} 命令打开独立设置",
+                        other.command_name()
+                    ))
+                    .dim(),
                     Line::from("  后续版本将集成到统一面板").dim(),
                 ];
                 for (i, line) in lines.iter().enumerate() {
                     let y = body_area.y + i as u16;
-                    if y >= body_area.y + body_area.height { break; }
+                    if y >= body_area.y + body_area.height {
+                        break;
+                    }
                     line.clone().render(
-                        Rect { x: body_area.x, y, width: body_area.width, height: 1 },
+                        Rect {
+                            x: body_area.x,
+                            y,
+                            width: body_area.width,
+                            height: 1,
+                        },
                         buf,
                     );
                 }

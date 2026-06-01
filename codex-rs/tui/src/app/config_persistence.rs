@@ -706,9 +706,8 @@ impl App {
                 message,
                 "general settings config write was overridden by effective config"
             );
-            self.chat_widget.add_error_message(format!(
-                "通用设置变更已保存但未应用: {message}"
-            ));
+            self.chat_widget
+                .add_error_message(format!("通用设置变更已保存但未应用: {message}"));
             let Some(effective_config) = self
                 .read_effective_config_after_overridden_write(app_server, "通用设置变更")
                 .await

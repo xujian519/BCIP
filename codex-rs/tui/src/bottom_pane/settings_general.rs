@@ -27,11 +27,7 @@ pub(crate) struct SettingsGeneralView {
 }
 
 impl SettingsGeneralView {
-    pub(crate) fn new(
-        animations: bool,
-        show_tooltips: bool,
-        raw_output_mode: bool,
-    ) -> Self {
+    pub(crate) fn new(animations: bool, show_tooltips: bool, raw_output_mode: bool) -> Self {
         Self {
             items: vec![
                 GeneralSettingItem {
@@ -69,7 +65,11 @@ impl SettingsGeneralView {
                 }
                 true
             }
-            KeyEvent { code: KeyCode::Char(' '), modifiers: KeyModifiers::NONE, .. } => {
+            KeyEvent {
+                code: KeyCode::Char(' '),
+                modifiers: KeyModifiers::NONE,
+                ..
+            } => {
                 if let Some(item) = self.items.get_mut(self.focus_idx) {
                     item.enabled = !item.enabled;
                 }
@@ -80,15 +80,21 @@ impl SettingsGeneralView {
     }
 
     pub(crate) fn current_values(&self) -> (bool, bool, bool) {
-        let animations = self.items.iter()
+        let animations = self
+            .items
+            .iter()
             .find(|i| i.setting == GeneralSetting::Animations)
             .map(|i| i.enabled)
             .unwrap_or(true);
-        let show_tooltips = self.items.iter()
+        let show_tooltips = self
+            .items
+            .iter()
             .find(|i| i.setting == GeneralSetting::ShowTooltips)
             .map(|i| i.enabled)
             .unwrap_or(true);
-        let raw_output_mode = self.items.iter()
+        let raw_output_mode = self
+            .items
+            .iter()
             .find(|i| i.setting == GeneralSetting::RawOutputMode)
             .map(|i| i.enabled)
             .unwrap_or(false);
@@ -106,12 +112,22 @@ impl SettingsGeneralView {
             let text = format!("{} [{}] {}", prefix, marker, item.name);
             if idx == self.focus_idx {
                 Line::from(text).cyan().render(
-                    Rect { x: area.x, y, width: area.width, height: 1 },
+                    Rect {
+                        x: area.x,
+                        y,
+                        width: area.width,
+                        height: 1,
+                    },
                     buf,
                 );
             } else {
                 Line::from(text).render(
-                    Rect { x: area.x, y, width: area.width, height: 1 },
+                    Rect {
+                        x: area.x,
+                        y,
+                        width: area.width,
+                        height: 1,
+                    },
                     buf,
                 );
             }
@@ -121,15 +137,13 @@ impl SettingsGeneralView {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_initial_values() {
         let view = SettingsGeneralView::new(
-            /*animations*/ true,
-            /*show_tooltips*/ false,
-            /*raw_output_mode*/ true,
+            /*animations*/ true, /*show_tooltips*/ false, /*raw_output_mode*/ true,
         );
         let (anim, tips, raw) = view.current_values();
         assert_eq!(anim, true);
