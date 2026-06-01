@@ -77,11 +77,16 @@ fn make_provider() -> Provider {
     match get_provider_name().as_str() {
         "tavily" => {
             let key = std::env::var("TAVILY_API_KEY").unwrap_or_default();
-            Provider::Tavily(TavilyProvider::new(key))
+            Provider::Tavily(
+                TavilyProvider::new_checked(key)
+                    .unwrap_or_else(|_| TavilyProvider::new(String::new())),
+            )
         }
         "exa" => {
             let key = std::env::var("EXA_API_KEY").unwrap_or_default();
-            Provider::Exa(ExaProvider::new(key))
+            Provider::Exa(
+                ExaProvider::new_checked(key).unwrap_or_else(|_| ExaProvider::new(String::new())),
+            )
         }
         _ => Provider::AnySearch(AnySearchProvider::new(get_api_key())),
     }
@@ -151,6 +156,9 @@ async fn web_extract(input: serde_json::Value) -> Result<serde_json::Value, Stri
 
 async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebBatchSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+    if parsed.queries.is_empty() || parsed.queries.len() > 5 {
+        return Err("batch_search requires 1-5 queries".to_string());
+    }
     let provider = make_provider();
     let queries: Vec<SearchQuery> = parsed.queries.into_iter().map(input_to_query).collect();
     let results = provider.batch_search(queries).await?;

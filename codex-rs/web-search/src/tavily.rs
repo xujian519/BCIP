@@ -18,6 +18,15 @@ impl TavilyProvider {
             api_key,
         }
     }
+
+    pub fn new_checked(api_key: String) -> Result<Self, WebSearchError> {
+        if api_key.trim().is_empty() {
+            return Err(WebSearchError::InvalidConfig(
+                "Tavily requires a non-empty API key (set TAVILY_API_KEY)".to_string(),
+            ));
+        }
+        Ok(Self::new(api_key))
+    }
 }
 
 #[derive(Serialize)]
@@ -49,15 +58,22 @@ impl SearchProvider for TavilyProvider {
             max_results: query.max_results,
             search_depth: Some("basic".to_string()),
         };
-        let resp: TavilySearchResponse = self
+        let resp = self
             .client
             .post("https://api.tavily.com/search")
             .json(&req_body)
             .send()
-            .await?
-            .json()
             .await?;
-        Ok(resp
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(WebSearchError::Api {
+                code: status.as_u16() as i32,
+                message: format!("Tavily API error: {body}"),
+            });
+        }
+        let search_resp: TavilySearchResponse = resp.json().await?;
+        Ok(search_resp
             .results
             .into_iter()
             .map(|r| SearchResult {
@@ -84,7 +100,7 @@ impl SearchProvider for TavilyProvider {
             url: String,
             raw_content: Option<String>,
         }
-        let resp: TavilyExtractResponse = self
+        let resp = self
             .client
             .post("https://api.tavily.com/extract")
             .json(&TavilyExtractRequest {
@@ -92,17 +108,25 @@ impl SearchProvider for TavilyProvider {
                 urls: vec![url.to_string()],
             })
             .send()
-            .await?
-            .json()
             .await?;
-        let result = resp
-            .results
-            .into_iter()
-            .next()
-            .ok_or_else(|| WebSearchError::Api {
-                code: -1,
-                message: "No extract result".to_string(),
-            })?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(WebSearchError::Api {
+                code: status.as_u16() as i32,
+                message: format!("Tavily extract error: {body}"),
+            });
+        }
+        let extract_resp: TavilyExtractResponse = resp.json().await?;
+        let result =
+            extract_resp
+                .results
+                .into_iter()
+                .next()
+                .ok_or_else(|| WebSearchError::Api {
+                    code: -1,
+                    message: "No extract result".to_string(),
+                })?;
         let content = result.raw_content.unwrap_or_default();
         let length = content.len();
         Ok(ExtractResult {

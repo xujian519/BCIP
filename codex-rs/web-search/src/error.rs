@@ -13,7 +13,4 @@ pub enum WebSearchError {
 
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
-
-    #[error("No search provider configured")]
-    NoProvider,
 }
