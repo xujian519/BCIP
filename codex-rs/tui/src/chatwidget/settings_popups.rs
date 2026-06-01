@@ -4,6 +4,7 @@
 //! out of the main orchestration module without changing their event wiring.
 
 use super::*;
+use crate::bottom_pane::SettingsPanel;
 
 impl ChatWidget {
     pub(super) fn open_theme_picker(&mut self) {
@@ -264,6 +265,16 @@ impl ChatWidget {
             features,
             self.app_event_tx.clone(),
             self.bottom_pane.list_keymap(),
+        );
+        self.bottom_pane.show_view(Box::new(view));
+    }
+
+    pub(crate) fn open_settings_panel(&mut self) {
+        let view = SettingsPanel::new(
+            self.config.animations,
+            self.config.show_tooltips,
+            self.config.tui_raw_output_mode,
+            self.app_event_tx.clone(),
         );
         self.bottom_pane.show_view(Box::new(view));
     }

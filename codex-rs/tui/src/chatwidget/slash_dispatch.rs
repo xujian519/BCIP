@@ -214,10 +214,7 @@ impl ChatWidget {
                 }
             }
             SlashCommand::Settings => {
-                if !self.realtime_audio_device_selection_enabled() {
-                    return;
-                }
-                self.open_realtime_audio_popup();
+                self.open_settings_panel();
             }
             SlashCommand::Personality => {
                 self.open_personality_popup();

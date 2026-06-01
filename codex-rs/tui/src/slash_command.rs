@@ -109,7 +109,7 @@ impl SlashCommand {
             SlashCommand::Ide => "包含当前选中内容、打开的文件以及来自 IDE 的其他上下文",
             SlashCommand::Personality => "选择交流风格",
             SlashCommand::Realtime => "切换实时语音模式（实验性）",
-            SlashCommand::Settings => "配置实时麦克风/扬声器",
+            SlashCommand::Settings => "打开统一设置面板",
             SlashCommand::Plan => "切换到计划模式",
             SlashCommand::Goal => "设置或查看长期运行任务的目标",
             SlashCommand::Agent | SlashCommand::MultiAgents => "切换当前智能体线程",
