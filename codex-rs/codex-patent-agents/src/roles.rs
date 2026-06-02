@@ -1,5 +1,6 @@
 use crate::knowledge_context::AutoKnowledgeConfig;
 use crate::knowledge_context::KnowledgeContext;
+use codex_patent_core::ToolDomain;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -199,6 +200,47 @@ impl PatentAgentRole {
             "reviewer" => Some(Self::Reviewer),
             "quality_checker" => Some(Self::QualityChecker),
             _ => None,
+        }
+    }
+
+    /// 此角色的核心工具域（可见+可调用）。
+    pub fn primary_domains(&self) -> &'static [ToolDomain] {
+        match self {
+            Self::Retriever => &[ToolDomain::Search, ToolDomain::WebSearch],
+            Self::Analyzer => &[ToolDomain::Analysis, ToolDomain::Legal],
+            Self::Writer => &[ToolDomain::Drafting, ToolDomain::Document],
+            Self::NoveltyChecker => &[ToolDomain::Analysis, ToolDomain::Search],
+            Self::CreativityChecker => &[ToolDomain::Analysis],
+            Self::InfringementChecker => &[ToolDomain::Analysis, ToolDomain::Legal],
+            Self::InvalidityChecker => {
+                &[ToolDomain::Analysis, ToolDomain::Legal, ToolDomain::Search]
+            }
+            Self::Reviewer => &[ToolDomain::Review, ToolDomain::Quality],
+            Self::QualityChecker => &[ToolDomain::Quality, ToolDomain::Review],
+        }
+    }
+
+    /// 此角色的辅助工具域（可通过 ToolSearch 发现）。
+    pub fn secondary_domains(&self) -> &'static [ToolDomain] {
+        match self {
+            Self::Retriever => &[ToolDomain::Legal, ToolDomain::Analysis],
+            Self::Analyzer => &[ToolDomain::Search],
+            Self::Writer => &[ToolDomain::Quality],
+            Self::NoveltyChecker => &[ToolDomain::Legal],
+            Self::CreativityChecker => &[ToolDomain::Legal, ToolDomain::Search],
+            Self::InfringementChecker => &[ToolDomain::Search],
+            Self::InvalidityChecker => &[ToolDomain::Quality],
+            Self::Reviewer => &[ToolDomain::Document, ToolDomain::Legal],
+            Self::QualityChecker => &[ToolDomain::Document, ToolDomain::Drafting],
+        }
+    }
+
+    /// 此角色的工具 Schema Token 预算上限。
+    pub fn tool_token_budget(&self) -> usize {
+        match self {
+            Self::Retriever | Self::Analyzer | Self::InvalidityChecker => 8_000,
+            Self::Writer | Self::Reviewer | Self::QualityChecker => 6_000,
+            _ => 4_000,
         }
     }
 

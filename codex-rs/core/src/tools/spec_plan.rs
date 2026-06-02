@@ -213,12 +213,25 @@ fn build_model_visible_specs_and_registry(
     }
 
     let registry = ToolRegistry::from_tools(runtimes);
-    let model_visible_specs = merge_into_namespaces(specs)
+    let model_visible_specs: Vec<ToolSpec> = merge_into_namespaces(specs)
         .into_iter()
         .filter(|spec| {
             namespace_tools_enabled(turn_context) || !matches!(spec, ToolSpec::Namespace(_))
         })
         .collect();
+
+    let agent_role = turn_context
+        .session_source
+        .get_agent_role()
+        .as_deref()
+        .and_then(codex_patent_agents::roles::PatentAgentRole::from_str);
+    if let Some(role) = agent_role {
+        super::token_budget::check_token_budget(
+            &model_visible_specs,
+            role.tool_token_budget(),
+            Some(role.role_id()),
+        );
+    }
 
     (model_visible_specs, registry)
 }
@@ -761,11 +774,21 @@ fn add_extension_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Pl
 }
 
 #[cfg_attr(not(feature = "patent-tools"), allow(unused_variables))]
-fn add_patent_tools(_context: &CoreToolPlanContext<'_>, planned_tools: &mut PlannedTools) {
+#[cfg_attr(not(feature = "patent-tools"), allow(unused_variables))]
+fn add_patent_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut PlannedTools) {
     #[cfg(feature = "patent-tools")]
     {
+        let agent_role = context
+            .turn_context
+            .session_source
+            .get_agent_role()
+            .as_deref()
+            .and_then(codex_patent_agents::roles::PatentAgentRole::from_str);
+
         let patent_adapters =
-            crate::tools::handlers::patent_tools::PatentToolHandler::create_all_adapters();
+            crate::tools::handlers::patent_tools::PatentToolHandler::create_adapters_for_role(
+                agent_role,
+            );
         for adapter in patent_adapters {
             planned_tools.add_arc(adapter);
         }

@@ -534,6 +534,13 @@ impl ToolRegistry {
         let invocation_for_tool = invocation.clone();
         let log_payload = invocation.payload.log_payload();
 
+        // Cache lookup
+        let cache_args = log_payload.clone();
+        let cached_output = super::cache::get_cached_result(&tool_name.name, &cache_args);
+
+        let retry_policy = super::retry_config::get_retry_policy(&tool_name.name);
+        let max_attempts = retry_policy.map(|p| p.max_retries + 1).unwrap_or(1);
+
         let result = otel
             .log_tool_result_with_tags(
                 tool_name_flat.as_ref(),
@@ -544,17 +551,63 @@ impl ToolRegistry {
                 || {
                     let tool = tool.clone();
                     let response_cell = &response_cell;
+                    let retry_base_delay = retry_policy.map(|p| p.base_delay);
+                    let tool_name_for_log = tool_name.name.clone();
                     async move {
-                        match handle_any_tool(tool.as_ref(), invocation_for_tool).await {
-                            Ok(result) => {
-                                let preview = result.result.log_preview();
-                                let success = result.result.success_for_logging();
-                                let mut guard = response_cell.lock().await;
-                                *guard = Some(result);
-                                Ok((preview, success))
-                            }
-                            Err(err) => Err(err),
+                        // Return cached result if available
+                        if let Some(cached) = cached_output {
+                            let success = !cached.starts_with("error");
+                            let mut guard = response_cell.lock().await;
+                            *guard = Some(AnyToolResult {
+                                call_id: String::new(),
+                                payload: invocation_for_tool.payload.clone(),
+                                result: Box::new(FunctionToolOutput::from_text(
+                                    cached.clone(),
+                                    Some(success),
+                                )),
+                                post_tool_use_payload: None,
+                            });
+                            return Ok((cached, success));
                         }
+
+                        let mut last_err = None;
+                        for attempt in 0..max_attempts {
+                            if attempt > 0 {
+                                if let Some(base) = retry_base_delay {
+                                    let delay = super::retry_config::backoff(base, attempt - 1);
+                                    tokio::time::sleep(delay).await;
+                                }
+                            }
+                            match handle_any_tool(tool.as_ref(), invocation_for_tool.clone()).await
+                            {
+                                Ok(result) => {
+                                    let preview = result.result.log_preview();
+                                    let success = result.result.success_for_logging();
+                                    let mut guard = response_cell.lock().await;
+                                    *guard = Some(result);
+                                    return Ok((preview, success));
+                                }
+                                Err(err) => {
+                                    let can_retry = attempt + 1 < max_attempts
+                                        && retry_policy
+                                            .map(|p| {
+                                                super::retry_dispatch::is_error_retryable(p, &err)
+                                            })
+                                            .unwrap_or(false);
+                                    if !can_retry {
+                                        last_err = Some(err);
+                                        break;
+                                    }
+                                    tracing::warn!(
+                                        attempt,
+                                        tool = %tool_name_for_log,
+                                        "tool execution failed, retrying"
+                                    );
+                                    last_err = Some(err);
+                                }
+                            }
+                        }
+                        Err(last_err.unwrap())
                     }
                 },
             )
@@ -563,6 +616,12 @@ impl ToolRegistry {
             Ok((_, success)) => *success,
             Err(_) => false,
         };
+        // Cache successful results for cacheable tools
+        if success {
+            if let Ok((preview, _)) = &result {
+                super::cache::cache_tool_result(&tool_name.name, &cache_args, preview.clone());
+            }
+        }
         emit_metric_for_tool_read(&invocation, success).await;
         let post_tool_use_payload = if success {
             let guard = response_cell.lock().await;

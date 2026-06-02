@@ -3491,6 +3491,7 @@ dependencies = [
 name = "codex-patent-agents"
 version = "0.1.0"
 dependencies = [
+ "codex-patent-core",
  "codex-patent-knowledge",
  "reqwest",
  "serde",

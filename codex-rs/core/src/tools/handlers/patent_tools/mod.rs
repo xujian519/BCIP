@@ -5,8 +5,12 @@ use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
+use crate::tools::registry::ToolExposure;
+use crate::tools::registry::override_tool_exposure;
+use codex_patent_agents::roles::PatentAgentRole;
+use codex_patent_tools::ToolDomain;
 use codex_patent_tools::ToolHandler;
-use codex_patent_tools::register_all_tools;
+use codex_patent_tools::register_all_tools_with_domains;
 use codex_tools::ResponsesApiTool;
 use codex_tools::ToolName;
 use codex_tools::ToolSpec;
@@ -15,12 +19,14 @@ use std::sync::Arc;
 
 pub struct PatentToolHandler {
     name: String,
+    #[allow(dead_code)]
+    domain: ToolDomain,
     spec: ToolSpec,
     handler: ToolHandler,
 }
 
 impl PatentToolHandler {
-    fn new(name: String, handler: ToolHandler) -> Self {
+    fn new(name: String, domain: ToolDomain, handler: ToolHandler) -> Self {
         let spec = ToolSpec::Function(ResponsesApiTool {
             name: name.clone(),
             description: tool_description(&name),
@@ -31,16 +37,44 @@ impl PatentToolHandler {
         });
         Self {
             name,
+            domain,
             spec,
             handler,
         }
     }
 
     pub fn create_all_adapters() -> Vec<Arc<dyn CoreToolRuntime>> {
-        let tools = register_all_tools();
+        let tools = register_all_tools_with_domains();
         tools
             .into_iter()
-            .map(|(name, handler)| Arc::new(Self::new(name, handler)) as Arc<dyn CoreToolRuntime>)
+            .map(|(name, meta)| {
+                Arc::new(Self::new(name, meta.domain, meta.handler)) as Arc<dyn CoreToolRuntime>
+            })
+            .collect()
+    }
+
+    pub fn create_adapters_for_role(
+        role: Option<PatentAgentRole>,
+    ) -> Vec<Arc<dyn CoreToolRuntime>> {
+        let all_tools = register_all_tools_with_domains();
+        let Some(role) = role else {
+            return Self::create_all_adapters();
+        };
+        let primary = role.primary_domains();
+        let secondary = role.secondary_domains();
+        all_tools
+            .into_iter()
+            .map(|(name, meta)| {
+                let adapter = Arc::new(Self::new(name, meta.domain, meta.handler));
+                let exposure = if primary.contains(&meta.domain) {
+                    ToolExposure::Direct
+                } else if secondary.contains(&meta.domain) {
+                    ToolExposure::Deferred
+                } else {
+                    ToolExposure::Hidden
+                };
+                override_tool_exposure(adapter, exposure)
+            })
             .collect()
     }
 }

@@ -55,3 +55,6 @@ pub const THREAD_SKILLS_KEPT_TOTAL_METRIC: &str = "codex.thread.skills.kept_tota
 pub const THREAD_SKILLS_DESCRIPTION_TRUNCATED_CHARS_METRIC: &str =
     "codex.thread.skills.description_truncated_chars";
 pub const THREAD_SKILLS_TRUNCATED_METRIC: &str = "codex.thread.skills.truncated";
+pub const TOOL_PRUNING_TOTAL_METRIC: &str = "codex.tool.pruning.total";
+pub const TOOL_PRUNING_VISIBLE_METRIC: &str = "codex.tool.pruning.visible";
+pub const TOOL_PRUNING_DEFERRED_METRIC: &str = "codex.tool.pruning.deferred";

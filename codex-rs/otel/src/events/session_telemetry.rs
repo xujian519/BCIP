@@ -1109,6 +1109,41 @@ impl SessionTelemetry {
         );
     }
 
+    /// Record tool pruning statistics for role-aware tool filtering.
+    pub fn record_tool_pruning_stats(
+        &self,
+        total: usize,
+        visible: usize,
+        deferred: usize,
+        agent_role: Option<&str>,
+    ) {
+        let role_str = agent_role.unwrap_or("none");
+        let tags = [("agent_role", role_str)];
+        self.counter(
+            crate::metrics::TOOL_PRUNING_TOTAL_METRIC,
+            total as i64,
+            &tags,
+        );
+        self.counter(
+            crate::metrics::TOOL_PRUNING_VISIBLE_METRIC,
+            visible as i64,
+            &tags,
+        );
+        self.counter(
+            crate::metrics::TOOL_PRUNING_DEFERRED_METRIC,
+            deferred as i64,
+            &tags,
+        );
+        log_event!(
+            self,
+            event.name = "codex.tool.pruning_stats",
+            total = total,
+            visible = visible,
+            deferred = deferred,
+            agent_role = %role_str,
+        );
+    }
+
     fn record_responses_websocket_timing_metrics(&self, value: &serde_json::Value) {
         let timing_metrics = value.get(RESPONSES_WEBSOCKET_TIMING_METRICS_FIELD);
 

@@ -509,6 +509,25 @@ pub enum RelationCategory {
     CrossDomainMapping,
 }
 
+/// 工具所属业务域，用于角色感知的工具裁剪。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolDomain {
+    Search,
+    WebSearch,
+    Drafting,
+    Oa,
+    Quality,
+    Analysis,
+    Document,
+    Legal,
+    Management,
+    Review,
+    Evaluation,
+    Simulator,
+    Council,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

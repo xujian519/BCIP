@@ -81,6 +81,8 @@ fn tool_dispatch_invocation(invocation: &ToolInvocation) -> Option<ToolDispatchI
         tool_namespace: invocation.tool_name.namespace.clone(),
         requester,
         payload: tool_dispatch_payload(&invocation.payload),
+        tool_domain: None,
+        agent_role: None,
     })
 }
 

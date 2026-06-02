@@ -60,6 +60,8 @@ pub struct ToolDispatchInvocation {
     pub tool_namespace: Option<String>,
     pub requester: ToolDispatchRequester,
     pub payload: ToolDispatchPayload,
+    pub tool_domain: Option<String>,
+    pub agent_role: Option<String>,
 }
 
 /// Runtime source that caused a dispatch-level tool call.
@@ -105,10 +107,15 @@ pub enum ToolDispatchResult {
 
 /// Raw invocation payload for the canonical BCIP tool boundary.
 #[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
 struct DispatchedToolTraceRequest<'a> {
     tool_name: &'a str,
     tool_namespace: Option<&'a str>,
     payload: &'a JsonValue,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_domain: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    agent_role: Option<&'a str>,
 }
 
 /// Raw response payload for dispatch-level tool trace events.
@@ -208,6 +215,8 @@ fn record_started(context: &EnabledToolDispatchTraceContext, invocation: ToolDis
         tool_name: tool_name.as_str(),
         tool_namespace: tool_namespace.as_deref(),
         payload: &payload,
+        tool_domain: invocation.tool_domain.as_deref(),
+        agent_role: invocation.agent_role.as_deref(),
     };
     let request_payload =
         write_json_payload_best_effort(&context.writer, RawPayloadKind::ToolInvocation, &request);
@@ -439,6 +448,8 @@ mod tests {
             tool_namespace,
             requester,
             payload,
+            tool_domain: None,
+            agent_role: None,
         }
     }
 }

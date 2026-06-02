@@ -22,10 +22,18 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
+pub use codex_patent_core::ToolDomain;
+
 pub type ToolHandler =
     fn(
         serde_json::Value,
     ) -> Pin<Box<dyn Future<Output = Result<serde_json::Value, String>> + Send>>;
+
+/// 带域分类的工具元数据。
+pub struct ToolMeta {
+    pub domain: ToolDomain,
+    pub handler: ToolHandler,
+}
 
 /// 注册全部专利工具
 pub fn register_all_tools() -> HashMap<String, ToolHandler> {
@@ -43,6 +51,59 @@ pub fn register_all_tools() -> HashMap<String, ToolHandler> {
     tools.extend(council_tools::register_council_tools());
     tools.extend(register_simulator_tools());
     tools
+}
+
+/// 注册全部专利工具并附带域分类元数据。
+pub fn register_all_tools_with_domains() -> HashMap<String, ToolMeta> {
+    let mut tools = HashMap::new();
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::Search,
+        search_tools::register_search_tools(),
+    );
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::WebSearch,
+        web_search_tools::register_web_search_tools(),
+    );
+    insert_with_domain(&mut tools, ToolDomain::Drafting, register_drafting_tools());
+    insert_with_domain(&mut tools, ToolDomain::Oa, register_oa_tools());
+    insert_with_domain(&mut tools, ToolDomain::Quality, register_quality_tools());
+    insert_with_domain(&mut tools, ToolDomain::Analysis, register_analysis_tools());
+    insert_with_domain(&mut tools, ToolDomain::Document, register_document_tools());
+    insert_with_domain(&mut tools, ToolDomain::Legal, register_legal_tools());
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::Management,
+        register_management_tools(),
+    );
+    insert_with_domain(&mut tools, ToolDomain::Review, register_review_tools());
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::Evaluation,
+        register_evaluation_tools(),
+    );
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::Council,
+        council_tools::register_council_tools(),
+    );
+    insert_with_domain(
+        &mut tools,
+        ToolDomain::Simulator,
+        register_simulator_tools(),
+    );
+    tools
+}
+
+fn insert_with_domain(
+    target: &mut HashMap<String, ToolMeta>,
+    domain: ToolDomain,
+    handlers: HashMap<String, ToolHandler>,
+) {
+    for (name, handler) in handlers {
+        target.insert(name, ToolMeta { domain, handler });
+    }
 }
 
 // ── 撰写域（10 个工具）──

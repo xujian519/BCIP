@@ -148,6 +148,8 @@ async fn execute_mcp_tool_call_records_replayable_correlation() -> anyhow::Resul
                 payload: ToolDispatchPayload::Function {
                     arguments: r#"{"query":"trace"}"#.to_string(),
                 },
+                tool_domain: None,
+                agent_role: None,
             })
         });
     assert!(dispatch_trace.is_enabled());
