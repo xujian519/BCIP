@@ -1,7 +1,10 @@
 use crate::google_patents::GooglePatentsInput;
 use crate::google_patents::fetch_google_patents;
 use codex_patent_knowledge::synonym::SynonymDict;
+use futures::stream;
+use futures::stream::StreamExt;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 #[derive(Debug, Deserialize)]
 pub struct PatentSearchInput {
@@ -30,11 +33,19 @@ pub fn default_limit() -> usize {
     10
 }
 
+/// 单例 SynonymDict，避免每次查询重建字典。
+///
+/// `SynonymDict::new()` 构造时分配 Vec 与字符串引用，频繁调用会产生明显
+/// 内存压力。同义词字典是不可变静态数据，进程内一份就够。
+fn shared_synonym_dict() -> &'static SynonymDict {
+    static DICT: OnceLock<SynonymDict> = OnceLock::new();
+    DICT.get_or_init(SynonymDict::new)
+}
+
 pub async fn patent_search(input: PatentSearchInput) -> Result<serde_json::Value, String> {
     let mut query = input.query.clone();
     if input.use_synonyms.unwrap_or(true) {
-        let dict = SynonymDict::new();
-        let expanded = dict.expand(&input.query);
+        let expanded = shared_synonym_dict().expand(&input.query);
         query = expanded.join(" OR ");
     }
     let google_input = GooglePatentsInput {
@@ -49,8 +60,7 @@ pub async fn patent_search(input: PatentSearchInput) -> Result<serde_json::Value
 pub async fn search_query_builder(
     input: SearchQueryBuilderInput,
 ) -> Result<serde_json::Value, String> {
-    let dict = SynonymDict::new();
-    let exact_terms = dict.expand(&input.concept);
+    let exact_terms = shared_synonym_dict().expand(&input.concept);
     let mut variants = Vec::new();
     for term in &exact_terms {
         if let Some(ref field) = input.field {
@@ -66,23 +76,44 @@ pub async fn search_query_builder(
     }))
 }
 
+/// 并发上限。Google Patents 对单 IP 的非官方接口有节流，过高会被 429。
+const ITERATIVE_SEARCH_CONCURRENCY: usize = 3;
+
 pub async fn iterative_search(input: IterativeSearchInput) -> Result<serde_json::Value, String> {
-    let rounds = input.rounds.unwrap_or(3);
-    let mut all_results = Vec::new();
-    let mut current_query = input.query.clone();
-    for _ in 0..rounds {
-        let google_input = GooglePatentsInput {
-            query: current_query.clone(),
-            limit: input.limit,
-            patent_number: None,
-        };
-        let results = fetch_google_patents(google_input).await?;
-        if results.is_empty() {
-            break;
+    let rounds = input.rounds.unwrap_or(3).max(1);
+    let dict = shared_synonym_dict();
+
+    // synonym 展开是纯函数，不依赖上一轮的网络结果。先在内存里生成
+    // 全部 rounds 个 query 字符串，再并发 fetch，避免串行 await 造成的
+    // 网络往返延迟线性叠加。
+    let mut queries: Vec<String> = Vec::with_capacity(rounds);
+    let mut current = input.query.clone();
+    for i in 0..rounds {
+        queries.push(current.clone());
+        if i + 1 < rounds {
+            current = dict.expand(&current).join(" OR ");
         }
-        all_results.extend(results);
-        let dict = SynonymDict::new();
-        current_query = dict.expand(&current_query).join(" OR ");
+    }
+
+    let fetches = queries
+        .into_iter()
+        .map(|q| {
+            fetch_google_patents(GooglePatentsInput {
+                query: q,
+                limit: input.limit,
+                patent_number: None,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut all_results = Vec::new();
+    let mut stream = stream::iter(fetches).buffer_unordered(ITERATIVE_SEARCH_CONCURRENCY);
+    while let Some(round_result) = stream.next().await {
+        match round_result {
+            Ok(items) if !items.is_empty() => all_results.extend(items),
+            Ok(_) => {} // 空结果不再提前 break：并发已发出，干脆等齐
+            Err(err) => return Err(err),
+        }
     }
     serde_json::to_value(all_results).map_err(|e| format!("{e}"))
 }

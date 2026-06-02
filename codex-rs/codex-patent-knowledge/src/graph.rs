@@ -6,7 +6,7 @@ use rusqlite::params;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 #[derive(Debug)]
 pub struct KgStats {
@@ -30,7 +30,9 @@ pub struct IpcSearchResult {
 
 pub struct SqliteKnowledgeGraph {
     conn: Connection,
-    query_cache: Mutex<HashMap<String, Vec<KgNode>>>,
+    /// 读多写少的查询缓存：命中（read）远多于插入（write）。
+    /// 用 RwLock 让并发读不被互斥阻塞。
+    query_cache: RwLock<HashMap<String, Vec<KgNode>>>,
 }
 
 impl SqliteKnowledgeGraph {
@@ -49,14 +51,14 @@ impl SqliteKnowledgeGraph {
 
         Ok(Self {
             conn,
-            query_cache: Mutex::new(HashMap::new()),
+            query_cache: RwLock::new(HashMap::new()),
         })
     }
 
     pub fn from_connection(conn: Connection) -> Self {
         Self {
             conn,
-            query_cache: Mutex::new(HashMap::new()),
+            query_cache: RwLock::new(HashMap::new()),
         }
     }
 
@@ -84,7 +86,7 @@ impl SqliteKnowledgeGraph {
         let cache_key = format!("{}|{:?}|{}", query, node_type, limit);
 
         {
-            let cache = self.query_cache.lock().unwrap();
+            let cache = self.query_cache.read().unwrap();
             if let Some(cached) = cache.get(&cache_key)
                 && cached.len() >= limit
             {
@@ -112,7 +114,7 @@ impl SqliteKnowledgeGraph {
         };
 
         {
-            let mut cache = self.query_cache.lock().unwrap();
+            let mut cache = self.query_cache.write().unwrap();
             if cache.len() > 100 {
                 cache.clear();
             }
@@ -123,7 +125,7 @@ impl SqliteKnowledgeGraph {
     }
 
     pub fn clear_cache(&self) {
-        self.query_cache.lock().unwrap().clear();
+        self.query_cache.write().unwrap().clear();
     }
 
     pub fn get_edges(&self, node_id: &str) -> Result<Vec<KgEdge>, String> {

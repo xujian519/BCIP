@@ -5,6 +5,13 @@ edition.workspace = true
 license.workspace = true
 build = "build.rs"
 
+# NOTE: 三个二进制共享同一份 `src/main.rs`，cargo 会输出
+# "file found to be present in multiple build targets" 警告。这是有意设计：
+# `codex_arg0::arg0_dispatch_or_else` 根据 argv[0] 在运行时分发到 bcip/codex/yunpat
+# 行为分支，因此三份产物必须共享同一份入口源码。把 main.rs 拆进 lib 需要先解耦
+# 其与 cli/src/{marketplace_cmd,plugin_cmd,app_cmd,state_db_recovery,wsl_paths}.rs
+# 等兄弟模块的耦合（这些文件由 main.rs 的 `mod` 声明显式引入 binary target，
+# 不在 lib crate 中），重构成本远高于收益。保留此警告，不视作问题。
 [[bin]]
 name = "codex"
 path = "src/main.rs"

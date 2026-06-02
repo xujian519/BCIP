@@ -10,20 +10,22 @@ pub const BCIP_HOME_DIR_NAME: &str = ".bcip";
 
 /// BCIP 首次启动时写入的 `config.toml`（不含插件/MCP，避免与 Codex 桌面混用）。
 const DEFAULT_CONFIG_TOML: &str = r#"# YunPat Agent 专用配置（~/.bcip）
-# 与本地 Codex 桌面版（~/.codex）完全隔离。按需修改 model / env_key。
+# 与本地 Codex 桌面版（~/.codex）完全隔离。
+# 默认经本地 LiteLLM 代理 (8788) 使用 GLM / Kimi 编程套餐；如需直连第三方，请改 base_url / env_key。
 
-model_provider = "DeepSeek"
-model = "deepseek-v4-pro"
+model_provider = "LocalProxy"
+model = "glm-5.1"
 model_reasoning_effort = "medium"
 disable_response_storage = true
-model_context_window = 1000000
-model_auto_compact_token_limit = 900000
+model_context_window = 200000
+model_auto_compact_token_limit = 180000
+prevent_idle_sleep = true
 
-[model_providers.DeepSeek]
-name = "DeepSeek"
+[model_providers.LocalProxy]
+name = "本地代理 (GLM + Kimi 编程套餐)"
 wire_api = "chat"
-base_url = "https://api.deepseek.com/v1/"
-env_key = "DEEPSEEK_API_KEY"
+base_url = "http://127.0.0.1:8788/v1/"
+env_key = "OPENAI_API_KEY"
 
 [features]
 js_repl = false
@@ -193,6 +195,14 @@ mod tests {
         assert!(config_path.exists());
         let first = fs::read_to_string(&config_path).expect("read config");
         assert!(first.contains("YunPat Agent"));
+        assert!(
+            first.contains("LocalProxy"),
+            "default config must use LocalProxy, got: {first}"
+        );
+        assert!(
+            !first.contains("api.deepseek.com"),
+            "default config must NOT point at deepseek directly to avoid spurious 401s, got: {first}"
+        );
 
         fs::write(&config_path, "custom = true\n").expect("overwrite config");
         ensure_bcip_home_layout(temp_home.path()).expect("seed again");

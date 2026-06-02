@@ -2,6 +2,38 @@
 //!
 //! 支持检测模型类型并路由到对应的 LLM provider。
 
+use std::fmt;
+
+/// API key 解析错误。
+///
+/// 主要用于阻断"代理 URL 被误当作 API key"这类典型故障：当环境变量值
+/// 形如 `http://127.0.0.1:56186` 或 `Proxy` 等占位字符串时，直接向 LLM
+/// 服务发送会触发 401，且日志只显示 `****roxy` 后缀，难以排查。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApiKeyError {
+    /// 环境变量未设置。
+    Missing(String),
+    /// 环境变量值为空或仅空白。
+    Empty(String),
+    /// 环境变量值看起来是代理 URL（含 `http://` / `https://` / `proxy` 字面）。
+    SuspectedProxyValue { env_var: String, len: usize },
+}
+
+impl fmt::Display for ApiKeyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiKeyError::Missing(name) => write!(f, "environment variable `{name}` is not set"),
+            ApiKeyError::Empty(name) => write!(f, "environment variable `{name}` is empty"),
+            ApiKeyError::SuspectedProxyValue { env_var, len } => write!(
+                f,
+                "environment variable `{env_var}` (len={len}) looks like a proxy URL/placeholder, refusing to send as API key"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ApiKeyError {}
+
 #[derive(Debug, Clone)]
 pub enum AgentProvider {
     Anthropic,
@@ -66,15 +98,55 @@ pub fn detect_provider(model: &str) -> AgentProvider {
     AgentProvider::Anthropic
 }
 
-/// 从环境变量解析 API key
-pub fn resolve_api_key(env_var: &str) -> String {
-    if let Ok(val) = std::env::var(env_var)
-        && !val.is_empty()
-    {
-        return val;
+/// 从环境变量解析 API key，遇到代理 URL/占位值时拒绝并返回错误。
+///
+/// 解析顺序：
+/// 1. `std::env::var(env_var)`：未设置 → `Missing`；空 → `Empty`
+/// 2. 合法性检查：值若含 `http://` / `https://` / `proxy`（忽略大小写）→ `SuspectedProxyValue`
+/// 3. 通过 → 返回 `Ok(key)`
+///
+/// 调用方应当把 `Err` 当作硬错误中止请求，而非 fallback 到其他环境变量，
+/// 以避免把代理 URL 误发送到 LLM 服务造成 401。
+pub fn resolve_api_key(env_var: &str) -> Result<String, ApiKeyError> {
+    let raw = std::env::var(env_var).map_err(|_| ApiKeyError::Missing(env_var.to_string()))?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(ApiKeyError::Empty(env_var.to_string()));
     }
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.contains("http://")
+        || lower.contains("https://")
+        || lower.contains("proxy")
+        || lower.contains("socks")
+    {
+        return Err(ApiKeyError::SuspectedProxyValue {
+            env_var: env_var.to_string(),
+            len: trimmed.len(),
+        });
+    }
+    Ok(trimmed.to_string())
+}
 
-    resolve_api_key_from_config(env_var)
+/// 返回 API key 的脱敏指纹（前 4 + … + 后 4），用于日志/错误诊断。
+/// 空/短 key 返回 `<empty>` / `<short:N>`。
+pub fn mask_api_key(key: &str) -> String {
+    let len = key.chars().count();
+    if len == 0 {
+        return "<empty>".to_string();
+    }
+    if len < 8 {
+        return format!("<short:{len}>");
+    }
+    let head: String = key.chars().take(4).collect();
+    let tail: String = key
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    format!("{head}…{tail} (len={len})")
 }
 
 /// 从配置文件解析 API key（预留）
@@ -123,5 +195,72 @@ mod tests {
     fn test_detect_default() {
         let provider = detect_provider("unknown-model");
         assert!(matches!(provider, AgentProvider::Anthropic));
+    }
+
+    fn with_env<F: FnOnce()>(name: &str, value: Option<&str>, f: F) {
+        let prev = std::env::var(name).ok();
+        match value {
+            Some(v) => unsafe { std::env::set_var(name, v) },
+            None => unsafe { std::env::remove_var(name) },
+        }
+        f();
+        match prev {
+            Some(v) => unsafe { std::env::set_var(name, v) },
+            None => unsafe { std::env::remove_var(name) },
+        }
+    }
+
+    #[test]
+    fn resolve_api_key_returns_missing_when_unset() {
+        with_env("BCIP_TEST_KEY_NONE", None, || {
+            let err = resolve_api_key("BCIP_TEST_KEY_NONE").expect_err("must error when unset");
+            assert!(matches!(err, ApiKeyError::Missing(_)));
+        });
+    }
+
+    #[test]
+    fn resolve_api_key_rejects_blank() {
+        with_env("BCIP_TEST_KEY_BLANK", Some("   "), || {
+            let err = resolve_api_key("BCIP_TEST_KEY_BLANK").expect_err("must error on blank");
+            assert!(matches!(err, ApiKeyError::Empty(_)));
+        });
+    }
+
+    #[test]
+    fn resolve_api_key_rejects_proxy_url() {
+        with_env(
+            "BCIP_TEST_KEY_PROXY",
+            Some("http://127.0.0.1:56186"),
+            || {
+                let err =
+                    resolve_api_key("BCIP_TEST_KEY_PROXY").expect_err("must error on proxy URL");
+                assert!(matches!(err, ApiKeyError::SuspectedProxyValue { .. }));
+            },
+        );
+    }
+
+    #[test]
+    fn resolve_api_key_rejects_proxy_literal() {
+        with_env("BCIP_TEST_KEY_LITERAL", Some("Proxy"), || {
+            let err =
+                resolve_api_key("BCIP_TEST_KEY_LITERAL").expect_err("must error on Proxy literal");
+            assert!(matches!(err, ApiKeyError::SuspectedProxyValue { .. }));
+        });
+    }
+
+    #[test]
+    fn resolve_api_key_accepts_normal_value() {
+        with_env("BCIP_TEST_KEY_OK", Some("sk-deadbeef-1234"), || {
+            let v = resolve_api_key("BCIP_TEST_KEY_OK").expect("normal key must pass");
+            assert_eq!(v, "sk-deadbeef-1234");
+        });
+    }
+
+    #[test]
+    fn mask_api_key_truncates_middle() {
+        assert_eq!(mask_api_key(""), "<empty>");
+        assert_eq!(mask_api_key("abc"), "<short:3>");
+        assert_eq!(mask_api_key("abcdefgh"), "abcd…efgh (len=8)");
+        assert_eq!(mask_api_key("sk-deadbeef-12345678"), "sk-d…5678 (len=20)");
     }
 }

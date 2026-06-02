@@ -92,6 +92,8 @@ pub async fn download_patent(input: PatentDownloadInput) -> Result<String, Strin
     }
     let bytes = resp.bytes().await.map_err(|e| format!("read: {e}"))?;
     let filename = format!("{}.pdf", input.patent_number);
-    std::fs::write(&filename, &bytes).map_err(|e| format!("write: {e}"))?;
+    tokio::fs::write(&filename, &bytes)
+        .await
+        .map_err(|e| format!("write: {e}"))?;
     Ok(filename)
 }

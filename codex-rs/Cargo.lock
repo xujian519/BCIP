@@ -3595,6 +3595,7 @@ dependencies = [
  "codex-patent-knowledge",
  "codex-patent-text",
  "codex-web-search",
+ "futures",
  "regex",
  "reqwest",
  "serde",

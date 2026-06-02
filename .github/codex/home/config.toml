@@ -1,3 +1,10 @@
+# =============================================================================
+# CI FIXTURE ONLY — DO NOT USE IN PRODUCTION.
+# This file is consumed by `.github/workflows/_upstream/rust-ci-full.yml` and
+# related test jobs to exercise Codex with a known provider configuration.
+# Production / developer machines use `~/.bcip/config.toml` (default LocalProxy)
+# or `~/.codex/config.toml` — never this file.
+# =============================================================================
 model = "deepseek-v4-pro"
 
 # Model providers configuration.

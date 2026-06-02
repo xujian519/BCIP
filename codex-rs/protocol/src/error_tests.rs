@@ -522,6 +522,29 @@ fn unexpected_status_includes_identity_auth_details() {
 }
 
 #[test]
+fn unexpected_status_401_with_proxy_in_key_surfaces_diagnostic_hint() {
+    let err = UnexpectedResponseError {
+        status: StatusCode::UNAUTHORIZED,
+        body: r#"{"error":{"message":"Authentication Fails, Your api key: ****roxy is invalid"}}"#
+            .to_string(),
+        url: Some("https://api.deepseek.com/v1/chat/completions".to_string()),
+        cf_ray: None,
+        request_id: None,
+        identity_authorization_error: None,
+        identity_error_code: None,
+    };
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("proxy-URL-as-key"),
+        "expected proxy-URL-as-key hint in: {rendered}"
+    );
+    assert!(
+        rendered.contains("env | grep -i proxy"),
+        "expected guidance to inspect proxy env vars in: {rendered}"
+    );
+}
+
+#[test]
 fn usage_limit_reached_includes_hours_and_minutes() {
     let base = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
     let resets_at = base + ChronoDuration::hours(3) + ChronoDuration::minutes(32);

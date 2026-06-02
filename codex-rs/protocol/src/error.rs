@@ -345,6 +345,10 @@ impl UnexpectedResponseError {
     }
 
     fn friendly_message(&self) -> Option<String> {
+        if let Some(msg) = self.auth_401_message() {
+            return Some(msg);
+        }
+
         if self.status != StatusCode::FORBIDDEN {
             return None;
         }
@@ -371,6 +375,59 @@ impl UnexpectedResponseError {
             message.push_str(&format!(", auth error code: {error_code}"));
         }
 
+        Some(message)
+    }
+
+    /// 401 + LLM 端点：检测常见的"API key 被代理 URL 污染"故障，并追加诊断提示。
+    ///
+    /// 触发条件：status == 401 且 body 中出现 "api key" / "authentication" 字样。
+    /// 返回的诊断信息会覆盖默认的 `unexpected status` 模板，引导用户检查环境变量。
+    fn auth_401_message(&self) -> Option<String> {
+        if self.status != StatusCode::UNAUTHORIZED {
+            return None;
+        }
+        let body_lower = self.body.to_ascii_lowercase();
+        let is_llm_auth_error = body_lower.contains("api key")
+            || body_lower.contains("authentication")
+            || body_lower.contains("unauthorized");
+        if !is_llm_auth_error {
+            return None;
+        }
+
+        // `*` masking (e.g. `****roxy`) usually means the upstream redacted a
+        // value that the client sent verbatim — a strong signal of a proxy URL
+        // being treated as an API key. Also catch the literal "proxy" and
+        // URL scheme substrings when they slip through unmasked.
+        let masked = body_lower.contains("****") || body_lower.contains("***");
+        let proxy_literal = body_lower.contains("proxy");
+        let url_scheme = body_lower.contains("http://") || body_lower.contains("https://");
+        let looks_like_proxy_key = masked || proxy_literal || url_scheme;
+
+        let mut hint = String::new();
+        hint.push_str("LLM endpoint returned 401. Possible causes:\n");
+        hint.push_str(
+            "  1) The API key env var is unset — set the env_key declared in config.toml.\n",
+        );
+        hint.push_str(
+            "  2) The env var holds a proxy URL / placeholder (e.g. http://127.0.0.1:...) — was accidentally assigned as the API key.\n",
+        );
+        hint.push_str(
+            "  3) The provider expects a different env_key than what is currently configured.\n",
+        );
+        if looks_like_proxy_key {
+            hint.push_str(
+                "Diagnostic: body shows masked characters / 'proxy' / URL scheme — high confidence this is a proxy-URL-as-key bug. Run `env | grep -i proxy` and inspect the relevant `*_API_KEY` variable.\n",
+            );
+        }
+
+        let status = self.status;
+        let body = self.display_body();
+        let mut message = format!("unexpected status {status}: {body}");
+        message.push('\n');
+        message.push_str(&hint);
+        if let Some(url) = &self.url {
+            message.push_str(&format!("url: {url}"));
+        }
         Some(message)
     }
 }

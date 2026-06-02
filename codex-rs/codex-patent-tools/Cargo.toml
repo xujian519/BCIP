@@ -11,11 +11,12 @@ codex-patent-knowledge = { path = "../codex-patent-knowledge" }
 codex-patent-text = { path = "../codex-patent-text" }
 codex-web-search = { path = "../web-search" }
 chrono = { workspace = true }
+futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = "2"
 reqwest = { version = "0.12", features = ["json"], default-features = false }
-tokio = { version = "1", features = ["rt", "macros", "process", "io-util"] }
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util", "fs"] }
 regex = "1"
 
 [features]

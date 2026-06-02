@@ -4,25 +4,55 @@ use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use rusqlite::params;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub struct LawDatabase {
-    conn: Connection,
+    // 包装在 Arc<Mutex<…>> 内的目的是允许同一进程内多份工具调用复用同一份
+    // 只读 SQLite 连接，避免每次都重新 `open` + `PRAGMA`。
+    conn: Arc<Mutex<Connection>>,
+}
+
+/// 进程级缓存：`path -> 已打开的 LawDatabase`。同一路径只打开一次。
+///
+/// `LawDatabase::open()` 在 `codex-patent-tools` 的多个工具中都会被
+/// `UnifiedSearch::new()` / `with_vector()` 调用。如果不缓存，每次专利分析
+/// 都会触发文件打开 + pragma 设置，累积延迟可观。
+static LAW_DB_CACHE: std::sync::OnceLock<
+    Mutex<std::collections::HashMap<PathBuf, Arc<Mutex<Connection>>>>,
+> = std::sync::OnceLock::new();
+
+fn cache_store() -> &'static Mutex<std::collections::HashMap<PathBuf, Arc<Mutex<Connection>>>> {
+    LAW_DB_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
 }
 
 impl LawDatabase {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
-        let conn = Connection::open_with_flags(
-            path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-        .map_err(|e| format!("failed to open law db: {e}"))?;
-
-        conn.execute_batch(
-            "PRAGMA cache_size = -4000;
-             PRAGMA locking_mode = NORMAL;",
-        )
-        .map_err(|e| format!("pragma setup: {e}"))?;
-
+        let path_buf = path.as_ref().to_path_buf();
+        let conn = {
+            let mut store = cache_store()
+                .lock()
+                .map_err(|e| format!("cache lock: {e}"))?;
+            if let Some(existing) = store.get(&path_buf) {
+                existing.clone()
+            } else {
+                let new_conn = Connection::open_with_flags(
+                    &path_buf,
+                    OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+                )
+                .map_err(|e| format!("failed to open law db: {e}"))?;
+                new_conn
+                    .execute_batch(
+                        "PRAGMA cache_size = -4000;
+                         PRAGMA locking_mode = NORMAL;",
+                    )
+                    .map_err(|e| format!("pragma setup: {e}"))?;
+                let arc = Arc::new(Mutex::new(new_conn));
+                store.insert(path_buf, arc.clone());
+                arc
+            }
+        };
         Ok(Self { conn })
     }
 
@@ -51,8 +81,9 @@ impl LawDatabase {
     }
 
     pub fn list_levels(&self) -> Result<Vec<String>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
         let sql = "SELECT DISTINCT level FROM law ORDER BY level";
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
             .query_map([], |row| row.get(0))
             .map_err(|e| format!("{e}"))?;
@@ -61,8 +92,9 @@ impl LawDatabase {
     }
 
     pub fn list_categories(&self) -> Result<Vec<LawCategory>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
         let sql = "SELECT id, name, folder, isSubFolder, \"group\", \"order\" FROM category ORDER BY \"order\"";
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
             .query_map([], |row| {
                 Ok(LawCategory {
@@ -80,8 +112,8 @@ impl LawDatabase {
     }
 
     pub fn count(&self) -> Result<usize, String> {
-        self.conn
-            .query_row("SELECT COUNT(*) FROM law", [], |row| row.get(0))
+        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        conn.query_row("SELECT COUNT(*) FROM law", [], |row| row.get(0))
             .map_err(|e| format!("{e}"))
     }
 
@@ -96,7 +128,8 @@ impl LawDatabase {
         sql: &str,
         params: P,
     ) -> Result<Vec<LawDocument>, String> {
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
             .query_map(params, |row| {
                 Ok(LawDocument {
