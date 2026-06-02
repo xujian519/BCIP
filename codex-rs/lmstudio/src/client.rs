@@ -31,6 +31,7 @@ impl LMStudioClient {
 
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
+            .no_proxy()
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
@@ -194,6 +195,7 @@ impl LMStudioClient {
     fn from_host_root(host_root: impl Into<String>) -> Self {
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
+            .no_proxy()
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
