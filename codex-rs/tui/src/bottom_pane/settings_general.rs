@@ -102,8 +102,8 @@ impl SettingsGeneralView {
     }
 
     pub(crate) fn render_body(&self, area: Rect, buf: &mut Buffer) {
+        let mut y = area.y;
         for (idx, item) in self.items.iter().enumerate() {
-            let y = area.y + idx as u16;
             if y >= area.y + area.height {
                 break;
             }
@@ -112,24 +112,30 @@ impl SettingsGeneralView {
             let text = format!("{} [{}] {}", prefix, marker, item.name);
             if idx == self.focus_idx {
                 Line::from(text).cyan().render(
-                    Rect {
-                        x: area.x,
-                        y,
-                        width: area.width,
-                        height: 1,
-                    },
+                    Rect { x: area.x, y, width: area.width, height: 1 },
                     buf,
                 );
             } else {
                 Line::from(text).render(
-                    Rect {
-                        x: area.x,
-                        y,
-                        width: area.width,
-                        height: 1,
-                    },
+                    Rect { x: area.x, y, width: area.width, height: 1 },
                     buf,
                 );
+            }
+            y += 1;
+            if y < area.y + area.height {
+                let desc = format!("    {}", item.description);
+                if idx == self.focus_idx {
+                    Line::from(desc).dark_gray().render(
+                        Rect { x: area.x, y, width: area.width, height: 1 },
+                        buf,
+                    );
+                } else {
+                    Line::from(desc).render(
+                        Rect { x: area.x, y, width: area.width, height: 1 },
+                        buf,
+                    );
+                }
+                y += 1;
             }
         }
     }

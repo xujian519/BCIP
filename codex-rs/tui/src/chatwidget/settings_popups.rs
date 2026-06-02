@@ -91,6 +91,7 @@ impl ChatWidget {
         });
     }
 
+    #[allow(dead_code)]
     pub(crate) fn open_realtime_audio_popup(&mut self) {
         let items = [
             RealtimeAudioDeviceKind::Microphone,

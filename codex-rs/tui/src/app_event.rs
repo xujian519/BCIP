@@ -639,6 +639,7 @@ pub(crate) enum AppEvent {
     },
 
     /// Open the device picker for a realtime microphone or speaker.
+    #[allow(dead_code)]
     OpenRealtimeAudioDeviceSelection {
         kind: RealtimeAudioDeviceKind,
     },

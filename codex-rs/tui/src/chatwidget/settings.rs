@@ -291,6 +291,7 @@ impl ChatWidget {
         }
     }
 
+    #[allow(dead_code)]
     pub(super) fn current_realtime_audio_selection_label(
         &self,
         kind: RealtimeAudioDeviceKind,

@@ -111,7 +111,7 @@ mod tests {
     use super::ensure_bcip_home_layout;
     use super::find_codex_home_from_env;
     use codex_utils_absolute_path::AbsolutePathBuf;
-    use dirs::home_dir;
+
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::io::ErrorKind;
