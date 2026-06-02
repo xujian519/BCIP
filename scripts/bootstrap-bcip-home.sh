@@ -10,6 +10,15 @@ TEMPLATE="${ROOT}/scripts/config/bcip-default-config.toml"
 echo "==> BCIP 配置目录: ${BCIP_HOME}"
 mkdir -p "${BCIP_HOME}/skills"
 
+# 复制 constitutional 规则文件到 BCIP_HOME
+ASSETS_SRC="${ROOT}/codex-rs/codex-patent-assets"
+ASSETS_DST="${BCIP_HOME}/codex-patent-assets"
+if [[ -d "${ASSETS_SRC}/constitutional" && ! -d "${ASSETS_DST}/constitutional" ]]; then
+  mkdir -p "${ASSETS_DST}"
+  cp -r "${ASSETS_SRC}/constitutional" "${ASSETS_DST}/constitutional"
+  echo "    已复制 constitutional 规则文件"
+fi
+
 if [[ -f "${CONFIG}" ]]; then
   echo "    已存在 config.toml，跳过写入"
 else

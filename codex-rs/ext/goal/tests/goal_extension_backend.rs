@@ -112,7 +112,7 @@ async fn installed_goal_tools_reject_duplicate_goal_creation() -> anyhow::Result
     assert_eq!(
         err,
         FunctionCallError::RespondToModel(
-            "cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete"
+            "cannot create a new goal because this thread already has an active goal; use update_goal to mark it complete or blocked first"
                 .to_string()
         )
     );

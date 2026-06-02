@@ -603,7 +603,7 @@ impl Session {
             TerminalMetricEmission::Emit,
         )
         .await?;
-        let goal = state_db
+        let insert_result = state_db
             .thread_goals()
             .insert_thread_goal(
                 self.conversation_id,
@@ -611,13 +611,50 @@ impl Session {
                 codex_state::ThreadGoalStatus::Active,
                 token_budget,
             )
-            .await?
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "cannot create a new goal because thread {} already has a goal",
-                    self.conversation_id
-                )
-            })?;
+            .await?;
+
+        let goal = match insert_result {
+            Some(goal) => goal,
+            None => {
+                let existing = state_db
+                    .thread_goals()
+                    .get_thread_goal(self.conversation_id)
+                    .await?;
+
+                let can_replace = existing.as_ref().is_some_and(|g| {
+                    matches!(
+                        g.status,
+                        codex_state::ThreadGoalStatus::Complete
+                            | codex_state::ThreadGoalStatus::Blocked
+                    )
+                });
+
+                if !can_replace {
+                    anyhow::bail!(
+                        "cannot create a new goal because thread {} already has a goal",
+                        self.conversation_id
+                    );
+                }
+
+                state_db
+                    .thread_goals()
+                    .delete_thread_goal(self.conversation_id)
+                    .await?;
+
+                state_db
+                    .thread_goals()
+                    .insert_thread_goal(
+                        self.conversation_id,
+                        objective,
+                        codex_state::ThreadGoalStatus::Active,
+                        token_budget,
+                    )
+                    .await?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("race condition: goal created by another request")
+                    })?
+            }
+        };
 
         set_thread_preview_from_goal_objective(
             &state_db,

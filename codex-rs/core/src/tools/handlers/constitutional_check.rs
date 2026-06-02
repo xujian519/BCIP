@@ -77,15 +77,36 @@ impl ConstitutionalCheckHandler {
 
     fn find_assets_dir() -> Option<PathBuf> {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let candidates = vec![
+        let mut candidates = vec![
             manifest_dir.join("../codex-patent-assets"),
             manifest_dir.join("../../codex-patent-assets"),
             PathBuf::from("codex-patent-assets"),
         ];
 
-        for candidate in candidates {
+        if let Some(exe_dir) = std::env::current_exe()
+            .ok()
+            .and_then(|e| e.canonicalize().ok())
+            .and_then(|e| e.parent().map(|p| p.to_path_buf()))
+        {
+            candidates.push(exe_dir.join("../lib/codex-patent-assets"));
+            candidates.push(exe_dir.join("../share/codex-patent-assets"));
+            candidates.push(exe_dir.join("codex-patent-assets"));
+        }
+
+        if let Ok(home) = std::env::var("BCIP_HOME").or_else(|_| std::env::var("CODEX_HOME")) {
+            let home = PathBuf::from(home);
+            candidates.push(home.join("assets/codex-patent-assets"));
+            candidates.push(home.join("codex-patent-assets"));
+        }
+
+        for candidate in &candidates {
             if candidate.join("constitutional").is_dir() {
-                return Some(candidate.canonicalize().ok().unwrap_or(candidate));
+                return Some(
+                    candidate
+                        .canonicalize()
+                        .ok()
+                        .unwrap_or_else(|| candidate.clone()),
+                );
             }
         }
         None

@@ -170,7 +170,7 @@ impl GoalToolExecutor {
             .map_err(FunctionCallError::RespondToModel)?;
         validate_goal_budget(request.token_budget).map_err(FunctionCallError::RespondToModel)?;
 
-        let goal = self
+        let insert_result = self
             .state_db
             .thread_goals()
             .insert_thread_goal(
@@ -180,13 +180,69 @@ impl GoalToolExecutor {
                 request.token_budget,
             )
             .await
-            .map_err(|err| FunctionCallError::RespondToModel(format!("failed to create goal: {err}")))?
-            .ok_or_else(|| {
-                FunctionCallError::RespondToModel(
-                    "cannot create a new goal because this thread already has a goal; use update_goal only when the existing goal is complete"
-                        .to_string(),
-                )
+            .map_err(|err| {
+                FunctionCallError::RespondToModel(format!("failed to create goal: {err}"))
             })?;
+
+        let goal = match insert_result {
+            Some(goal) => goal,
+            None => {
+                let existing = self
+                    .state_db
+                    .thread_goals()
+                    .get_thread_goal(self.thread_id)
+                    .await
+                    .map_err(|err| {
+                        FunctionCallError::RespondToModel(format!(
+                            "failed to read existing goal: {err}"
+                        ))
+                    })?;
+
+                let can_replace = existing.as_ref().is_some_and(|g| {
+                    matches!(
+                        g.status,
+                        codex_state::ThreadGoalStatus::Complete
+                            | codex_state::ThreadGoalStatus::Blocked
+                    )
+                });
+
+                if !can_replace {
+                    return Err(FunctionCallError::RespondToModel(
+                        "cannot create a new goal because this thread already has an active goal; use update_goal to mark it complete or blocked first"
+                            .to_string(),
+                    ));
+                }
+
+                self.accounting_state.clear_current_turn_goal();
+                self.state_db
+                    .thread_goals()
+                    .delete_thread_goal(self.thread_id)
+                    .await
+                    .map_err(|err| {
+                        FunctionCallError::RespondToModel(format!(
+                            "failed to clear completed goal: {err}"
+                        ))
+                    })?;
+
+                self.state_db
+                    .thread_goals()
+                    .insert_thread_goal(
+                        self.thread_id,
+                        request.objective.as_str(),
+                        codex_state::ThreadGoalStatus::Active,
+                        request.token_budget,
+                    )
+                    .await
+                    .map_err(|err| {
+                        FunctionCallError::RespondToModel(format!("failed to create goal: {err}"))
+                    })?
+                    .ok_or_else(|| {
+                        FunctionCallError::RespondToModel(
+                            "race condition: goal created by another request".to_string(),
+                        )
+                    })?
+            }
+        };
         fill_empty_thread_preview_if_possible(self.state_db.as_ref(), self.thread_id, &goal).await;
         let turn_id = self
             .accounting_state
