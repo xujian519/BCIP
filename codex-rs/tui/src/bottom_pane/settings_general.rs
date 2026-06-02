@@ -112,12 +112,22 @@ impl SettingsGeneralView {
             let text = format!("{} [{}] {}", prefix, marker, item.name);
             if idx == self.focus_idx {
                 Line::from(text).cyan().render(
-                    Rect { x: area.x, y, width: area.width, height: 1 },
+                    Rect {
+                        x: area.x,
+                        y,
+                        width: area.width,
+                        height: 1,
+                    },
                     buf,
                 );
             } else {
                 Line::from(text).render(
-                    Rect { x: area.x, y, width: area.width, height: 1 },
+                    Rect {
+                        x: area.x,
+                        y,
+                        width: area.width,
+                        height: 1,
+                    },
                     buf,
                 );
             }
@@ -126,12 +136,22 @@ impl SettingsGeneralView {
                 let desc = format!("    {}", item.description);
                 if idx == self.focus_idx {
                     Line::from(desc).dark_gray().render(
-                        Rect { x: area.x, y, width: area.width, height: 1 },
+                        Rect {
+                            x: area.x,
+                            y,
+                            width: area.width,
+                            height: 1,
+                        },
                         buf,
                     );
                 } else {
                     Line::from(desc).render(
-                        Rect { x: area.x, y, width: area.width, height: 1 },
+                        Rect {
+                            x: area.x,
+                            y,
+                            width: area.width,
+                            height: 1,
+                        },
                         buf,
                     );
                 }
