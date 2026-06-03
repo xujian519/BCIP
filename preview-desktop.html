@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1400">
+<title>BCIP 桌面端 UI 预览</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+/* ===== Light Theme — Rich Warm Palette ===== */
+:root{
+  /* 背景 — 多层暖灰 + 微妙黄/红底色 */
+  --bg-base:#F5F2EE;--bg-surface:#FAF8F5;--bg-elevated:#FAF8F5;--bg-sidebar:#F0EDE8;
+  --bg-sidebar-active:#E8E4DE;--bg-composer:#FAF8F5;
+  --bg-hover:rgba(0,0,0,0.05);--bg-active:rgba(74,124,111,0.10);
+  --text-primary:#1A1814;--text-secondary:#6B6560;--text-tertiary:#A39E98;--text-inverse:#FFF;
+  --border-primary:rgba(0,0,0,0.07);--border-default:rgba(0,0,0,0.07);
+  --border-hover:rgba(0,0,0,0.12);--border-focus:#4A7C6F;
+  --accent-primary:#4A7C6F;--accent-primary-hover:#5A9A8C;
+  --accent-primary-muted:rgba(74,124,111,0.10);--accent-cyan:#3A8B8C;--accent-blue:#0066FF;
+  --status-success:#4A7C6F;--status-warning:#B8923A;--status-error:#B85C50;
+  --conn-connected:#34C759;
+  /* 暖色阴影 — 核心质感提升 */
+  --shadow-sm:0 1px 2px rgba(26,24,20,0.06);
+  --shadow-md:0 4px 12px rgba(26,24,20,0.08),0 1px 3px rgba(26,24,20,0.04);
+  --shadow-floating:0 8px 24px rgba(26,24,20,0.10),0 2px 6px rgba(26,24,20,0.06);
+  --shadow-composer:0 4px 16px rgba(26,24,20,0.12),0 1px 4px rgba(26,24,20,0.06);
+  --shadow-card:0 2px 8px rgba(26,24,20,0.06),0 1px 2px rgba(26,24,20,0.04);
+  /* 玻璃 — 更强饱和度 */
+  --glass-bg:rgba(250,248,245,0.78);--glass-bk:blur(24px) saturate(200%);
+  --spring:cubic-bezier(0.34,1.56,0.64,1);--ease:cubic-bezier(0.4,0,0.2,1);
+  --body-bg:#E0DDD8;
+  --plan-bg:rgba(58,139,140,0.06);--plan-border:rgba(58,139,140,0.18);
+  --code-bg:rgba(26,24,20,0.04);
+  --scrollbar-thumb:rgba(26,24,20,0.14);
+  --statusbar-bg:rgba(250,248,245,0.82);
+  /* 品牌光晕 */
+  --accent-glow:0 0 20px rgba(74,124,111,0.15);
+  --accent-glow-strong:0 0 32px rgba(74,124,111,0.20),0 0 8px rgba(74,124,111,0.10);
+  /* 噪点纹理 */
+  --noise-opacity:0.018;
+}
+
+/* ===== Dark Theme — Deep Warm Layers ===== */
+[data-theme="dark"]{
+  --bg-base:#1C1A18;--bg-surface:#201E1B;--bg-elevated:#201E1B;--bg-sidebar:#1A1816;
+  --bg-sidebar-active:#2E2A26;--bg-composer:#201E1B;
+  --bg-hover:rgba(255,255,255,0.05);--bg-active:rgba(95,160,143,0.10);
+  --text-primary:#F2EDE8;--text-secondary:#A89F98;--text-tertiary:#7A7470;--text-inverse:#0F0E0D;
+  --border-primary:rgba(255,255,255,0.06);--border-default:rgba(255,255,255,0.06);
+  --border-hover:rgba(255,255,255,0.10);--border-focus:#5FA08F;
+  --accent-primary:#6AB0A0;--accent-primary-hover:#7CC0B2;
+  --accent-primary-muted:rgba(106,176,160,0.12);--accent-cyan:#5CC0C0;--accent-blue:#4D9AFF;
+  --status-success:#6AB0A0;--status-warning:#D4A84A;--status-error:#D47268;
+  --conn-connected:#34C759;
+  /* 暗色阴影 — 更深更暖 */
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.50);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.55),0 1px 3px rgba(0,0,0,0.40);
+  --shadow-floating:0 8px 24px rgba(0,0,0,0.60),0 2px 6px rgba(0,0,0,0.45);
+  --shadow-composer:0 2px 16px rgba(0,0,0,0.55),0 1px 4px rgba(0,0,0,0.40);
+  --shadow-card:0 2px 8px rgba(0,0,0,0.45),0 1px 2px rgba(0,0,0,0.30);
+  --glass-bg:rgba(28,26,24,0.85);--glass-bk:blur(24px) saturate(180%);
+  --body-bg:#0F0E0D;
+  --plan-bg:rgba(92,192,192,0.06);--plan-border:rgba(92,192,192,0.15);
+  --code-bg:rgba(255,255,255,0.05);
+  --scrollbar-thumb:rgba(255,255,255,0.10);
+  --statusbar-bg:rgba(28,26,24,0.85);
+  --accent-glow:0 0 20px rgba(106,176,160,0.12);
+  --accent-glow-strong:0 0 32px rgba(106,176,160,0.18),0 0 8px rgba(106,176,160,0.08);
+  --noise-opacity:0.025;
+}
+
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:var(--body-bg);display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased;transition:background .5s ease}
+
+/* === 噪点纹理叠加 — 核心质感 === */
+body::before{
+  content:'';position:fixed;inset:0;z-index:99999;pointer-events:none;
+  opacity:var(--noise-opacity);
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:128px 128px;
+  mix-blend-mode:overlay;
+}
+
+/* === Theme Toggle FAB === */
+.theme-fab{position:fixed;top:20px;right:20px;z-index:9999;display:flex;align-items:center;gap:8px;background:var(--glass-bg);backdrop-filter:var(--glass-bk);border:1px solid var(--border-default);border-radius:12px;padding:6px 14px;cursor:pointer;box-shadow:var(--shadow-floating);transition:all .3s var(--spring);user-select:none}
+.theme-fab:hover{transform:scale(1.05);box-shadow:var(--shadow-md)}
+.theme-fab:active{transform:scale(0.95)}
+.theme-fab svg{width:18px;height:18px;color:var(--text-secondary);transition:transform .4s var(--spring)}
+[data-theme="dark"] .theme-fab svg{transform:rotate(360deg)}
+.theme-fab span{font-size:12px;font-weight:500;color:var(--text-secondary)}
+
+/* === App Frame — 深层阴影 + 内光 === */
+.app{
+  width:1400px;height:900px;border-radius:12px;overflow:hidden;
+  display:flex;flex-direction:column;position:relative;
+  background:var(--bg-base);
+  box-shadow:
+    0 24px 80px rgba(26,24,20,0.18),
+    0 8px 24px rgba(26,24,20,0.10),
+    0 0 0 1px rgba(26,24,20,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition:background .5s ease,box-shadow .5s ease;
+}
+[data-theme="dark"] .app{
+  box-shadow:
+    0 24px 80px rgba(0,0,0,0.50),
+    0 8px 24px rgba(0,0,0,0.35),
+    0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* === TitleBar 38px — 暖色玻璃 === */
+.tb{height:38px;background:var(--glass-bg);backdrop-filter:var(--glass-bk);border-bottom:1px solid var(--border-default);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:relative;z-index:10;flex-shrink:0;user-select:none;transition:background .5s ease}
+/* TitleBar 底部柔光 */
+.tb::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(74,124,111,0.08),transparent);pointer-events:none}
+.tl{display:flex;gap:8px}
+.tl-dot{width:12px;height:12px;border-radius:50%;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.tl-dot:hover{filter:brightness(.88);transform:scale(1.1)}
+.tl-dot span{font-size:9px;font-weight:700;opacity:0;transition:opacity .15s;line-height:1}
+.tl-dot:hover span{opacity:1}
+.tl-r{background:#FF5F57;box-shadow:0 0 0 0 rgba(255,95,87,0)}.tl-r span{color:#4A0000}
+.tl-r:hover{box-shadow:0 0 8px rgba(255,95,87,0.3)}
+.tl-y{background:#FFBD2E;box-shadow:0 0 0 0 rgba(255,189,46,0)}.tl-y span{color:#995700}
+.tl-y:hover{box-shadow:0 0 8px rgba(255,189,46,0.3)}
+.tl-g{background:#28C840;box-shadow:0 0 0 0 rgba(40,200,64,0)}.tl-g span{color:#006500}
+.tl-g:hover{box-shadow:0 0 8px rgba(40,200,64,0.3)}
+.tb-center{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.tb-title{font-size:13px;font-weight:600;color:var(--text-primary);letter-spacing:-.01em;transition:color .3s}
+.tb-right{display:flex;align-items:center;gap:8px;z-index:1}
+.pill{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:9999px;font-size:11px;font-weight:500;letter-spacing:.02em;cursor:pointer;transition:all .2s var(--spring);white-space:nowrap}
+.pill-pending{background:var(--bg-surface);border:1px solid var(--border-default);color:var(--text-secondary)}
+[data-theme="dark"] .pill-pending{background:rgba(42,38,34,.5)}
+.pill-pending:hover{background:var(--bg-hover)}
+.pill-active{background:var(--accent-primary);color:var(--text-inverse);border:1px solid transparent;box-shadow:var(--shadow-sm),var(--accent-glow)}
+.pill-done{background:var(--accent-primary-muted);color:var(--accent-primary);border:1px solid rgba(74,124,111,.25)}
+[data-theme="dark"] .pill-done{background:rgba(106,176,160,.12);border-color:rgba(106,176,160,.20)}
+.pill svg{width:12px;height:12px;margin-right:4px}
+
+/* === Main === */
+.main{flex:1;display:flex;min-height:0}
+
+/* === ActivityBar 48px — 深层玻璃 === */
+.ab{width:48px;background:var(--glass-bg);backdrop-filter:var(--glass-bk);border-right:1px solid var(--border-primary);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:8px 0;flex-shrink:0;transition:background .5s ease}
+.ab-g{display:flex;flex-direction:column;align-items:center;gap:4px}
+.ab-b{width:40px;height:40px;border-radius:10px;border:none;background:transparent;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;transition:all .2s var(--spring)}
+.ab-b:hover{background:var(--bg-hover);color:var(--text-secondary)}
+.ab-b.on{background:var(--bg-sidebar-active);color:var(--accent-primary);box-shadow:inset 0 0 12px rgba(74,124,111,0.06)}
+[data-theme="dark"] .ab-b.on{box-shadow:inset 0 0 12px rgba(106,176,160,0.06)}
+.ab-b.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2.5px;height:20px;background:var(--accent-primary);border-radius:0 2px 2px 0;box-shadow:0 0 8px rgba(74,124,111,0.25)}
+[data-theme="dark"] .ab-b.on::before{box-shadow:0 0 8px rgba(106,176,160,0.20)}
+.ab-b svg{width:20px;height:20px}
+
+/* === SidePanel — 暖色层叠 === */
+.sp{width:260px;background:var(--bg-sidebar);border-right:1px solid var(--border-primary);display:flex;flex-direction:column;flex-shrink:0;transition:background .5s ease;position:relative}
+/* 右边缘柔光 */
+.sp::after{content:'';position:absolute;top:0;right:-1px;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(74,124,111,0.04),transparent);pointer-events:none}
+.sp-h{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border-primary)}
+.sp-t{font-size:12px;font-weight:500;color:var(--text-secondary);letter-spacing:.02em;text-transform:uppercase}
+.sp-acts{display:flex;gap:2px}
+.sp-ab{width:24px;height:24px;border-radius:4px;border:none;background:none;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sp-ab:hover{background:var(--bg-hover);color:var(--text-secondary)}
+.sp-ab svg{width:14px;height:14px}
+.sp-ws{padding:6px 12px 4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.ft{flex:1;overflow-y:auto;padding:2px 0}
+.ft::-webkit-scrollbar{width:4px}
+.ft::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:100px}
+.fi{display:flex;align-items:center;gap:6px;padding:3px 12px;font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all .12s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none;border-left:2px solid transparent}
+.fi:hover{background:var(--bg-hover)}
+.fi.on{background:var(--bg-active);color:var(--accent-primary);border-left-color:var(--accent-primary)}
+.fi svg{width:14px;height:14px;flex-shrink:0;opacity:.7}
+.fi.on svg{opacity:1}
+.i1{padding-left:28px}.i2{padding-left:40px}.i3{padding-left:52px}
+
+/* === Resize Handle — 发光效果 === */
+.rh{width:5px;cursor:col-resize;flex-shrink:0;z-index:5;transition:all .15s}
+.rh:hover{background:var(--accent-primary);opacity:.25;box-shadow:0 0 8px rgba(74,124,111,0.15)}
+
+/* === Workspace — 微妙渐变背景 === */
+.ws{flex:1;min-width:400px;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-base);transition:background .5s ease;position:relative}
+/* 顶部渐变光照 */
+.ws::before{content:'';position:absolute;top:0;left:0;right:0;height:120px;background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(255,255,255,0.25),transparent);pointer-events:none;z-index:1}
+[data-theme="dark"] .ws::before{background:radial-gradient(ellipse 60% 100% at 50% 0%,rgba(255,255,255,0.02),transparent)}
+.wst{height:36px;background:var(--bg-elevated);border-bottom:1px solid var(--border-primary);display:flex;align-items:stretch;overflow-x:auto;flex-shrink:0;user-select:none;position:relative;z-index:2}
+.tab{display:flex;align-items:center;gap:6px;padding:0 12px;font-size:12px;color:var(--text-tertiary);border-right:1px solid var(--border-primary);cursor:pointer;transition:all .15s;white-space:nowrap;max-width:180px;position:relative}
+.tab.on{background:var(--bg-surface);color:var(--text-primary);font-weight:500}
+.tab.on::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent-primary);border-radius:2px 2px 0 0}
+.tab:hover:not(.on){background:var(--bg-hover)}
+.tab svg{width:14px;height:14px;flex-shrink:0}
+.tab .cx{width:16px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s;flex-shrink:0;background:none;border:none;color:var(--text-tertiary);cursor:pointer;margin-left:auto}
+.tab:hover .cx{opacity:1}
+.tab .cx:hover{background:var(--bg-hover);color:var(--text-primary)}
+
+.wsc{flex:1;overflow-y:auto;padding:24px 32px;position:relative;z-index:2}
+.wsc::-webkit-scrollbar{width:6px}
+.wsc::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:100px}
+.ed-title{font-size:26px;font-weight:700;color:var(--text-primary);margin-bottom:16px;letter-spacing:-.03em;transition:color .3s}
+.ed-meta{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:9999px;font-size:11px;font-weight:500;background:var(--accent-primary-muted);color:var(--accent-primary);transition:all .3s;box-shadow:inset 0 0 0 1px rgba(74,124,111,0.08)}
+[data-theme="dark"] .badge{box-shadow:inset 0 0 0 1px rgba(106,176,160,0.06)}
+.badge-warn{background:rgba(184,146,58,.08);color:var(--status-warning);box-shadow:inset 0 0 0 1px rgba(184,146,58,0.10)}
+[data-theme="dark"] .badge-warn{background:rgba(212,168,74,.08);box-shadow:inset 0 0 0 1px rgba(212,168,74,0.08)}
+.ed-body{font-size:14px;line-height:1.75;color:var(--text-secondary);transition:color .3s}
+.ed-body h2{font-size:18px;font-weight:600;color:var(--text-primary);margin:28px 0 10px;letter-spacing:-.01em}
+.ed-body p{margin-bottom:14px}
+.ed-body code{font-family:'JetBrains Mono',monospace;background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:12px;border:1px solid var(--border-primary)}
+.ed-body pre{background:var(--bg-sidebar);border:1px solid var(--border-default);border-radius:10px;padding:16px;margin:14px 0;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;color:var(--text-primary);box-shadow:var(--shadow-sm)}
+
+/* === Agent Panel — 深度分层 === */
+.ap{width:380px;background:var(--bg-surface);border-left:1px solid var(--border-primary);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:background .5s ease;position:relative}
+/* 左边缘柔光 */
+.ap::before{content:'';position:absolute;top:0;left:-1px;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(74,124,111,0.05),transparent);pointer-events:none;z-index:1}
+.ah{height:48px;background:var(--glass-bg);backdrop-filter:var(--glass-bk);border-bottom:1px solid var(--border-default);display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:10;flex-shrink:0;position:relative}
+/* Header 底部柔光 */
+.ah::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(74,124,111,0.06),transparent);pointer-events:none}
+.ah-l{display:flex;align-items:center;gap:4px;min-width:0;flex:1}
+.ah-ts{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-primary);cursor:pointer;max-width:160px;border:none;background:none;transition:all .2s var(--spring)}
+.ah-ts:hover{background:var(--bg-hover)}
+.td{width:8px;height:8px;border-radius:50%;background:var(--accent-blue);flex-shrink:0;box-shadow:0 0 6px rgba(0,102,255,0.25)}
+[data-theme="dark"] .td{box-shadow:0 0 6px rgba(77,154,255,0.30)}
+.td.stream{background:var(--accent-cyan);animation:pulse 1.5s ease-in-out infinite;box-shadow:0 0 8px rgba(58,139,140,0.30)}
+.tn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-chev{width:12px;height:12px;color:var(--text-secondary);flex-shrink:0}
+.ib{width:28px;height:28px;border-radius:8px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s var(--spring)}
+.ib:hover{background:var(--bg-hover);color:var(--text-primary)}
+.ib svg{width:16px;height:16px}
+.ah-r{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.usage{display:flex;align-items:center;padding:4px 10px;border-radius:9999px;background:var(--bg-hover);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;transition:all .2s;border:1px solid var(--border-primary)}
+.usage:hover{background:var(--bg-active);border-color:var(--accent-primary)}
+
+/* Messages */
+.mt{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:12px}
+.mt::-webkit-scrollbar{width:4px}
+.mt::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:100px}
+
+.ub{display:flex;justify-content:flex-end;animation:sir .3s var(--spring)}
+.ub-c{max-width:85%;font-size:14px;line-height:1.65;color:var(--text-primary);background:var(--accent-primary-muted);border:1px solid rgba(74,124,111,.12);border-radius:16px 4px 16px 16px;padding:10px 14px;box-shadow:var(--shadow-sm);transition:all .2s}
+[data-theme="dark"] .ub-c{border-color:rgba(106,176,160,.10)}
+.ub-c:hover{box-shadow:var(--shadow-md)}
+.bt{font-size:10px;color:var(--text-tertiary);opacity:.45;text-align:right;margin-top:4px}
+
+.abk{animation:siu .3s var(--spring)}
+.aa{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.aa-i{width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,var(--accent-primary),var(--accent-primary-hover));display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;box-shadow:0 2px 6px rgba(74,124,111,0.20)}
+[data-theme="dark"] .aa-i{box-shadow:0 2px 6px rgba(106,176,160,0.18)}
+.aa-l{font-size:12px;font-weight:500;color:var(--text-secondary)}
+.ac{font-size:14px;line-height:1.75;color:var(--text-primary)}
+.ac p{margin-bottom:10px}
+.ac code{font-family:'JetBrains Mono',monospace;background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:12px;border:1px solid var(--border-primary)}
+.cb{background:var(--bg-sidebar);border:1px solid var(--border-default);border-radius:10px;padding:12px 16px;margin:10px 0;position:relative;overflow:hidden;transition:all .2s;box-shadow:var(--shadow-sm)}
+.cb:hover{box-shadow:var(--shadow-md)}
+.cl{position:absolute;top:0;right:0;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-tertiary);padding:3px 10px;background:var(--bg-elevated);border-bottom:1px solid var(--border-default);border-left:1px solid var(--border-default);border-radius:0 10px 0 8px;opacity:.6}
+.cp{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:var(--text-primary);overflow-x:auto;padding-top:14px}
+
+/* Tool Call — 微妙的光泽 */
+.tc-card{background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:8px;padding:8px 12px;margin:6px 0;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);transition:all .15s;cursor:pointer;box-shadow:var(--shadow-sm)}
+.tc-card:hover{border-color:var(--border-hover);background:var(--bg-hover);box-shadow:var(--shadow-md)}
+.tc-i{width:20px;height:20px;border-radius:5px;background:var(--accent-primary-muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tc-i svg{width:12px;height:12px;color:var(--accent-primary)}
+.tc-n{font-weight:500;color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:11px}
+.tc-s{margin-left:auto;font-size:10px;color:var(--status-success);display:flex;align-items:center;gap:4px;font-weight:500}
+
+/* Composer — 精致的悬浮感 */
+.cw{padding:8px 12px;border-top:1px solid var(--border-default);background:var(--bg-surface);flex-shrink:0;transition:background .5s ease}
+.cb-wrap{background:var(--bg-composer);border:1px solid var(--border-default);border-radius:14px;box-shadow:var(--shadow-composer);transition:all .25s var(--spring);overflow:hidden;position:relative}
+/* Composer 聚焦光晕 */
+.cb-wrap:focus-within{border-color:var(--border-focus);box-shadow:var(--shadow-composer),var(--accent-glow);outline:none}
+.cb-wrap:focus-within::before{content:'';position:absolute;inset:-1px;border-radius:15px;background:linear-gradient(135deg,rgba(74,124,111,0.06),transparent,rgba(74,124,111,0.03));pointer-events:none;z-index:0}
+.c-top{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;position:relative;z-index:1}
+.c-att{width:24px;height:24px;border-radius:6px;border:none;background:none;color:var(--text-tertiary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.c-att:hover{background:var(--bg-hover);color:var(--text-secondary)}
+.c-att svg{width:14px;height:14px}
+.c-perm{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--status-warning);font-weight:500}
+.c-perm svg{width:12px;height:12px}
+.c-inp{width:100%;border:none;background:transparent;font-family:inherit;font-size:14px;color:var(--text-primary);padding:4px 16px;resize:none;outline:none;line-height:1.5;min-height:36px;position:relative;z-index:1}
+.c-inp::placeholder{color:var(--text-tertiary)}
+.c-bot{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 12px;position:relative;z-index:1}
+.ms{display:flex;align-items:center;gap:4px;padding:3px 10px;border-radius:9999px;background:var(--bg-surface);border:1px solid var(--border-default);font-size:10px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .15s;font-weight:500}
+.ms:hover{border-color:var(--border-hover);color:var(--text-primary)}
+.ms svg{width:10px;height:10px}
+.send{width:28px;height:28px;border-radius:50%;border:none;background:var(--border-default);color:var(--text-tertiary);cursor:not-allowed;display:flex;align-items:center;justify-content:center;transition:all .2s var(--spring)}
+.send.on{background:var(--accent-primary);color:#fff;cursor:pointer;box-shadow:var(--shadow-sm),var(--accent-glow)}
+.send.on:hover{background:var(--accent-primary-hover);box-shadow:var(--shadow-md),var(--accent-glow-strong);transform:scale(1.08)}
+.send.on:active{transform:scale(.90)}
+.send svg{width:14px;height:14px}
+
+/* === StatusBar 32px — 精致玻璃 === */
+.sb{height:32px;background:var(--statusbar-bg);backdrop-filter:blur(16px) saturate(160%);border-top:1px solid var(--border-default);display:flex;align-items:center;justify-content:space-between;padding:0 12px;flex-shrink:0;z-index:50;user-select:none;transition:background .5s ease}
+/* StatusBar 顶部柔光 */
+.sb::before{content:'';position:absolute;top:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(74,124,111,0.04),transparent);pointer-events:none}
+.sb-l{display:flex;align-items:center}
+.conn{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:9999px;cursor:pointer;transition:all .15s}
+.conn:hover{background:var(--bg-hover)}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:var(--conn-connected);flex-shrink:0;transition:background .3s;box-shadow:0 0 6px rgba(52,199,89,0.30)}
+.conn-icon{width:12px;height:12px;color:var(--conn-connected)}
+.conn-txt{font-size:10px;color:var(--text-secondary);font-weight:400}.conn-txt b{font-weight:500}
+.sb-c{display:flex;align-items:center;min-width:0}
+.um{display:flex;align-items:center;gap:8px}
+.um-lbl{font-size:10px;color:var(--text-secondary);white-space:nowrap}
+.um-bar{width:60px;height:5px;border-radius:9999px;background:var(--bg-hover);overflow:hidden;transition:background .3s;border:1px solid var(--border-primary)}
+.um-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,var(--accent-primary),var(--accent-primary-hover));transition:all .3s ease-out;box-shadow:0 0 4px rgba(74,124,111,0.15)}
+.um-val{font-size:10px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;white-space:nowrap;font-weight:500}
+.sb-r{display:flex;align-items:center;gap:4px}
+.model{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:9999px;font-size:10px;cursor:pointer;transition:all .15s}
+.model:not(.stream){background:var(--bg-hover);border:1px solid var(--border-default);color:var(--text-secondary)}
+.model:hover{background:var(--bg-active);color:var(--text-primary);border-color:var(--accent-primary)}
+.model svg{width:12px;height:12px}
+.model span{font-family:'JetBrains Mono',monospace;font-weight:500;white-space:nowrap}
+.sb-btn{width:28px;height:28px;border-radius:6px;border:none;background:none;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.sb-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.sb-btn svg{width:16px;height:16px}
+
+/* Animations */
+@keyframes siu{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes sir{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px rgba(58,139,140,0.30)}50%{opacity:.6;box-shadow:0 0 3px rgba(58,139,140,0.15)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.cursor{display:inline-block;width:2px;height:16px;background:var(--accent-primary);margin-left:2px;vertical-align:text-bottom;animation:blink 1s step-end infinite;box-shadow:0 0 4px rgba(74,124,111,0.30)}
+
+/* Plan Message — 更丰富的质感 */
+.plan-msg{background:var(--plan-bg);border:1px solid var(--plan-border);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.65;color:var(--text-primary);transition:all .3s;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.plan-msg::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(58,139,140,0.12),transparent);pointer-events:none}
+.plan-label{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--accent-cyan);margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<!-- Theme Toggle FAB -->
+<button class="theme-fab" onclick="toggleTheme()">
+  <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+  <span id="themeLabel">浅色模式</span>
+</button>
+
+<div class="app">
+  <!-- ======== TitleBar ======== -->
+  <header class="tb">
+    <div class="tl">
+      <div class="tl-dot tl-r"><span>×</span></div>
+      <div class="tl-dot tl-y"><span>−</span></div>
+      <div class="tl-dot tl-g"><span>+</span></div>
+    </div>
+    <div class="tb-center"><span class="tb-title">云熙智能体</span></div>
+    <div class="tb-right">
+      <span class="pill pill-done"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg>检索</span>
+      <span class="pill pill-active">分析</span>
+      <span class="pill pill-pending">起草</span>
+      <span class="pill pill-pending">审查</span>
+    </div>
+  </header>
+
+  <!-- ======== Main Content ======== -->
+  <div class="main">
+    <!-- ActivityBar -->
+    <nav class="ab">
+      <div class="ab-g">
+        <button class="ab-b" title="添加项目"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button class="ab-b on" title="资源管理器"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></button>
+        <button class="ab-b" title="新建任务"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
+      </div>
+      <div class="ab-g">
+        <button class="ab-b" title="搜索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+        <button class="ab-b" title="技能"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
+        <button class="ab-b" title="AI 助手"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg></button>
+        <button class="ab-b" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+      </div>
+    </nav>
+
+    <!-- SidePanel (Explorer) -->
+    <div class="sp">
+      <div class="sp-h">
+        <span class="sp-t">资源管理器</span>
+        <div class="sp-acts">
+          <button class="sp-ab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+          <button class="sp-ab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+          <button class="sp-ab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+        </div>
+      </div>
+      <div class="sp-ws">BCIP</div>
+      <div class="ft">
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> apps</div>
+        <div class="fi i1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> desktop</div>
+        <div class="fi i2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> package.json</div>
+        <div class="fi i2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> vite.config.ts</div>
+        <div class="fi i2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> src</div>
+        <div class="fi i3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> components</div>
+        <div class="fi i3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> hooks</div>
+        <div class="fi i3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> lib</div>
+        <div class="fi i1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> tailwind.config.js</div>
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> AGENTS.md</div>
+        <div class="fi on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> README.md</div>
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> codex-rs</div>
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> docs</div>
+        <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> scripts</div>
+      </div>
+    </div>
+
+    <!-- Resize -->
+    <div class="rh"></div>
+
+    <!-- Center Workspace -->
+    <div class="ws">
+      <div class="wst">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> package.json<button class="cx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+        <div class="tab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> README.md<button class="cx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+      </div>
+      <div class="wsc">
+        <div class="ed-title">BCIP — 专利智能体平台</div>
+        <div class="ed-meta">
+          <span class="badge">📋 专利检索</span>
+          <span class="badge">🔍 技术分析</span>
+          <span class="badge">✍️ 文稿起草</span>
+          <span class="badge badge-warn">⚠ 草稿审查</span>
+        </div>
+        <div class="ed-body">
+          <h2>项目概述</h2>
+          <p>BCIP (Brand Copyright &amp; Intellectual Property) 是一个基于 AI 的专利智能体平台，集成了专利检索、技术分析、文稿起草和审查功能。</p>
+          <p>项目使用 <code>Rust</code> 构建后端核心，<code>React + TypeScript</code> 构建桌面端界面，基于 <code>Tauri</code> 实现跨平台桌面应用。</p>
+          <pre>项目结构
+├── apps/desktop/        # Tauri 桌面应用
+│   ├── src/             # React 前端
+│   └── src-tauri/       # Rust 后端
+├── codex-rs/            # Rust 核心库
+├── codex-patent-domain/ # 专利领域模型
+├── codex-patent-knowledge/ # 知识库
+└── docs/                # 设计文档</pre>
+          <h2>核心功能</h2>
+          <p>平台通过多阶段工作流（检索 → 分析 → 起草 → 审查）完成专利全生命周期管理。每个阶段都有对应的 AI Agent 负责执行具体任务。</p>
+          <p>知识库内置了专利法规、审查指南和判例数据，支持实时检索和上下文增强生成（RAG）。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resize -->
+    <div class="rh"></div>
+
+    <!-- Agent Panel -->
+    <div class="ap">
+      <!-- Agent Header -->
+      <div class="ah">
+        <div class="ah-l">
+          <button class="ah-ts">
+            <span class="td"></span>
+            <span class="tn">专利分析 #12</span>
+            <svg class="tc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <button class="ib" title="新线程"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+          <span style="font-size:10px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">云熙专利助手</span>
+        </div>
+        <div class="ah-r">
+          <span class="usage">~2.3k / 50k</span>
+          <button class="ib" title="会话列表"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg></button>
+          <button class="ib" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Message Timeline -->
+      <div class="mt">
+        <!-- Plan Message -->
+        <div class="plan-msg">
+          <div class="plan-label">📋 执行计划</div>
+          <div>1. 分析专利文件结构和技术方案<br>2. 检索相关对比文件<br>3. 生成权利要求建议</div>
+        </div>
+
+        <!-- User Bubble -->
+        <div class="ub">
+          <div>
+            <div class="ub-c">帮我分析这份专利文件，重点看独立权利要求 1 的技术方案是否具有新颖性</div>
+            <div class="bt">22:15</div>
+          </div>
+        </div>
+
+        <!-- Agent Block -->
+        <div class="abk">
+          <div class="aa">
+            <div class="aa-i">云</div>
+            <span class="aa-l">云熙智能体</span>
+          </div>
+          <div class="ac">
+            <p>我已分析完该专利文件的独立权利要求 1，以下是主要发现：</p>
+            <p><strong>技术方案概述：</strong>该权利要求保护一种基于多模态特征融合的图像识别方法，包含以下关键技术特征：</p>
+            <p>1. 采用 <code>Transformer</code> 架构进行特征提取<br>2. 跨模态注意力机制实现特征对齐<br>3. 自适应权重分配策略</p>
+          </div>
+          <div class="cb">
+            <span class="cl">python</span>
+            <div class="cp"># 核心技术特征提取
+features = {
+    "architecture": "Transformer-based",
+    "fusion_method": "cross_attention",
+    "weight_strategy": "adaptive"
+}
+
+novelty_score = analyze_novelty(features)
+print(f"新颖性评分: {novelty_score}")</div>
+          </div>
+        </div>
+
+        <!-- Tool Call -->
+        <div class="tc-card">
+          <div class="tc-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+          <span class="tc-n">patent_search</span>
+          <span style="color:var(--text-tertiary)">检索相关对比文件…</span>
+          <span class="tc-s">✓ 23 篇</span>
+        </div>
+        <div class="tc-card">
+          <div class="tc-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <span class="tc-n">read_file</span>
+          <span style="color:var(--text-tertiary)">读取对比文件 CN115...</span>
+          <span class="tc-s">✓ 完成</span>
+        </div>
+
+        <!-- Agent continued -->
+        <div class="abk">
+          <div class="ac">
+            <p><strong>新颖性分析结果：</strong></p>
+            <p>经检索，发现 3 篇高度相关的对比文件。其中 CN115289312A 公开了一种类似的跨模态注意力机制，但未涉及上述第 3 项技术特征（自适应权重分配策略）。</p>
+            <p>因此，独立权利要求 1 <strong>具备新颖性</strong>，但建议在从属权利要求中进一步限定自适应权重分配的具体实现方式，以增强创造性论述。<span class="cursor"></span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composer -->
+      <div class="cw">
+        <div class="cb-wrap">
+          <div class="c-top">
+            <button class="c-att"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>
+            <div class="c-perm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Full access</div>
+          </div>
+          <textarea class="c-inp" placeholder="Ask Codex anything, @ to add files, / for commands" rows="1"></textarea>
+          <div class="c-bot">
+            <div class="ms"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> claude-sonnet</div>
+            <button class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== StatusBar 32px ======== -->
+  <footer class="sb">
+    <div class="sb-l">
+      <div class="conn">
+        <span class="conn-dot"></span>
+        <svg class="conn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z"/></svg>
+        <span class="conn-txt"><b>已连接</b> · 共用终端配置 · stdio</span>
+      </div>
+    </div>
+    <div class="sb-c">
+      <div class="um">
+        <span class="um-lbl">额度</span>
+        <div class="um-bar"><div class="um-fill" style="width:35%"></div></div>
+        <span class="um-val">35%/100%</span>
+      </div>
+    </div>
+    <div class="sb-r">
+      <div class="model">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <span>claude-sonnet</span>
+      </div>
+      <button class="sb-btn" title="终端">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      </button>
+      <button class="sb-btn" title="更多操作">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+      <button class="sb-btn" onclick="toggleTheme()" title="切换主题">
+        <svg id="statusThemeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  const icon = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  const statusIcon = document.getElementById('statusThemeIcon');
+  if (isDark) {
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    label.textContent = '浅色模式';
+    statusIcon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+  } else {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    label.textContent = '暗色模式';
+    statusIcon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  }
+}
+</script>
+</body>
+</html>
