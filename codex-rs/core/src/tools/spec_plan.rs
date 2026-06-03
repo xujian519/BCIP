@@ -86,6 +86,9 @@ use tracing::warn;
 
 const MULTI_AGENT_V2_NAMESPACE_DESCRIPTION: &str = "Tools for spawning and managing sub-agents.";
 
+/// Default token budget for agent tool specs (≈8000 tokens ≈ 15 tools).
+const DEFAULT_ROLE_TOKEN_BUDGET: usize = 8000;
+
 type PlannedRuntime = Arc<dyn CoreToolRuntime>;
 
 #[derive(Default)]
@@ -220,16 +223,12 @@ fn build_model_visible_specs_and_registry(
         })
         .collect();
 
-    let agent_role = turn_context
-        .session_source
-        .get_agent_role()
-        .as_deref()
-        .and_then(codex_patent_agents::roles::PatentAgentRole::from_str);
-    if let Some(role) = agent_role {
+    if let Some(role_str) = turn_context.session_source.get_agent_role() {
+        let budget = DEFAULT_ROLE_TOKEN_BUDGET;
         super::token_budget::check_token_budget(
             &model_visible_specs,
-            role.tool_token_budget(),
-            Some(role.role_id()),
+            budget,
+            Some(role_str.as_str()),
         );
     }
 
