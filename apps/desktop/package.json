@@ -23,7 +23,10 @@
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "vitest run",
-    "walkthrough:capture": "WALKTHROUGH_CAPTURE=1 PLAYWRIGHT_BROWSERS_PATH=0 playwright test e2e/walkthrough-capture.spec.ts"
+    "walkthrough:capture": "WALKTHROUGH_CAPTURE=1 PLAYWRIGHT_BROWSERS_PATH=0 playwright test e2e/walkthrough-capture.spec.ts",
+    "walkthrough:check": "node scripts/check-walkthrough-screenshots.mjs",
+    "walkthrough:report": "node scripts/generate-walkthrough-review.mjs",
+    "walkthrough:acceptance": "npm run walkthrough:capture && npm run walkthrough:check && npm run walkthrough:report"
   },
   "dependencies": {
     "@eigenpal/docx-editor-react": "^1.1.0",

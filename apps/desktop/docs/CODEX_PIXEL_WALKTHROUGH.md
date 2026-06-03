@@ -51,6 +51,16 @@
 ## DoD
 
 - [x] 工程侧：`npm run walkthrough:capture` → `docs/walkthrough-screenshots/C01–C12.png`
-- [ ] 设计侧：与 Codex 参考并排 diff 评审
+- [ ] 设计侧：与 Codex 参考并排 diff 评审（流程见 [DESIGN_ACCEPTANCE.md](./DESIGN_ACCEPTANCE.md)）
 - [x] 工程侧：上表组件已实现并对齐 spec 注释
 - [x] CI：主 `.github/workflows/ci.yml` 路径门控 desktop 任务 + `scripts/check-generated-app-server.sh`
+
+## 设计验收（并排 diff）
+
+完整流程、签收模板与 HTML 评审页：
+
+1. `npm run walkthrough:acceptance` — 截图 + 检查 + 生成 `review.html`
+2. 可选：将 Codex 参考放入 `walkthrough-screenshots/codex-ref/C01.png` … `C12.png`
+3. 打开 `docs/walkthrough-screenshots/review.html`，勾选清单并导出 Markdown 签收单
+
+详见 **[DESIGN_ACCEPTANCE.md](./DESIGN_ACCEPTANCE.md)**。
