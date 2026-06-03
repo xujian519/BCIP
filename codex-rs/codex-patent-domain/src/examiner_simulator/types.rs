@@ -67,6 +67,73 @@ pub struct ArgumentationDialog {
     pub current_round: usize,
 }
 
+// ==================== 输出类型 ====================
+
+/// 权利要求异议
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaimObjection {
+    pub claim_number: usize,
+    pub claim_text: String,
+    pub feature_objections: Vec<String>,
+    pub conclusion: &'static str,
+}
+
+/// 初次审查输出
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SimulateReviewOutput {
+    pub rejection_type: &'static str,
+    pub strategy: &'static str,
+    pub objections: Vec<ClaimObjection>,
+    pub overall_conclusion: &'static str,
+    pub integration_mode: &'static str,
+}
+
+/// 反驳内容
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Rebuttal {
+    pub rebuttal_points: Vec<String>,
+    pub remaining_concerns: Vec<&'static str>,
+    pub suggestions: Vec<&'static str>,
+    pub tone: &'static str,
+}
+
+/// 审查员对申请人答复的输出
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RespondOutput {
+    pub round_number: u32,
+    pub response_strategy: &'static str,
+    pub rebuttal: Rebuttal,
+    pub applicant_points_addressed: Option<Vec<String>>,
+    pub integration_mode: &'static str,
+}
+
+/// 答复质量评分明细
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvaluationScores {
+    pub completeness: f64,
+    pub persuasiveness: f64,
+    pub technical_depth: f64,
+    pub logic_consistency: f64,
+}
+
+/// 答复评估输出
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvaluationOutput {
+    pub overall_score: f64,
+    pub scores: EvaluationScores,
+    pub strengths: Vec<&'static str>,
+    pub weaknesses: Vec<&'static str>,
+    pub recommendations: Vec<&'static str>,
+    pub predicted_outcome: &'static str,
+    pub integration_mode: &'static str,
+}
+
 pub(crate) fn rejection_type_as_str(ty: &RejectionType) -> &'static str {
     match ty {
         RejectionType::Inventiveness => "inventiveness",
