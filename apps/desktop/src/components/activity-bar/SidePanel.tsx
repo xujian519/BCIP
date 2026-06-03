@@ -3,22 +3,12 @@ import { useAppStore } from '@/hooks/useAppStore';
 import ExplorerPanel from './ExplorerPanel';
 import SearchPanel from './SearchPanel';
 import SkillsSidePanel from './SkillsSidePanel';
-
-function BotsPanel() {
-  return (
-    <div className="h-full overflow-auto">
-      <div className="px-3 py-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-        AI 助手
-      </div>
-      <div className="p-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        外接渠道（微信 / 飞书 / 钉钉）配置即将上线
-      </div>
-    </div>
-  );
-}
+import BotsSidePanel from './BotsSidePanel';
+import NewTaskSidePanel from './NewTaskSidePanel';
 
 const SIDE_PANEL_MIN_WIDTH: Record<string, number> = {
   files: 180,
+  'new-task': 200,
   search: 240,
   skills: 240,
   bots: 280,
@@ -26,9 +16,10 @@ const SIDE_PANEL_MIN_WIDTH: Record<string, number> = {
 
 const panelMap: Record<string, () => React.ReactElement> = {
   files: ExplorerPanel,
+  'new-task': NewTaskSidePanel,
   search: SearchPanel,
   skills: SkillsSidePanel,
-  bots: BotsPanel,
+  bots: BotsSidePanel,
 };
 
 export default function SidePanel() {

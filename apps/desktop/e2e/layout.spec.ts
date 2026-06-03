@@ -33,8 +33,27 @@ test.describe('布局 shell', () => {
     await expect(page.getByPlaceholder('搜索文件名或内容…')).toBeVisible();
   });
 
-  test('技能面板可打开', async ({ page }) => {
+  test('技能与外接渠道面板可打开', async ({ page }) => {
     await page.getByRole('button', { name: '技能' }).click();
     await expect(page.getByText('技能管理')).toBeVisible();
+
+    await page.getByRole('button', { name: 'AI 助手' }).click();
+    await expect(page.getByText('外接渠道')).toBeVisible();
+    await expect(page.getByText('企业微信')).toBeVisible();
+  });
+
+  test('新建任务面板可打开', async ({ page }) => {
+    await page.getByRole('button', { name: '新建任务' }).click();
+    await expect(page.getByText('会话列表')).toBeVisible();
+    await expect(page.getByRole('button', { name: '新建会话' })).toBeVisible();
+  });
+
+  test('⌘B 可切换侧栏展开/收起', async ({ page }) => {
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await expect(page.getByText('资源管理器').first()).toBeVisible();
+    await page.keyboard.press(`${mod}+KeyB`);
+    await expect(page.getByText('资源管理器').first()).toBeHidden();
+    await page.keyboard.press(`${mod}+KeyB`);
+    await expect(page.getByText('资源管理器').first()).toBeVisible();
   });
 });
