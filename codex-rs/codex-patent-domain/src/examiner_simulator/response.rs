@@ -82,7 +82,7 @@ impl ExaminerSimulator {
     pub(crate) fn generate_rebuttal(
         argument_analysis: &Value,
         _prior_art_analysis: &Value,
-        strategy: &str,
+        strategy: &'static str,
     ) -> Rebuttal {
         let mut rebuttal_points = Vec::new();
         if let Some(points) = argument_analysis

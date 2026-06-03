@@ -422,6 +422,7 @@ impl ArgumentationDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn detect_inventiveness_rejection() {
