@@ -18,13 +18,19 @@ impl ExaminerSimulator {
         let rebuttal =
             Self::generate_rebuttal(&argument_analysis, prior_art_analysis, response_strategy);
 
-        json!({
-            "roundNumber": round_number,
-            "responseStrategy": response_strategy,
-            "rebuttal": rebuttal,
-            "applicantPointsAddressed": argument_analysis.get("keyPoints").cloned(),
-            "integrationMode": "rust_rule_layer"
-        })
+        let key_points: Option<Vec<String>> = argument_analysis
+            .get("keyPoints")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+
+        let output = RespondOutput {
+            round_number,
+            response_strategy,
+            rebuttal,
+            applicant_points_addressed: key_points,
+            integration_mode: "rust_rule_layer",
+        };
+        serde_json::to_value(output).unwrap()
     }
 
     pub(crate) fn analyze_applicant_argument(argument: &str) -> Value {
@@ -77,7 +83,7 @@ impl ExaminerSimulator {
         argument_analysis: &Value,
         _prior_art_analysis: &Value,
         strategy: &str,
-    ) -> Value {
+    ) -> Rebuttal {
         let mut rebuttal_points = Vec::new();
         if let Some(points) = argument_analysis
             .get("keyPoints")
@@ -97,7 +103,7 @@ impl ExaminerSimulator {
                     }
                     _ => continue,
                 };
-                rebuttal_points.push(text);
+                rebuttal_points.push(text.to_string());
             }
         }
 
@@ -120,12 +126,12 @@ impl ExaminerSimulator {
             vec![]
         };
 
-        json!({
-            "rebuttalPoints": rebuttal_points,
-            "remainingConcerns": remaining_concerns,
-            "suggestions": suggestions,
-            "tone": strategy
-        })
+        Rebuttal {
+            rebuttal_points,
+            remaining_concerns,
+            suggestions,
+            tone: strategy,
+        }
     }
 }
 

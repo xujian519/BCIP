@@ -2,7 +2,6 @@
 
 use serde_json::Map;
 use serde_json::Value;
-use serde_json::json;
 use strsim::jaro;
 
 use codex_patent_core::RejectionType;
@@ -65,19 +64,20 @@ impl ExaminerSimulator {
         self.rejection_type = Self::detect_rejection_type(oa_text);
         self.current_strategy = Self::select_strategy(prior_art_analysis);
 
-        let objections: Vec<Value> = claims
+        let objections: Vec<ClaimObjection> = claims
             .iter()
             .enumerate()
             .map(|(i, claim)| self.generate_claim_objection(i + 1, claim, prior_art_analysis))
             .collect();
 
-        json!({
-            "rejectionType": rejection_type_as_str(&self.rejection_type),
-            "strategy": self.current_strategy.as_str(),
-            "objections": objections,
-            "overallConclusion": Self::overall_conclusion(self.rejection_type),
-            "integrationMode": "rust_rule_layer"
-        })
+        let output = SimulateReviewOutput {
+            rejection_type: rejection_type_as_str(&self.rejection_type),
+            strategy: self.current_strategy.as_str(),
+            objections,
+            overall_conclusion: Self::overall_conclusion(self.rejection_type),
+            integration_mode: "rust_rule_layer",
+        };
+        serde_json::to_value(output).unwrap()
     }
 
     pub(crate) fn select_strategy(prior_art_analysis: &Value) -> ArgumentationStrategy {
@@ -102,7 +102,7 @@ impl ExaminerSimulator {
         claim_number: usize,
         claim_text: &str,
         prior_art_analysis: &Value,
-    ) -> Value {
+    ) -> ClaimObjection {
         let features = Self::extract_features_from_claim(claim_text);
         let feature_objections: Vec<String> = features
             .iter()
@@ -128,12 +128,12 @@ impl ExaminerSimulator {
             claim_text.to_string()
         };
 
-        json!({
-            "claimNumber": claim_number,
-            "claimText": preview,
-            "featureObjections": feature_objections,
-            "conclusion": conclusion
-        })
+        ClaimObjection {
+            claim_number,
+            claim_text: preview,
+            feature_objections,
+            conclusion,
+        }
     }
 
     fn disclosure_objection(feature: &str, info: Option<&Map<String, Value>>) -> String {
