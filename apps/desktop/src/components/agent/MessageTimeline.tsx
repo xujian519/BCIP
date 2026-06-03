@@ -7,12 +7,88 @@ import {
   compactTimelineMessages,
   groupIntoTurns,
 } from '@/lib/compactTimelineMessages';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Sparkles, MessageSquare, Zap } from 'lucide-react';
 import UserBubble from './UserBubble';
 import AgentBlock from './AgentBlock';
 import PlanMessageBlock from './PlanMessageBlock';
 import SystemNotice from './SystemNotice';
 import type { Message } from '@/types';
+
+const quickStarts = [
+  { label: '帮我分析这份专利文件', icon: MessageSquare },
+  { label: '搜索相关技术方案', icon: Sparkles },
+  { label: '/draft 起草专利文稿', icon: Zap },
+];
+
+function EmptyConversation() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(t);
+  }, []);
+
+  return (
+    <div
+      className={cn(
+        'flex flex-1 flex-col items-center justify-center gap-4 px-4',
+        'transition-all duration-500',
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
+      )}
+      style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+    >
+      {/* 品牌图标 */}
+      <div
+        className={cn(
+          'relative flex h-14 w-14 items-center justify-center rounded-2xl',
+          'bg-[var(--bg-elevated)] border border-[var(--border-default)]',
+          'shadow-sm',
+        )}
+      >
+        <Sparkles size={24} className="text-[var(--accent-primary)]" />
+        <div
+          className="absolute inset-0 rounded-2xl"
+          style={{ boxShadow: '0 0 24px rgba(74, 124, 111, 0.08)' }}
+        />
+      </div>
+
+      {/* 标题 */}
+      <div className="flex flex-col items-center gap-1.5">
+        <p className="text-sm font-semibold text-[var(--text-primary)]">开始新对话</p>
+        <p className="max-w-[200px] text-center text-2xs text-[var(--text-tertiary)] leading-relaxed">
+          输入消息或使用 / 命令开始与云熙智能助手对话
+        </p>
+      </div>
+
+      {/* 快捷操作 */}
+      <div className="flex flex-col gap-1.5 w-full max-w-[240px]">
+        {quickStarts.map((item, i) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={item.label}
+              className={cn(
+                'flex items-center gap-2 rounded-lg px-3 py-2',
+                'bg-[var(--bg-elevated)] border border-[var(--border-default)]',
+                'text-xs text-[var(--text-secondary)]',
+                'transition-all duration-300',
+              )}
+              style={{
+                transitionDelay: `${300 + i * 80}ms`,
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateY(0)' : 'translateY(4px)',
+                transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+            >
+              <Icon size={13} className="text-[var(--text-tertiary)] shrink-0" />
+              <span className="truncate">{item.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface MessageTimelineProps {
   messages: Message[];
@@ -114,15 +190,7 @@ export default function MessageTimeline({
       }}
     >
       {displayMessages.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-tertiary)] message-enter">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-default)] shadow-sm">
-            <span className="text-xl">💬</span>
-          </div>
-          <p className="text-sm text-[var(--text-secondary)] font-medium">开始一个新的对话</p>
-          <p className="max-w-[220px] text-center text-2xs leading-relaxed">
-            输入消息开始与云熙智能助手对话
-          </p>
-        </div>
+        <EmptyConversation />
       ) : (
         turns.map((turn, turnIndex) => (
           <div

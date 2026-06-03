@@ -81,4 +81,6 @@ pub(crate) struct SessionServices {
     /// Shared process-level environment registry. Sessions carry an `Arc` handle so they can pass
     /// the same manager through child-thread spawn paths without reconstructing it.
     pub(crate) environment_manager: Arc<EnvironmentManager>,
+    /// AgentBus for cross-agent messaging.
+    pub(crate) agent_bus: Arc<crate::agent::AgentBus>,
 }

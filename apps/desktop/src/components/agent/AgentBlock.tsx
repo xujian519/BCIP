@@ -33,9 +33,9 @@ function formatContent(content: string, isStreaming: boolean) {
           <div key={index} className="my-2 relative group">
             {lang && (
               <div
-                className="absolute top-0 right-0 font-mono text-2xs text-[var(--text-secondary)]
-                           bg-[var(--bg-elevated)] border border-[var(--border-default)]
-                           rounded-bl-lg px-2 py-0.5 z-10 opacity-80 group-hover:opacity-100 transition-opacity"
+                className="absolute top-0 right-0 font-mono text-2xs text-[var(--text-tertiary)]
+                           bg-[var(--bg-elevated)] border-b border-l border-[var(--border-default)]
+                           rounded-bl-lg px-2 py-0.5 z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-200"
               >
                 {lang}
               </div>
@@ -44,7 +44,7 @@ function formatContent(content: string, isStreaming: boolean) {
               className={cn(
                 'overflow-x-auto rounded-xl border border-[var(--border-default)]',
                 'bg-[var(--bg-surface)] p-3 pt-6 font-mono text-xs text-[var(--text-primary)]',
-                'shadow-sm',
+                'shadow-sm hover:shadow-md transition-shadow duration-200',
               )}
             >
               <code>{code}</code>
@@ -139,8 +139,8 @@ export default function AgentBlock({
     <div
       className={cn(
         'w-full',
-        'transition-all duration-200',
-        visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
+        'transition-all duration-250',
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0',
       )}
       style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
     >

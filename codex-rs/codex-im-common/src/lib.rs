@@ -1,9 +1,13 @@
+pub mod crypto;
 pub mod dedup;
 pub mod format;
 pub mod pairing;
 pub mod permission;
 pub mod queue;
+pub mod webhook;
 
+pub use crypto::CryptoError;
+pub use crypto::EncryptionKey;
 pub use dedup::MessageDedup;
 pub use format::Channel;
 pub use format::tool_name_label;
@@ -14,3 +18,6 @@ pub use pairing::PairingManager;
 pub use permission::PermissionCommand;
 pub use permission::parse_permission_command;
 pub use queue::ChatQueue;
+pub use webhook::WebhookReceiver;
+pub use webhook::WebhookResult;
+pub use webhook::WebhookVerifier;

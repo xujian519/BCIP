@@ -155,15 +155,15 @@ function SlashCommandPalette({ query, onSelect, onClose }: SlashCommandPalettePr
       ref={listRef}
       className={cn(
         'absolute bottom-full left-0 right-0 mb-2',
-        'bg-[var(--bg-elevated)] rounded-lg',
+        'bg-[var(--bg-elevated)] rounded-xl',
         'border border-[var(--border-default)]',
-        'shadow-lg',
+        'shadow-[var(--shadow-floating)]',
         'max-h-[280px] overflow-y-auto',
         'z-50',
-        'animate-slide-up'
+        'overflow-hidden',
       )}
       style={{
-        animation: 'slideUp 150ms ease-out',
+        animation: 'message-enter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
       }}
     >
       <div className="py-1">
@@ -174,14 +174,28 @@ function SlashCommandPalette({ query, onSelect, onClose }: SlashCommandPalettePr
             onClick={() => onSelect(cmd)}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2',
-              'text-left transition-colors duration-fast',
+              'text-left transition-all duration-150',
               index === selectedIndex
-                ? 'bg-[var(--bg-hover)]'
-                : 'hover:bg-[var(--bg-hover)]',
-              'cursor-pointer'
+                ? 'bg-[var(--bg-active)] text-[var(--text-primary)]'
+                : 'hover:bg-[var(--bg-hover)] text-[var(--text-primary)]',
+              'cursor-pointer',
             )}
           >
-            <span className="text-[var(--text-secondary)] shrink-0">{cmd.icon}</span>
+            <span
+              className={cn(
+                'shrink-0 flex items-center justify-center w-6 h-6 rounded-md',
+                'bg-[var(--bg-hover)]',
+                index === selectedIndex && 'bg-[var(--accent-primary-muted)]',
+                'transition-colors duration-150',
+              )}
+            >
+              <span className={cn(
+                'text-[var(--text-tertiary)] transition-colors duration-150',
+                index === selectedIndex && 'text-[var(--accent-primary)]',
+              )}>
+                {cmd.icon}
+              </span>
+            </span>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium text-[var(--text-primary)]">
                 {cmd.name}
@@ -452,13 +466,13 @@ export default function Composer({
             disabled={!hasContent || disabled}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-full',
-              'transition-all duration-150',
+              'transition-all duration-200',
               hasContent && !disabled
-                ? 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)]'
+                ? 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)] hover:shadow-md active:scale-90'
                 : 'bg-[var(--border-default)] text-[var(--text-tertiary)]',
               'disabled:cursor-not-allowed',
-              'active:scale-95'
             )}
+            style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
           >
             <ArrowUp size={14} />
           </button>

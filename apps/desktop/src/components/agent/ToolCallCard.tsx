@@ -228,7 +228,11 @@ export default function ToolCallCard({
           </div>
         </button>
         {hasBody && isExpanded && (
-          <div className="ml-4 border-l border-[var(--border-default)] py-1 pl-2">
+          <div className="ml-4 border-l border-[var(--border-default)] py-1 pl-2"
+            style={{
+              animation: 'message-enter 0.15s ease-out forwards',
+            }}
+          >
             {toolCall.kind === 'patch' && toolCall.detail && (
               <DetailPre className="whitespace-pre-wrap break-all">
                 {toolCall.detail}

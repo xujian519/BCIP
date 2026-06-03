@@ -100,8 +100,9 @@ function ConnectionChip({
       <span
         className={cn(
           'h-1.5 w-1.5 rounded-full shrink-0',
+          'transition-colors duration-300',
           config.dotColor,
-          isConnecting && 'animate-pulse'
+          isConnecting && 'animate-pulse',
         )}
       />
 
@@ -171,8 +172,15 @@ function UsageMeter({
       <div className="h-1.5 w-[60px] rounded-full bg-[var(--bg-hover)] overflow-hidden">
         {/* 已用部分 */}
         <div
-          className={cn('h-full rounded-full transition-all duration-normal', fillColorClass)}
-          style={{ width: `${percentage}%` }}
+          className={cn(
+            'h-full rounded-full',
+            'transition-all duration-300',
+            fillColorClass,
+          )}
+          style={{
+            width: `${percentage}%`,
+            transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         />
       </div>
 
@@ -287,7 +295,12 @@ function StatusBarActions({
         )}
         title={isDark ? '切换到浅色模式' : '切换到深色模式'}
       >
-        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        <div
+          className="transition-transform duration-300"
+          style={{ transform: isDark ? 'rotate(0deg)' : 'rotate(360deg)' }}
+        >
+          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        </div>
       </button>
     </div>
   );

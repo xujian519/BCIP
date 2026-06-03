@@ -69,8 +69,8 @@ export default function UserBubble({
     <div
       className={cn(
         'flex w-full justify-end',
-        'transition-all duration-200',
-        visible ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0',
+        'transition-all duration-250',
+        visible ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0',
       )}
       style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
     >
@@ -78,8 +78,11 @@ export default function UserBubble({
         className={cn(
           'max-w-[85%] text-sm leading-normal text-[var(--text-primary)]',
           'bg-[var(--accent-primary-muted)]',
-          'rounded-[18px_6px_18px_18px]',
+          'rounded-2xl rounded-br-md',
           'shadow-sm',
+          'border border-[var(--accent-primary-muted)]',
+          'hover:shadow-md',
+          'transition-shadow duration-200',
         )}
         style={{
           padding: 'var(--chat-bubble-py) var(--chat-bubble-px)',
@@ -88,7 +91,7 @@ export default function UserBubble({
         <div className="flex flex-wrap items-end justify-end gap-x-2 gap-y-0.5">
           <div className="min-w-0 flex-1 text-right">{formatContent(content)}</div>
           {timestamp && (
-            <span className="shrink-0 text-[10px] text-[var(--text-tertiary)] opacity-60">
+            <span className="shrink-0 text-[10px] text-[var(--text-tertiary)] opacity-50">
               {timestamp}
             </span>
           )}

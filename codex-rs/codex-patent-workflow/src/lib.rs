@@ -1,5 +1,6 @@
 pub mod agent_bridge;
 pub mod checkpoint;
+pub mod collaboration;
 pub mod config;
 pub mod flow;
 pub mod graph;

@@ -1031,7 +1031,11 @@ impl Session {
                 ),
                 code_mode_service: crate::tools::code_mode::CodeModeService::new(),
                 environment_manager,
+                agent_bus: Arc::new(crate::agent::AgentBus::default_config()),
             };
+            services
+                .agent_control
+                .set_agent_bus(Arc::clone(&services.agent_bus));
             services
                 .model_client
                 .set_window_generation(window_generation);

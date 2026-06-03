@@ -450,6 +450,60 @@
   .subtle-pulse {
     animation: subtle-pulse 2s ease-in-out infinite;
   }
+
+  /* Smooth panel collapse/expand */
+  .panel-slide-in {
+    animation: panel-slide-in 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes panel-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Smooth fade-scale for overlays */
+  .fade-scale-in {
+    animation: fade-scale-in 0.15s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes fade-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Smooth cursor blink for streaming */
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .animate-cursor-blink {
+    animation: cursor-blink 1s step-end infinite;
+  }
+
+  /* Uniform button micro-feedback */
+  .micro-press:active {
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
+  }
+
+  /* Subtle gradient accent for brand elements */
+  .brand-glow {
+    box-shadow: 0 0 0 1px rgba(74, 124, 111, 0.1),
+                0 0 16px rgba(74, 124, 111, 0.06);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

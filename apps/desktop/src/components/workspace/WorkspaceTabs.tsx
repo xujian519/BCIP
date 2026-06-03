@@ -187,6 +187,7 @@ const WorkspaceTabs: FC<WorkspaceTabsProps> = ({
     height: 36,
     backgroundColor: 'var(--bg-elevated)',
     borderBottom: '1px solid var(--border-primary)',
+    userSelect: 'none' as const,
   } as const;
 
   if (tabs.length === 0 && !dragging) {
@@ -241,11 +242,13 @@ const WorkspaceTabs: FC<WorkspaceTabsProps> = ({
               onDrop={(event) => handleTabDrop(event, index)}
               className={cn(
                 'group flex shrink-0 cursor-grab select-none items-center gap-1.5 active:cursor-grabbing',
+                'transition-colors duration-150',
               )}
               style={{
                 padding: '0 12px',
                 height: 36,
                 fontSize: 12,
+                fontWeight: isActive ? 500 : 400,
                 color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
                 backgroundColor: isActive ? 'var(--bg-surface)' : 'transparent',
                 borderRight: '1px solid var(--border-primary)',
@@ -268,7 +271,12 @@ const WorkspaceTabs: FC<WorkspaceTabsProps> = ({
                   event.stopPropagation();
                   onClose(tab.id);
                 }}
-                className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-[var(--bg-hover)] group-hover:opacity-100"
+                className={cn(
+                  'shrink-0 rounded-md p-0.5 opacity-0',
+                  'transition-all duration-150',
+                  'hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+                  'group-hover:opacity-100',
+                )}
                 style={{ color: 'var(--text-tertiary)' }}
                 type="button"
                 aria-label={`关闭 ${tab.title}`}

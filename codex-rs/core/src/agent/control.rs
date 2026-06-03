@@ -160,6 +160,7 @@ pub(crate) struct AgentControl {
     /// `ThreadManagerState -> CodexThread -> Session -> SessionServices -> ThreadManagerState`.
     manager: Weak<ThreadManagerState>,
     state: Arc<AgentRegistry>,
+    agent_bus: Arc<std::sync::Mutex<Option<Arc<crate::agent::AgentBus>>>>,
 }
 
 impl AgentControl {
@@ -178,6 +179,28 @@ impl AgentControl {
 
     pub(crate) fn session_id(&self) -> SessionId {
         self.session_id
+    }
+
+    pub(crate) fn set_agent_bus(&self, bus: Arc<crate::agent::AgentBus>) {
+        if let Ok(mut guard) = self.agent_bus.lock() {
+            *guard = Some(bus);
+        }
+    }
+
+    fn publish_bus_event(&self, topic: &str, payload: serde_json::Value) {
+        if let Ok(guard) = self.agent_bus.lock() {
+            if let Some(ref bus) = *guard {
+                let _ = bus.publish(AgentPath::root(), topic, payload);
+            }
+        }
+    }
+
+    fn send_bus_message(&self, msg: codex_protocol::agent_bus::AgentBusMessage) {
+        if let Ok(guard) = self.agent_bus.lock() {
+            if let Some(ref bus) = *guard {
+                let _ = bus.send(msg);
+            }
+        }
     }
 
     /// Spawn a new agent thread and submit the initial prompt.
@@ -326,6 +349,15 @@ impl AgentControl {
         // to subscribe or drain this newly created thread.
         // TODO(jif) add helper for drain
         state.notify_thread_created(new_thread.thread_id);
+
+        self.publish_bus_event(
+            "agent.lifecycle.spawned",
+            serde_json::json!({
+                "thread_id": new_thread.thread_id.to_string(),
+                "agent_path": agent_metadata.agent_path.as_ref().map(|p| p.as_str()),
+                "role": agent_metadata.agent_path.as_ref().map(|p| p.name().to_string()),
+            }),
+        );
 
         self.persist_thread_spawn_edge_for_source(
             new_thread.thread.as_ref(),
@@ -722,6 +754,7 @@ impl AgentControl {
         communication: InterAgentCommunication,
     ) -> CodexResult<String> {
         let last_task_message = communication.content.clone();
+        let bus_comm = communication.clone();
         let state = self.upgrade()?;
         let result = self
             .handle_thread_request_result(
@@ -735,6 +768,8 @@ impl AgentControl {
         if result.is_ok() {
             self.state
                 .update_last_task_message(agent_id, last_task_message);
+            let msg = codex_protocol::agent_bus::AgentBusMessage::from_inter_agent_comm(&bus_comm);
+            self.send_bus_message(msg);
         }
         result
     }
@@ -1020,6 +1055,14 @@ impl AgentControl {
             if !is_final(&status) {
                 return;
             }
+
+            control.publish_bus_event(
+                "agent.lifecycle.completed",
+                serde_json::json!({
+                    "thread_id": child_thread_id.to_string(),
+                    "status": format!("{status:?}"),
+                }),
+            );
 
             let Ok(state) = control.upgrade() else {
                 return;
