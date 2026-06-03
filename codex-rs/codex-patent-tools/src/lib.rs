@@ -16,6 +16,7 @@ pub mod search_tools;
 pub mod simulator_tools;
 pub mod web_search_tools;
 
+pub use document_tools::register_document_tools;
 pub use search_tools::register_search_tools;
 
 use std::collections::HashMap;

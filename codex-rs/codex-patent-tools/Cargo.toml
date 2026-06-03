@@ -18,6 +18,10 @@ thiserror = "2"
 reqwest = { version = "0.12", features = ["json"], default-features = false }
 tokio = { version = "1", features = ["rt", "macros", "process", "io-util", "fs"] }
 regex = "1"
+base64 = { workspace = true }
+
+# LiteParse: PDF 解析引擎（通过 feature gate 启用）
+liteparse = { path = "../../../../Downloads/liteparse-docker-v2.0.5/crates/liteparse", default-features = false, optional = true }
 
 [features]
 default = []
@@ -27,3 +31,4 @@ review-tools = []
 drafting-tools = []
 management-tools = []
 evaluation-tools = []
+document-pdf = ["liteparse"]
