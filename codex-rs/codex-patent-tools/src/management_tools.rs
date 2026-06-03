@@ -95,3 +95,46 @@ impl ManagementTools {
         Ok(serde_json::json!({"process_type": process_type, "mermaid": chart}))
     }
 }
+
+pub fn register_management_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("PatentManager".into(), |input| {
+        Box::pin(async move {
+            let action = input
+                .get("action")
+                .and_then(|v| v.as_str())
+                .unwrap_or("list");
+            ManagementTools::patent_manager(PatentManageInput {
+                action: action.into(),
+                patent_id: None,
+                data: None,
+            })
+        })
+    });
+    t.insert("TemplateManager".into(), |input| {
+        Box::pin(async move {
+            let ttype = input
+                .get("template_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("patent_application");
+            ManagementTools::template_library(ttype)
+        })
+    });
+    t.insert("ProcessChart".into(), |input| {
+        Box::pin(async move {
+            let ptype = input
+                .get("process_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("application");
+            ManagementTools::process_chart(ptype)
+        })
+    });
+    t.insert("TrademarkAnalysis".into(), |input| {
+        Box::pin(async move {
+            let mark = input.get("mark").and_then(|v| v.as_str()).unwrap_or("");
+            ManagementTools::trademark_analysis(mark)
+        })
+    });
+    t
+}

@@ -563,3 +563,60 @@ mod tests {
         assert_eq!(result["found"], true);
     }
 }
+
+pub fn register_simulator_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("ExaminerSimulate".into(), |input| {
+        Box::pin(async move {
+            let parsed: ExaminerSimulateInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::examiner_simulate(parsed)
+        })
+    });
+    t.insert("ExaminerRespond".into(), |input| {
+        Box::pin(async move {
+            let parsed: ExaminerRespondInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::examiner_respond(parsed)
+        })
+    });
+    t.insert("ResponseEvaluate".into(), |input| {
+        Box::pin(async move {
+            let parsed: ResponseEvaluateInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::response_evaluate(parsed)
+        })
+    });
+    t.insert("RuleAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: RuleAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::rule_analysis(parsed)
+        })
+    });
+    t.insert("OaFeedbackRecord".into(), |input| {
+        Box::pin(async move {
+            let parsed: FeedbackRecordInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::feedback_record(parsed)
+        })
+    });
+    t.insert("OaPatternExtract".into(), |input| {
+        Box::pin(async move {
+            let parsed: PatternExtractInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            SimulatorTools::pattern_extract(parsed)
+        })
+    });
+    t.insert("ScenarioDispatch".into(), |input| {
+        Box::pin(async move {
+            let task_type = input
+                .get("task_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            ScenarioDispatchTools::dispatch(task_type)
+        })
+    });
+    t
+}

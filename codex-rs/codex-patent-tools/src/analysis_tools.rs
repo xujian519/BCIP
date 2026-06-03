@@ -169,3 +169,147 @@ impl AnalysisTools {
         serde_json::to_value(search.search(&config)).map_err(|e| format!("{e}"))
     }
 }
+
+pub fn register_analysis_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("ClaimParse".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimParseInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::claim_parse(parsed)
+        })
+    });
+    t.insert("ClaimCompare".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimCompareInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::claim_compare(parsed)
+        })
+    });
+    t.insert("NoveltyAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: NoveltyAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::novelty_analysis(parsed)
+        })
+    });
+    t.insert("InventivenessAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: InventivenessAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::inventiveness_analysis(parsed)
+        })
+    });
+    t.insert("InfringementAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: InfringementAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::infringement_analysis(parsed)
+        })
+    });
+    t.insert("InnovationEvaluator".into(), |input| {
+        Box::pin(async move {
+            let invention = input
+                .get("invention_description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let effect = input.get("technical_effect").and_then(|v| v.as_str());
+            let improvement = input
+                .get("performance_improvement")
+                .and_then(|v| v.as_f64());
+            let obvious = input.get("obviousness").and_then(|v| v.as_bool());
+            super::drafting_tools::DraftingTools::innovation_evaluator(
+                invention.into(),
+                effect.map(|s| s.to_string()),
+                improvement,
+                obvious,
+            )
+        })
+    });
+    t.insert("SemanticCompare".into(), |input| {
+        Box::pin(async move {
+            let parsed: super::advanced_analysis::SemanticCompareInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            super::advanced_analysis::AdvancedAnalysisTools::semantic_compare(parsed)
+        })
+    });
+    t.insert("TechTripleExtractor".into(), |input| {
+        Box::pin(async move {
+            let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            use codex_patent_domain::disclosure::FeatureExtractor;
+            let features = FeatureExtractor::extract_features(text, None);
+            let pfe =
+                FeatureExtractor::extract_problem_feature_effects(text, None, Some(&features));
+            serde_json::to_value(&pfe).map_err(|e| format!("{e}"))
+        })
+    });
+    t.insert("FeatureExtractor".into(), |input| {
+        Box::pin(async move {
+            let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            use codex_patent_domain::disclosure::FeatureExtractor;
+            let features = FeatureExtractor::extract_features(text, None);
+            serde_json::to_value(&features).map_err(|e| format!("{e}"))
+        })
+    });
+    t.insert("PatentInfringement".into(), |input| {
+        Box::pin(async move {
+            let parsed: InfringementAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            AnalysisTools::infringement_analysis(parsed)
+        })
+    });
+    t.insert("PatentCompareTool".into(), |input| {
+        Box::pin(async move {
+            let target = input.get("target").and_then(|v| v.as_str()).unwrap_or("");
+            let prior = input
+                .get("prior_art")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let sim = codex_patent_text::text_similarity(target, prior);
+            Ok(serde_json::json!({"similarity": sim, "has_differences": sim < 0.9}))
+        })
+    });
+    t.insert("InventionUnderstanding".into(), |input| Box::pin(async move {
+        let title = input.get("invention_title").and_then(|v| v.as_str()).unwrap_or("");
+        let field = input.get("technical_field").and_then(|v| v.as_str()).unwrap_or("");
+        let disclosure = input.get("technical_disclosure").and_then(|v| v.as_str()).unwrap_or("");
+        use codex_patent_domain::disclosure::DisclosureParser;
+        let doc = DisclosureParser::parse(disclosure);
+        Ok(serde_json::json!({"title": title, "field": field, "sections_found": doc.sections.len(), "confidence": doc.confidence}))
+    }));
+    t.insert("TechUnit".into(), |input| Box::pin(async move {
+        let text = input.get("claim_text").and_then(|v| v.as_str()).unwrap_or("");
+        let tokens = codex_patent_text::tokenize(text);
+        let keywords = codex_patent_text::extract_keywords(text, 5);
+        let ipc = codex_patent_text::IpcClassifier::new().classify(text);
+        Ok(serde_json::json!({"token_count": tokens.len(), "keywords": keywords, "ipc_suggestions": ipc}))
+    }));
+    t.insert("Researcher".into(), |input| Box::pin(async move {
+        let query = input.get("query").and_then(|v| v.as_str()).unwrap_or("");
+        let depth = input.get("depth").and_then(|v| v.as_u64()).unwrap_or(2);
+        Ok(serde_json::json!({"query": query, "depth": depth, "note": "技术调研结果将基于知识库和网络搜索综合生成"}))
+    }));
+    t.insert("SynergyAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: super::advanced_analysis::SynergyAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            super::advanced_analysis::AdvancedAnalysisTools::synergy_analysis(parsed)
+        })
+    });
+    t.insert("HighCitationSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: super::advanced_analysis::HighCitationInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            super::advanced_analysis::AdvancedAnalysisTools::high_citation_patents(parsed)
+        })
+    });
+    t.insert("SuccessPredictor".into(), |input| {
+        Box::pin(async move {
+            let parsed: super::advanced_analysis::SuccessPredictorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            super::advanced_analysis::AdvancedAnalysisTools::success_predictor(parsed)
+        })
+    });
+    t
+}

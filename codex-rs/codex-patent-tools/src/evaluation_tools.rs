@@ -82,3 +82,68 @@ impl EvaluationTools {
         Ok(serde_json::json!({"total_score": total, "dimensions": scores}))
     }
 }
+
+pub fn register_evaluation_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("ActionReview".into(), |input| {
+        Box::pin(async move {
+            let action = input.get("action").and_then(|v| v.as_str()).unwrap_or("");
+            let expected = input.get("expected").and_then(|v| v.as_str()).unwrap_or("");
+            let actual = input.get("actual").and_then(|v| v.as_str()).unwrap_or("");
+            EvaluationTools::action_review(action, expected, actual)
+        })
+    });
+    t.insert("LlmReflection".into(), |input| {
+        Box::pin(async move {
+            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
+            let criteria = input
+                .get("criteria")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+                .unwrap_or_default();
+            EvaluationTools::llm_reflection(output, &criteria)
+        })
+    });
+    t.insert("FaithfulnessEval".into(), |input| {
+        Box::pin(async move {
+            let source = input.get("source").and_then(|v| v.as_str()).unwrap_or("");
+            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
+            EvaluationTools::faithfulness_eval(source, output)
+        })
+    });
+    t.insert("SelfConsistencyEval".into(), |input| {
+        Box::pin(async move {
+            let results = input
+                .get("results")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            EvaluationTools::self_consistency_eval(&results)
+        })
+    });
+    t.insert("GEval".into(), |input| {
+        Box::pin(async move {
+            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
+            let rubric = input
+                .get("rubric")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| {
+                            let name = v.get("name")?.as_str()?;
+                            let weight = v.get("weight")?.as_f64()?;
+                            Some((name, weight))
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            EvaluationTools::g_eval(output, &rubric)
+        })
+    });
+    t
+}

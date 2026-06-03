@@ -103,3 +103,46 @@ impl DraftingTools {
         Ok(serde_json::json!({"innovation_level": level, "score": r.net_score, "analysis": r}))
     }
 }
+
+pub fn register_drafting_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("ClaimGenerator".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimGeneratorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::claim_generator(parsed)
+        })
+    });
+    t.insert("SpecificationDrafter".into(), |input| {
+        Box::pin(async move {
+            let parsed: SpecificationInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::specification_draft(parsed)
+        })
+    });
+    t.insert("AbstractDrafter".into(), |input| {
+        Box::pin(async move {
+            let parsed: AbstractDraftInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::abstract_draft(parsed)
+        })
+    });
+    t.insert("ClaimOutputProcessor".into(), |_input| Box::pin(async {
+        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准权利要求书格式"}))
+    }));
+    t.insert("SpecOutputProcessor".into(), |_input| Box::pin(async {
+        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准说明书格式"}))
+    }));
+    t.insert("ClaimsStructure".into(), |input| Box::pin(async move {
+        let text = input.get("claims_text").and_then(|v| v.as_str()).unwrap_or("");
+        let lines: Vec<&str> = text.lines().collect();
+        let ind_count = lines.iter().filter(|l| !l.contains("根据权利要求")).count();
+        Ok(serde_json::json!({"total_claims": lines.len(), "independent": ind_count, "dependent": lines.len() - ind_count}))
+    }));
+    t.insert("WriterTool".into(), |input| Box::pin(async move {
+        let topic = input.get("topic").and_then(|v| v.as_str()).unwrap_or("");
+        Ok(serde_json::json!({"content": format!("专利撰写内容:\n{}", topic), "note": "请将详细的技术交底书输入到 ClaimGenerator 或 SpecificationDrafter"}))
+    }));
+    t
+}

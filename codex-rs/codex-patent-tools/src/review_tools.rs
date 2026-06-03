@@ -156,3 +156,51 @@ impl ReviewTools {
         Ok(serde_json::json!({"template_type": input.template_type, "content": found}))
     }
 }
+
+pub fn register_review_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("FormalCheck".into(), |input| {
+        Box::pin(async move {
+            let parsed: FormalCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::formal_check(parsed)
+        })
+    });
+    t.insert("QualityAssess".into(), |input| {
+        Box::pin(async move {
+            let parsed: QualityAssessInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::quality_assess(parsed)
+        })
+    });
+    t.insert("SubjectMatterCheck".into(), |input| {
+        Box::pin(async move {
+            let parsed: SubjectMatterCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::subject_matter_check(parsed)
+        })
+    });
+    t.insert("UnityCheck".into(), |input| {
+        Box::pin(async move {
+            let parsed: UnityCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::unity_check(parsed)
+        })
+    });
+    t.insert("OaStrategy".into(), |input| {
+        Box::pin(async move {
+            let parsed: OaStrategyInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::oa_strategy(parsed)
+        })
+    });
+    t.insert("OaResponseTemplate".into(), |input| {
+        Box::pin(async move {
+            let parsed: OaResponseTemplateInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::response_template(parsed)
+        })
+    });
+    t
+}

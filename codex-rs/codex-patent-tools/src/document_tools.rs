@@ -157,3 +157,47 @@ impl DocumentTools {
         Ok(serde_json::json!({"template_name": name, "structure": rendered}))
     }
 }
+
+pub fn register_document_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("FormatConverter".into(), |input| {
+        Box::pin(async move {
+            let parsed: ConvertInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::format_converter(parsed)
+        })
+    });
+    t.insert("DocxTools".into(), |input| {
+        Box::pin(async move {
+            let parsed: DocxInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::docx_tools(parsed)
+        })
+    });
+    t.insert("PdfTools".into(), |input| {
+        Box::pin(async move {
+            let parsed: PdfInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::pdf_tools(parsed)
+        })
+    });
+    t.insert("OcrBridge".into(), |input| {
+        Box::pin(async move {
+            let parsed: OcrInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::ocr_bridge(parsed)
+        })
+    });
+    t.insert("MarkdownParser".into(), |input| {
+        Box::pin(async move {
+            let parsed: MarkdownInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::markdown_parser(parsed)
+        })
+    });
+    t.insert("TemplateLibrary".into(), |input| {
+        Box::pin(async move {
+            let parsed: TemplateInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::template_library(parsed)
+        })
+    });
+    t
+}

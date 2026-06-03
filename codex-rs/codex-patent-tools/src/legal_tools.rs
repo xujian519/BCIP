@@ -362,6 +362,167 @@ impl LegalTools {
     }
 }
 
+pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("LegalQA".into(), |input| {
+        Box::pin(async move {
+            let parsed: LegalQAInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::legal_qa(parsed)
+        })
+    });
+    t.insert("LegalKnowledgeSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: LegalKnowledgeInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::legal_knowledge_search(parsed)
+        })
+    });
+    t.insert("LegalBasisRefs".into(), |input| {
+        Box::pin(async move {
+            let parsed: LegalBasisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::legal_basis_refs(parsed)
+        })
+    });
+    t.insert("KnowledgeSearch".into(), |input| {
+        Box::pin(async move {
+            let query = input.get("query").and_then(|v| v.as_str()).unwrap_or("");
+            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+            let semantic = input
+                .get("semantic")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            LegalTools::knowledge_search(query, limit, semantic)
+        })
+    });
+    t.insert("GraphQuery".into(), |input| {
+        Box::pin(async move {
+            let start_id = input
+                .get("start_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let max_depth = input.get("max_depth").and_then(|v| v.as_u64()).unwrap_or(2) as usize;
+            let relations = input
+                .get("relation_filter")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                });
+            LegalTools::graph_query(&start_id, relations, max_depth)
+        })
+    });
+    t.insert("GraphNeighbors".into(), |input| {
+        Box::pin(async move {
+            let node_id = input.get("node_id").and_then(|v| v.as_str()).unwrap_or("");
+            LegalTools::graph_neighbors(node_id)
+        })
+    });
+    t.insert("IpcSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: IpcSearchInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::ipc_search(parsed)
+        })
+    });
+    t.insert("TriangleQuery".into(), |input| {
+        Box::pin(async move {
+            let parsed: TriangleQueryInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::triangle_query(parsed)
+        })
+    });
+    t.insert("DecisionSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: DecisionSearchInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::decision_search(parsed)
+        })
+    });
+    t.insert("LinkGraph".into(), |input| {
+        Box::pin(async move {
+            let keyword = input.get("keyword").and_then(|v| v.as_str()).unwrap_or("");
+            let link_root = input
+                .get("kb_root")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+                .unwrap_or_else(codex_patent_knowledge::paths::kb_root);
+            let graph =
+                codex_patent_knowledge::LinkGraph::build(&link_root).map_err(|e| e.to_string())?;
+            let links: Vec<serde_json::Value> = if keyword.is_empty() {
+                graph
+                    .all_links()
+                    .iter()
+                    .take(100)
+                    .map(|l| {
+                        serde_json::json!({
+                            "source": l.source_file,
+                            "target": l.target_file,
+                            "anchor": l.anchor,
+                        })
+                    })
+                    .collect()
+            } else {
+                graph
+                    .search_by_concept(keyword)
+                    .iter()
+                    .take(50)
+                    .map(|l| {
+                        serde_json::json!({
+                            "source": l.source_file,
+                            "target": l.target_file,
+                            "anchor": l.anchor,
+                        })
+                    })
+                    .collect()
+            };
+            Ok(serde_json::json!({
+                "total": graph.total_links(),
+                "links": links,
+            }))
+        })
+    });
+    t.insert("RefreshKnowledge".into(), |_input| {
+        Box::pin(async move {
+            let pipeline = codex_patent_knowledge::RefreshPipeline::new(
+                &codex_patent_knowledge::paths::kb_root(),
+                &format!(
+                    "{}/.kb-version.json",
+                    codex_patent_knowledge::paths::kb_root()
+                ),
+            );
+            pipeline.status_json()
+        })
+    });
+    t.insert("SearchEval".into(), |input| {
+        Box::pin(async move {
+            let semantic = input
+                .get("semantic")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let mode = if semantic {
+                codex_patent_knowledge::SearchMode::Hybrid
+            } else {
+                codex_patent_knowledge::SearchMode::KeywordEnhanced
+            };
+            let evaluator = codex_patent_knowledge::SearchEval::new(
+                Some(&codex_patent_knowledge::paths::kg_db_path()),
+                Some(&codex_patent_knowledge::paths::law_db_path()),
+                Some(&codex_patent_knowledge::paths::card_index_path()),
+                &codex_patent_knowledge::paths::eval_queries_path(),
+            )
+            .map_err(|e| e.to_string())?;
+            let results = evaluator.run(mode);
+            let summary = codex_patent_knowledge::SearchEval::summary(&results);
+            serde_json::to_value(&summary).map_err(|e| e.to_string())
+        })
+    });
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,9 +817,11 @@ mod tests {
         let result = LegalTools::legal_basis_refs(input).unwrap();
         let articles = result["related_articles"].as_array().unwrap();
         assert!(!articles.is_empty());
-        assert!(articles
-            .iter()
-            .any(|a| a["article"].as_str().unwrap().contains("22条第2款")));
+        assert!(
+            articles
+                .iter()
+                .any(|a| a["article"].as_str().unwrap().contains("22条第2款"))
+        );
     }
 
     #[test]
@@ -669,9 +832,11 @@ mod tests {
         };
         let result = LegalTools::legal_basis_refs(input).unwrap();
         let articles = result["related_articles"].as_array().unwrap();
-        assert!(articles
-            .iter()
-            .any(|a| a["article"].as_str().unwrap().contains("22条第3款")));
+        assert!(
+            articles
+                .iter()
+                .any(|a| a["article"].as_str().unwrap().contains("22条第3款"))
+        );
     }
 
     #[test]

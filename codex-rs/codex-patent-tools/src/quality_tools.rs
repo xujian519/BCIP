@@ -347,7 +347,10 @@ mod tests {
         };
         let result = QualityTools::subject_matter_checker(input).unwrap();
         // Should detect "智力活动" regex and lack of tech markers
-        assert!(!result["blocking_issues"].as_array().unwrap().is_empty() || !result["warnings"].as_array().unwrap().is_empty());
+        assert!(
+            !result["blocking_issues"].as_array().unwrap().is_empty()
+                || !result["warnings"].as_array().unwrap().is_empty()
+        );
     }
 
     #[test]
@@ -371,7 +374,11 @@ mod tests {
         };
         let result = QualityTools::subject_matter_checker(input).unwrap();
         let warns = result["warnings"].as_array().unwrap();
-        assert!(warns.iter().any(|w| w.as_str().unwrap().contains("医疗诊断")));
+        assert!(
+            warns
+                .iter()
+                .any(|w| w.as_str().unwrap().contains("医疗诊断"))
+        );
     }
 
     // --- unity_checker tests ---
@@ -406,10 +413,7 @@ mod tests {
     #[test]
     fn unity_claims_without_common_terms() {
         let input = UnityInput {
-            claims: vec![
-                "完全不同的XYZ描述".into(),
-                "毫无关联的ABC内容".into(),
-            ],
+            claims: vec!["完全不同的XYZ描述".into(), "毫无关联的ABC内容".into()],
             patent_type: None,
             invention_title: None,
         };
@@ -518,8 +522,16 @@ mod tests {
         let result = QualityTools::legal_language_checker(input).unwrap();
         assert_eq!(result["passed"], false);
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("世界领先")));
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("独一无二")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("世界领先"))
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("独一无二"))
+        );
     }
 
     // --- to_claim_draft test ---
@@ -554,4 +566,61 @@ mod tests {
         assert!(matches!(draft.claim_type, ClaimType::Dependent));
         assert_eq!(draft.transitional_phrase, "");
     }
+}
+
+pub fn register_quality_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("UnifiedQuality".into(), |input| {
+        Box::pin(async move {
+            let parsed: QualityCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::unified_quality(parsed)
+        })
+    });
+    t.insert("QualityChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: QualityCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::quality_checker(parsed)
+        })
+    });
+    t.insert("SubjectMatterChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: SubjectMatterInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::subject_matter_checker(parsed)
+        })
+    });
+    t.insert("UnityChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: UnityInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::unity_checker(parsed)
+        })
+    });
+    t.insert("SpecFormalityChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: SpecFormalityInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::spec_formality_checker(parsed)
+        })
+    });
+    t.insert("LegalLanguageChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: LegalLanguageInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::legal_language_checker(parsed)
+        })
+    });
+    t.insert("FormatRules".into(), |input| {
+        Box::pin(async move {
+            let content = input.get("content").and_then(|v| v.as_str()).unwrap_or("");
+            let doc_type = input
+                .get("doc_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("generic");
+            QualityTools::format_rules(content, doc_type)
+        })
+    });
+    t
 }
