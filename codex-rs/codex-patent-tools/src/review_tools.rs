@@ -219,6 +219,133 @@ impl ReviewTools {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    // ── formal_check ─────────────────────────────────────────────────────
+
+    #[test]
+    fn formal_check_clean_claims_pass() {
+        let input = FormalCheckInput {
+            claims: vec![
+                "一种装置，其特征在于，包括A。".into(),
+                "根据权利要求1所述的装置，其特征在于，还包括B。".into(),
+            ],
+            specification_sections: Some(vec![
+                "技术领域".into(),
+                "背景技术".into(),
+                "发明内容".into(),
+                "附图说明".into(),
+                "具体实施方式".into(),
+            ]),
+            invention_title: Some("一种测试装置".into()),
+        };
+        let result = ReviewTools::formal_check(input).unwrap();
+        assert_eq!(result["passed"], json!(true));
+        assert!(result["issues"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn formal_check_invalid_reference() {
+        let input = FormalCheckInput {
+            claims: vec![
+                "一种装置。".into(),
+                "根据权利要求99所述的装置。".into(),
+            ],
+            specification_sections: None,
+            invention_title: None,
+        };
+        let result = ReviewTools::formal_check(input).unwrap();
+        let issues = result["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("无效引用")));
+    }
+
+    #[test]
+    fn formal_check_missing_sections() {
+        let input = FormalCheckInput {
+            claims: vec!["一种装置。".into()],
+            specification_sections: Some(vec!["技术领域".into()]),
+            invention_title: None,
+        };
+        let result = ReviewTools::formal_check(input).unwrap();
+        let issues = result["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("背景技术")));
+    }
+
+    #[test]
+    fn formal_check_title_too_long() {
+        let long_title = "一种非常非常非常非常非常非常非常非常长的发明名称超过了二十五个字".into();
+        let input = FormalCheckInput {
+            claims: vec!["一种装置。".into()],
+            specification_sections: None,
+            invention_title: Some(long_title),
+        };
+        let result = ReviewTools::formal_check(input).unwrap();
+        let issues = result["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("发明名称过长")));
+    }
+
+    #[test]
+    fn formal_check_promotional_words() {
+        let input = FormalCheckInput {
+            claims: vec!["一种最佳装置。".into()],
+            specification_sections: None,
+            invention_title: None,
+        };
+        let result = ReviewTools::formal_check(input).unwrap();
+        let issues = result["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("禁止用词")));
+    }
+
+    // ── quality_assess ───────────────────────────────────────────────────
+
+    #[test]
+    fn quality_assess_empty_claims() {
+        let input = QualityAssessInput {
+            claims: vec![],
+            specification_word_count: 5000,
+        };
+        let result = ReviewTools::quality_assess(input).unwrap();
+        assert_eq!(result["overall_score"], json!(0.0));
+        assert_eq!(result["claim_count"], 0);
+    }
+
+    #[test]
+    fn quality_assess_good_claims() {
+        let input = QualityAssessInput {
+            claims: vec![
+                "一种装置，其特征在于包括组件A和组件B，所述组件A与组件B连接。".into(),
+                "根据权利要求1所述的装置，其特征在于组件A为电机。".into(),
+                "根据权利要求1所述的装置，其特征在于组件B为传感器。".into(),
+                "根据权利要求2所述的装置，其特征在于电机为步进电机。".into(),
+            ],
+            specification_word_count: 5000,
+        };
+        let result = ReviewTools::quality_assess(input).unwrap();
+        let score = result["overall_score"].as_f64().unwrap();
+        assert!(score > 0.5, "good claims should score above 0.5, got {score}");
+        assert_eq!(result["independent_claims"], 1);
+        assert_eq!(result["dependent_claims"], 3);
+    }
+
+    #[test]
+    fn quality_assess_no_independent_claims() {
+        let input = QualityAssessInput {
+            claims: vec![
+                "根据权利要求1所述的装置。".into(),
+                "根据权利要求2所述的装置。".into(),
+            ],
+            specification_word_count: 100,
+        };
+        let result = ReviewTools::quality_assess(input).unwrap();
+        let dep_score = result["dimensions"]["dependency_ratio_score"].as_f64().unwrap();
+        assert!(dep_score < 50.0, "no independent claims should score low, got {dep_score}");
+    }
+}
+
 pub fn register_review_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();

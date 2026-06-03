@@ -731,3 +731,122 @@ fn crc32(data: &[u8]) -> u32 {
     }
     !crc
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
+
+    #[test]
+    fn docx_tools_empty_markdown_error() {
+        let input = DocxInput {
+            markdown: "".into(),
+            output_path: None,
+            template: None,
+        };
+        assert!(DocumentTools::docx_tools(input).is_err());
+    }
+
+    #[test]
+    fn docx_tools_writes_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.docx");
+        let input = DocxInput {
+            markdown: "# 测试标题\n这是正文内容".into(),
+            output_path: Some(path.to_str().unwrap().into()),
+            template: None,
+        };
+        let result = DocumentTools::docx_tools(input).unwrap();
+        assert!(path.exists());
+        assert!(result["word_count"].as_u64().unwrap() > 0);
+        assert_eq!(result["paragraph_count"], 2);
+    }
+
+    #[test]
+    fn markdown_parser_returns_stats() {
+        let input = MarkdownInput {
+            text: "这是一段测试文本\n第二行内容".into(),
+            format_options: None,
+        };
+        let result = DocumentTools::markdown_parser(input).unwrap();
+        let stats = &result["stats"];
+        assert!(stats["chars"].as_u64().unwrap() > 0);
+        assert!(stats["lines"].as_u64().unwrap() >= 2);
+    }
+
+    #[test]
+    fn template_library_known_id() {
+        let input = TemplateInput {
+            template_id: "oa_response".into(),
+            variables: None,
+        };
+        let result = DocumentTools::template_library(input).unwrap();
+        assert_eq!(result["template_name"], "审查意见答复模板");
+    }
+
+    #[test]
+    fn template_library_unknown_id() {
+        let input = TemplateInput {
+            template_id: "nonexistent".into(),
+            variables: None,
+        };
+        let result = DocumentTools::template_library(input).unwrap();
+        assert_eq!(result["template_name"], "通用模板");
+    }
+
+    #[test]
+    fn template_library_variable_replacement_no_effect_without_placeholders() {
+        let mut vars = HashMap::new();
+        vars.insert("key".into(), "value".into());
+        let input = TemplateInput {
+            template_id: "oa_response".into(),
+            variables: Some(vars),
+        };
+        let result = DocumentTools::template_library(input).unwrap();
+        assert_eq!(result["template_name"], "审查意见答复模板");
+        assert!(!result["structure"].as_str().unwrap().contains("value"));
+    }
+
+    #[test]
+    fn export_tool_empty_content_error() {
+        let input = ExportInput {
+            content: serde_json::json!(""),
+            export_type: "claims".into(),
+            output_path: None,
+        };
+        assert!(DocumentTools::export_tool(input).is_err());
+    }
+
+    #[test]
+    fn export_tool_claims_format() {
+        let input = ExportInput {
+            content: serde_json::json!({"claims": ["一种装置", "根据权利要求1所述的装置"]}),
+            export_type: "claims".into(),
+            output_path: None,
+        };
+        let result = DocumentTools::export_tool(input).unwrap();
+        assert!(result["content"].as_str().unwrap().contains("权 利 要 求 书"));
+    }
+
+    #[test]
+    fn export_tool_invalid_type_error() {
+        let input = ExportInput {
+            content: serde_json::json!("some content"),
+            export_type: "invalid_type".into(),
+            output_path: None,
+        };
+        assert!(DocumentTools::export_tool(input).is_err());
+    }
+
+    #[test]
+    fn export_tool_oa_response_format() {
+        let input = ExportInput {
+            content: serde_json::json!({"strategy": "argue", "oa_type": "新颖性"}),
+            export_type: "oa_response".into(),
+            output_path: None,
+        };
+        let result = DocumentTools::export_tool(input).unwrap();
+        assert!(result["content"].as_str().unwrap().contains("意 见 陈 述 书"));
+    }
+}

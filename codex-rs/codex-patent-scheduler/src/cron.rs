@@ -309,4 +309,148 @@ mod tests {
         assert!(field.matches(30));
         assert!(!field.matches(10));
     }
+
+    #[test]
+    fn test_parse_wrong_field_count() {
+        let result = CronExpression::parse("0 9 * *");
+        assert!(result.is_err());
+        if let Err(CronError::InvalidExpression(msg)) = result {
+            assert!(msg.contains("5"));
+        } else {
+            panic!("expected InvalidExpression");
+        }
+    }
+
+    #[test]
+    fn test_parse_out_of_range() {
+        let result = CronExpression::parse("60 9 * * *");
+        assert!(result.is_err());
+        if let Err(CronError::OutOfRange { field, value }) = result {
+            assert_eq!(field, "minute");
+            assert_eq!(value, 60);
+        } else {
+            panic!("expected OutOfRange");
+        }
+    }
+
+    #[test]
+    fn test_parse_hour_out_of_range() {
+        let result = CronExpression::parse("0 25 * * *");
+        assert!(result.is_err());
+        assert!(matches!(result, Err(CronError::OutOfRange { .. })));
+    }
+
+    #[test]
+    fn test_parse_invalid_step() {
+        let result = CronExpression::parse("*/abc * * * *");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_list_value() {
+        let result = CronExpression::parse("0 abc * * *");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_invalid_range() {
+        let result = CronExpression::parse("0 1-abc * * *");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_unparseable_field() {
+        let result = CronExpression::parse("0 xyz * * *");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_to_human_daily_any() {
+        let expr = CronExpression::parse("30 9 * * *").unwrap();
+        let human = expr.to_human();
+        assert_eq!(human, "每天 09:30");
+    }
+
+    #[test]
+    fn test_to_human_weekly_single() {
+        let expr = CronExpression::parse("0 9 * * 1").unwrap();
+        let human = expr.to_human();
+        assert!(human.contains("周一"));
+    }
+
+    #[test]
+    fn test_to_human_sunday() {
+        let expr = CronExpression::parse("0 9 * * 0").unwrap();
+        let human = expr.to_human();
+        assert!(human.contains("周日"));
+    }
+
+    #[test]
+    fn test_to_human_saturday() {
+        let expr = CronExpression::parse("0 9 * * 6").unwrap();
+        let human = expr.to_human();
+        assert!(human.contains("周六"));
+    }
+
+    #[test]
+    fn test_to_human_list_days() {
+        let expr = CronExpression::parse("0 9 * * 1,3,5").unwrap();
+        let human = expr.to_human();
+        assert!(human.contains("周一"));
+        assert!(human.contains("周三"));
+        assert!(human.contains("周五"));
+    }
+
+    #[test]
+    fn test_to_human_wildcard_week() {
+        let expr = CronExpression::parse("0 9 * * *").unwrap();
+        let human = expr.to_human();
+        assert_eq!(human, "每天 09:00");
+    }
+
+    #[test]
+    fn test_to_human_non_single_time() {
+        let expr = CronExpression::parse("*/15 * * * *").unwrap();
+        let human = expr.to_human();
+        assert_eq!(human, "定期");
+    }
+
+    #[test]
+    fn test_parse_range() {
+        let expr = CronExpression::parse("0 9 1-15 * *").unwrap();
+        assert_eq!(expr.day_of_month, CronField::Range { start: 1, end: 15 });
+    }
+
+    #[test]
+    fn test_parse_month_range() {
+        let expr = CronExpression::parse("0 9 * 1-6 *").unwrap();
+        assert_eq!(expr.month, CronField::Range { start: 1, end: 6 });
+    }
+
+    #[test]
+    fn test_next_run_step_expression() {
+        let expr = CronExpression::parse("*/15 * * * *").unwrap();
+        let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let next = expr.next_run(from).unwrap();
+        assert_eq!(next.minute(), 15);
+    }
+
+    #[test]
+    fn test_next_run_no_match_within_year() {
+        let expr = CronExpression::parse("0 0 31 2 *").unwrap();
+        let from = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        assert!(expr.next_run(from).is_none());
+    }
+
+    #[test]
+    fn test_cron_error_display() {
+        let err = CronError::InvalidExpression("test".into());
+        let msg = format!("{err}");
+        assert!(msg.contains("test"));
+
+        let err = CronError::OutOfRange { field: "hour", value: 25 };
+        let msg = format!("{err}");
+        assert!(msg.contains("hour"));
+        assert!(msg.contains("25"));
+    }
 }

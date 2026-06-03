@@ -245,3 +245,137 @@ fn extract_date(content: &str) -> String {
     }
     String::new()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_section_found() {
+        let content = "前文【裁判要旨】这是要点内容【后续】";
+        assert_eq!(extract_section(content, "裁判要旨"), "这是要点内容");
+    }
+
+    #[test]
+    fn extract_section_not_found() {
+        assert_eq!(extract_section("no section here", "裁判要旨"), "");
+    }
+
+    #[test]
+    fn extract_section_at_end() {
+        let content = "前文【裁判要旨】结尾内容";
+        assert_eq!(extract_section(content, "裁判要旨"), "结尾内容");
+    }
+
+    #[test]
+    fn extract_section_label_found() {
+        let content = "案由：侵害发明专利权纠纷";
+        assert_eq!(
+            extract_section_label(content, "案由"),
+            "侵害发明专利权纠纷"
+        );
+    }
+
+    #[test]
+    fn extract_section_label_colon() {
+        let content = "案由:专利侵权";
+        assert_eq!(extract_section_label(content, "案由"), "专利侵权");
+    }
+
+    #[test]
+    fn extract_section_label_not_found() {
+        assert_eq!(extract_section_label("no label", "案由"), "");
+    }
+
+    #[test]
+    fn extract_keywords_single() {
+        let content = "【关键词】专利";
+        let keywords = extract_keywords(content);
+        assert_eq!(keywords, vec!["专利"]);
+    }
+
+    #[test]
+    fn extract_keywords_multiple() {
+        let content = "【关键词】专利、侵权、创造性";
+        let keywords = extract_keywords(content);
+        assert_eq!(keywords.len(), 3);
+    }
+
+    #[test]
+    fn extract_keywords_empty_section() {
+        let keywords = extract_keywords("no keywords section");
+        assert!(keywords.is_empty());
+    }
+
+    #[test]
+    fn extract_law_articles_patent_law() {
+        let content = "根据专利法第22条和专利法第46条";
+        let articles = extract_law_articles(content);
+        assert!(articles.contains(&"A22".to_string()));
+        assert!(articles.contains(&"A46".to_string()));
+    }
+
+    #[test]
+    fn extract_law_articles_rules() {
+        let content = "专利法实施细则第43条";
+        let articles = extract_law_articles(content);
+        assert!(articles.contains(&"R43".to_string()));
+    }
+
+    #[test]
+    fn extract_law_articles_dedup() {
+        let content = "专利法第22条专利法第22条";
+        let articles = extract_law_articles(content);
+        assert_eq!(articles.iter().filter(|a| **a == "A22").count(), 1);
+    }
+
+    #[test]
+    fn extract_law_articles_truncates() {
+        let mut content = String::new();
+        for i in 0..20 {
+            content.push_str(&format!("专利法第{i}条"));
+        }
+        let articles = extract_law_articles(&content);
+        assert!(articles.len() <= 10);
+    }
+
+    #[test]
+    fn extract_court_explicit() {
+        let content = "审理法院：北京知识产权法院";
+        assert_eq!(extract_court(content), "北京知识产权法院");
+    }
+
+    #[test]
+    fn extract_court_supreme() {
+        let content = "最高人民法院判决";
+        assert_eq!(extract_court(content), "最高人民法院");
+    }
+
+    #[test]
+    fn extract_court_beijing() {
+        let content = "北京知识产权法院审理";
+        assert_eq!(extract_court(content), "北京知识产权法院");
+    }
+
+    #[test]
+    fn extract_court_none() {
+        assert_eq!(extract_court("no court info"), "");
+    }
+
+    #[test]
+    fn extract_date_colon_format() {
+        let content = "裁判日期：2023.06.15";
+        assert_eq!(extract_date(content), "2023.06.15");
+    }
+
+    #[test]
+    fn extract_date_chinese_format() {
+        let content = "2023年6月15日作出判决";
+        assert_eq!(extract_date(content), "2023年6月15日");
+    }
+
+    #[test]
+    fn extract_date_none() {
+        assert_eq!(extract_date("no date"), "");
+    }
+}

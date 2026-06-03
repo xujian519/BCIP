@@ -259,4 +259,215 @@ user_template = "User: {query}"
         let reg = ScenarioRegistry::new();
         assert!(reg.find("nonexistent").is_none());
     }
+
+    #[test]
+    fn topological_order_no_deps() {
+        let processing = ScenarioProcessing {
+            steps: vec![
+                ScenarioStep {
+                    name: "a".into(),
+                    description: "step a".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+                ScenarioStep {
+                    name: "b".into(),
+                    description: "step b".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+            ],
+        };
+        let order = processing.topological_order();
+        assert_eq!(order.len(), 2);
+    }
+
+    #[test]
+    fn topological_order_with_deps() {
+        let processing = ScenarioProcessing {
+            steps: vec![
+                ScenarioStep {
+                    name: "b".into(),
+                    description: "step b".into(),
+                    depends_on: vec!["a".into()],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+                ScenarioStep {
+                    name: "a".into(),
+                    description: "step a".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+            ],
+        };
+        let order = processing.topological_order();
+        assert_eq!(order.len(), 2);
+        assert_eq!(order[0].name, "a");
+        assert_eq!(order[1].name, "b");
+    }
+
+    #[test]
+    fn parallel_groups_independent() {
+        let processing = ScenarioProcessing {
+            steps: vec![
+                ScenarioStep {
+                    name: "a".into(),
+                    description: "a".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+                ScenarioStep {
+                    name: "b".into(),
+                    description: "b".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+            ],
+        };
+        let groups = processing.parallel_groups();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].len(), 2);
+    }
+
+    #[test]
+    fn parallel_groups_sequential() {
+        let processing = ScenarioProcessing {
+            steps: vec![
+                ScenarioStep {
+                    name: "b".into(),
+                    description: "b".into(),
+                    depends_on: vec!["a".into()],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+                ScenarioStep {
+                    name: "a".into(),
+                    description: "a".into(),
+                    depends_on: vec![],
+                    agent: None,
+                    tool: None,
+                    hitl: false,
+                },
+            ],
+        };
+        let groups = processing.parallel_groups();
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].len(), 1);
+        assert_eq!(groups[0][0].name, "a");
+        assert_eq!(groups[1][0].name, "b");
+    }
+
+    #[test]
+    fn register_from_toml_invalid() {
+        let mut reg = ScenarioRegistry::new();
+        let result = reg.register_from_toml("not valid toml [[[");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn resolve_prompt_no_variables() {
+        let toml = r#"
+[scenario]
+rule_id = "test"
+domain = "patent"
+task_type = "t1"
+phase = "test"
+
+[prompts]
+system_template = "No vars here"
+user_template = "Also no vars"
+"#;
+        let mut reg = ScenarioRegistry::new();
+        reg.register_from_toml(toml).unwrap();
+        let rule = reg.find("t1").unwrap();
+        let (sys, user) = ScenarioRegistry::resolve_prompt(rule, &HashMap::new());
+        assert_eq!(sys, "No vars here");
+        assert_eq!(user, "Also no vars");
+    }
+
+    #[test]
+    fn resolve_prompt_missing_variable_keeps_placeholder() {
+        let toml = r#"
+[scenario]
+rule_id = "test"
+domain = "patent"
+task_type = "t2"
+phase = "test"
+
+[prompts]
+system_template = "Hello {name}"
+user_template = "Query: {query}"
+"#;
+        let mut reg = ScenarioRegistry::new();
+        reg.register_from_toml(toml).unwrap();
+        let rule = reg.find("t2").unwrap();
+        let mut vars = HashMap::new();
+        vars.insert("name".into(), "World".into());
+        let (sys, user) = ScenarioRegistry::resolve_prompt(rule, &vars);
+        assert_eq!(sys, "Hello World");
+        assert_eq!(user, "Query: {query}");
+    }
+
+    #[test]
+    fn list_returns_all_registered() {
+        let mut reg = ScenarioRegistry::new();
+        let toml1 = r#"
+[scenario]
+rule_id = "r1"
+domain = "patent"
+task_type = "type_a"
+phase = "test"
+
+[prompts]
+system_template = "sys"
+user_template = "usr"
+"#;
+        let toml2 = r#"
+[scenario]
+rule_id = "r2"
+domain = "patent"
+task_type = "type_b"
+phase = "test"
+
+[prompts]
+system_template = "sys"
+user_template = "usr"
+"#;
+        reg.register_from_toml(toml1).unwrap();
+        reg.register_from_toml(toml2).unwrap();
+        assert_eq!(reg.list().len(), 2);
+    }
+
+    #[test]
+    fn scenario_step_id_returns_name() {
+        let step = ScenarioStep {
+            name: "my_step".into(),
+            description: "desc".into(),
+            depends_on: vec![],
+            agent: None,
+            tool: None,
+            hitl: false,
+        };
+        assert_eq!(step.id(), "my_step");
+    }
+
+    #[test]
+    fn legal_basis_default() {
+        let lb = LegalBasis::default();
+        assert!(lb.laws.is_empty());
+        assert!(lb.reference_cases.is_empty());
+    }
 }

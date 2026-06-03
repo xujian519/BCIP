@@ -6,3 +6,14 @@
 pub fn default_limit() -> usize {
     10
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn default_limit_returns_10() {
+        assert_eq!(default_limit(), 10);
+    }
+}

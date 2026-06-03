@@ -33,3 +33,7 @@ drafting-tools = []
 management-tools = []
 evaluation-tools = []
 document-pdf = ["liteparse"]
+
+[dev-dependencies]
+pretty_assertions = "1"
+tempfile = "3"

@@ -104,3 +104,65 @@ pub fn resolve_provider_api_key(env_var: &str) -> Result<String, ApiKeyError> {
         Err(e) => Err(e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mask_api_key_full() {
+        let masked = mask_api_key("sk-1234567890abcdef");
+        assert!(masked.starts_with("sk-1"));
+        assert!(masked.contains("…"));
+        assert!(masked.contains("cdef"));
+    }
+
+    #[test]
+    fn mask_api_key_empty() {
+        assert_eq!(mask_api_key(""), "<empty>");
+    }
+
+    #[test]
+    fn mask_api_key_short() {
+        let masked = mask_api_key("abc");
+        assert!(masked.contains("<short:3>"));
+    }
+
+    #[test]
+    fn mask_api_key_exactly_8() {
+        let masked = mask_api_key("12345678");
+        assert!(masked.contains("1234"));
+        assert!(masked.contains("5678"));
+    }
+
+    #[test]
+    fn resolve_api_key_missing() {
+        unsafe { std::env::remove_var("BCIP_TEST_MISSING_KEY"); }
+        let result = resolve_api_key("BCIP_TEST_MISSING_KEY");
+        assert!(matches!(result, Err(ApiKeyError::Missing(_))));
+    }
+
+    #[test]
+    fn resolve_api_key_proxy_rejected() {
+        unsafe { std::env::set_var("BCIP_TEST_PROXY_KEY", "http://proxy.example.com:8080"); }
+        let result = resolve_api_key("BCIP_TEST_PROXY_KEY");
+        assert!(matches!(result, Err(ApiKeyError::SuspectedProxyValue { .. })));
+        unsafe { std::env::remove_var("BCIP_TEST_PROXY_KEY"); }
+    }
+
+    #[test]
+    fn resolve_api_key_https_rejected() {
+        unsafe { std::env::set_var("BCIP_TEST_HTTPS_KEY", "https://api.proxy.com"); }
+        let result = resolve_api_key("BCIP_TEST_HTTPS_KEY");
+        assert!(matches!(result, Err(ApiKeyError::SuspectedProxyValue { .. })));
+        unsafe { std::env::remove_var("BCIP_TEST_HTTPS_KEY"); }
+    }
+
+    #[test]
+    fn resolve_api_key_socks_rejected() {
+        unsafe { std::env::set_var("BCIP_TEST_SOCKS_KEY", "socks5://proxy.local"); }
+        let result = resolve_api_key("BCIP_TEST_SOCKS_KEY");
+        assert!(matches!(result, Err(ApiKeyError::SuspectedProxyValue { .. })));
+        unsafe { std::env::remove_var("BCIP_TEST_SOCKS_KEY"); }
+    }
+}

@@ -45,26 +45,6 @@ pub struct IterativeSearchInput {
     #[serde(default = "crate::common::default_limit")]
     pub limit: usize,
 }
-    pub query: String,
-    #[serde(default = "crate::common::default_limit")]
-    pub limit: usize,
-    pub patent_number: Option<String>,
-    pub use_synonyms: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SearchQueryBuilderInput {
-    pub concept: String,
-    pub field: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct IterativeSearchInput {
-    pub query: String,
-    pub rounds: Option<usize>,
-    #[serde(default = "crate::common::default_limit")]
-    pub limit: usize,
-}
 
 /// 单例 SynonymDict，避免每次查询重建字典。
 ///

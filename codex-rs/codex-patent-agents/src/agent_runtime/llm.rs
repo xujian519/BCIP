@@ -246,3 +246,37 @@ pub(crate) fn truncate_error_body(text: &str, max_len: usize) -> String {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_error_body_short() {
+        assert_eq!(truncate_error_body("hello", 10), "hello");
+    }
+
+    #[test]
+    fn truncate_error_body_exact() {
+        assert_eq!(truncate_error_body("hello", 5), "hello");
+    }
+
+    #[test]
+    fn truncate_error_body_long() {
+        let text = "hello world this is long";
+        let result = truncate_error_body(text, 5);
+        assert!(result.starts_with("hello..."));
+        assert!(result.contains(&format!("{} bytes", text.len())));
+    }
+
+    #[test]
+    fn truncate_error_body_empty() {
+        assert_eq!(truncate_error_body("", 5), "");
+    }
+
+    #[test]
+    fn constants_are_reasonable() {
+        assert_eq!(MAX_RETRIES, 3);
+        assert_eq!(REQUEST_TIMEOUT_SECS, 120);
+    }
+}

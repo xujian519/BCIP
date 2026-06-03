@@ -342,4 +342,157 @@ mod tests {
         let report = ComprehensiveAnalyzer::generate_report(dims);
         assert!(!report.risk_summary.high_risk_dimensions.is_empty());
     }
+
+    #[test]
+    fn dimension_name_returns_chinese() {
+        assert_eq!(AnalysisDimension::Novelty.name(), "新颖性");
+        assert_eq!(AnalysisDimension::Inventiveness.name(), "创造性");
+        assert_eq!(AnalysisDimension::Utility.name(), "实用性");
+        assert_eq!(AnalysisDimension::InfringementRisk.name(), "侵权风险");
+        assert_eq!(AnalysisDimension::DraftQuality.name(), "撰写质量");
+    }
+
+    #[test]
+    fn dimension_weight_all_positive() {
+        for dim in [
+            AnalysisDimension::Novelty,
+            AnalysisDimension::Inventiveness,
+            AnalysisDimension::Utility,
+            AnalysisDimension::InfringementRisk,
+            AnalysisDimension::DraftQuality,
+        ] {
+            assert!(dim.weight() > 0.0, "{dim:?} weight should be positive");
+        }
+    }
+
+    #[test]
+    fn risk_level_from_score_boundaries() {
+        assert_eq!(RiskLevel::from_score(0.9), RiskLevel::Low);
+        assert_eq!(RiskLevel::from_score(0.8), RiskLevel::Low);
+        assert_eq!(RiskLevel::from_score(0.7), RiskLevel::Medium);
+        assert_eq!(RiskLevel::from_score(0.5), RiskLevel::Medium);
+        assert_eq!(RiskLevel::from_score(0.4), RiskLevel::High);
+        assert_eq!(RiskLevel::from_score(0.3), RiskLevel::High);
+        assert_eq!(RiskLevel::from_score(0.1), RiskLevel::Critical);
+        assert_eq!(RiskLevel::from_score(0.0), RiskLevel::Critical);
+    }
+
+    #[test]
+    fn assess_inventiveness_all_true() {
+        let result = ComprehensiveAnalyzer::assess_inventiveness(true, true, false);
+        assert!(result.score > 0.8);
+        assert_eq!(result.dimension, AnalysisDimension::Inventiveness);
+        assert_eq!(result.risk_level, RiskLevel::Low);
+    }
+
+    #[test]
+    fn assess_inventiveness_obvious_combination() {
+        let result = ComprehensiveAnalyzer::assess_inventiveness(false, false, true);
+        assert!(result.score < 0.3);
+        assert_eq!(result.risk_level, RiskLevel::Critical);
+    }
+
+    #[test]
+    fn assess_inventiveness_baseline() {
+        let result = ComprehensiveAnalyzer::assess_inventiveness(false, false, false);
+        assert!((result.score - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn assess_infringement_risk_low_coverage() {
+        let result = ComprehensiveAnalyzer::assess_infringement_risk(0.1);
+        assert!(result.score > 0.8);
+        assert!(result.conclusion.contains("低"));
+    }
+
+    #[test]
+    fn assess_infringement_risk_high_coverage() {
+        let result = ComprehensiveAnalyzer::assess_infringement_risk(0.9);
+        assert!(result.score < 0.2);
+        assert!(result.conclusion.contains("较高"));
+    }
+
+    #[test]
+    fn assess_infringement_risk_medium_coverage() {
+        let result = ComprehensiveAnalyzer::assess_infringement_risk(0.5);
+        assert!(result.conclusion.contains("关注"));
+    }
+
+    #[test]
+    fn assess_draft_quality_good() {
+        let result = ComprehensiveAnalyzer::assess_draft_quality(0.85, &[]);
+        assert_eq!(result.dimension, AnalysisDimension::DraftQuality);
+        assert!(result.conclusion.contains("良好"));
+    }
+
+    #[test]
+    fn assess_draft_quality_poor() {
+        let result = ComprehensiveAnalyzer::assess_draft_quality(0.3, &["权利要求不清楚".into()]);
+        assert!(result.conclusion.contains("修改"));
+        assert_eq!(result.details.len(), 1);
+    }
+
+    #[test]
+    fn generate_report_empty_dimensions() {
+        let report = ComprehensiveAnalyzer::generate_report(vec![]);
+        assert_eq!(report.overall_score, 0.0);
+        assert!(report.recommendations.is_empty());
+        assert!(report.risk_summary.high_risk_dimensions.is_empty());
+    }
+
+    #[test]
+    fn generate_report_overall_conclusion_high() {
+        let dims = vec![
+            ComprehensiveAnalyzer::assess_inventiveness(true, true, false),
+            ComprehensiveAnalyzer::assess_infringement_risk(0.1),
+            ComprehensiveAnalyzer::assess_draft_quality(0.9, &[]),
+        ];
+        let report = ComprehensiveAnalyzer::generate_report(dims);
+        assert!(report.overall_conclusion.contains("良好"));
+    }
+
+    #[test]
+    fn generate_report_overall_conclusion_low() {
+        let dims = vec![
+            ComprehensiveAnalyzer::assess_inventiveness(false, false, true),
+            ComprehensiveAnalyzer::assess_draft_quality(0.1, &["问题".into()]),
+        ];
+        let report = ComprehensiveAnalyzer::generate_report(dims);
+        assert!(report.overall_score < 0.4);
+        assert!(report.risk_summary.total_risk_score > 0.5);
+    }
+
+    #[test]
+    fn dimension_result_serialize_deserialize() {
+        let result = ComprehensiveAnalyzer::assess_inventiveness(true, true, false);
+        let json = serde_json::to_string(&result).unwrap();
+        let back: DimensionResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.dimension, result.dimension);
+        assert!((back.score - result.score).abs() < 0.001);
+    }
+
+    #[test]
+    fn comprehensive_analyzer_default() {
+        let _ = ComprehensiveAnalyzer::default();
+    }
+
+    #[test]
+    fn novelty_medium_score() {
+        let matches = FeatureMatchResult {
+            exact_matches: vec![FeatureMatch {
+                target_feature: "A".into(),
+                prior_feature: "A".into(),
+                similarity_score: 1.0,
+                match_type: CorrespondenceType::Exact,
+            }],
+            equivalent_matches: vec![],
+            different_features: vec!["B".into()],
+            missing_features: vec![],
+            coverage_ratio: 0.5,
+            infringement_type: Some(InfringementType::Literal),
+        };
+        let result = ComprehensiveAnalyzer::assess_novelty(&matches);
+        assert!((result.score - 0.5).abs() < 0.001);
+        assert!(result.conclusion.contains("存疑"));
+    }
 }

@@ -24,3 +24,34 @@ pub fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
         Err(_e) => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn valid_pattern_returns_regex() {
+        let re = get_or_compile_regex(r"\d+").unwrap();
+        assert!(re.is_match("123"));
+    }
+
+    #[test]
+    fn invalid_pattern_returns_none() {
+        let result = get_or_compile_regex(r"[invalid");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn cache_returns_same_pattern() {
+        let re1 = get_or_compile_regex(r"test\d+").unwrap();
+        let re2 = get_or_compile_regex(r"test\d+").unwrap();
+        assert!(re1.is_match("test42"));
+        assert!(re2.is_match("test42"));
+    }
+
+    #[test]
+    fn empty_pattern_returns_regex() {
+        let re = get_or_compile_regex("").unwrap();
+        assert!(re.is_match(""));
+    }
+}

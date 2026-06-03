@@ -302,4 +302,123 @@ mod tests {
         assert!(!result.exact_matches.is_empty());
         assert!(result.coverage_ratio > 0.0);
     }
+
+    #[test]
+    fn test_lexical_similarity_identical() {
+        let score = lexical_similarity("一种数据处理系统", "一种数据处理系统");
+        assert!((score - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_lexical_similarity_empty() {
+        assert_eq!(lexical_similarity("", "test"), 0.0);
+        assert_eq!(lexical_similarity("test", ""), 0.0);
+        assert_eq!(lexical_similarity("a", "b"), 0.0);
+    }
+
+    #[test]
+    fn test_lexical_similarity_single_char() {
+        let score = lexical_similarity("X", "X");
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_ipc_alignment_identical() {
+        let score = ipc_alignment(
+            &["G06F".into(), "H04L".into()],
+            &["G06F".into(), "H04L".into()],
+        );
+        assert!((score - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_ipc_alignment_empty() {
+        let empty: Vec<String> = vec![];
+        assert_eq!(ipc_alignment(&[], &["G06F".into()]), 0.0);
+        assert_eq!(ipc_alignment(&["G06F".into()], &empty), 0.0);
+        assert_eq!(ipc_alignment(&empty, &empty), 0.0);
+    }
+
+    #[test]
+    fn test_ipc_alignment_no_overlap() {
+        let score = ipc_alignment(&["G06F".into()], &["H04L".into()]);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_ipc_alignment_partial_overlap() {
+        let score = ipc_alignment(
+            &["G06F".into(), "H04L".into()],
+            &["G06F".into(), "A01B".into()],
+        );
+        assert!((score - 0.333).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_build_feature_matrix_empty() {
+        let matrix = build_feature_matrix(&[], &[]);
+        assert!(matrix.cells.is_empty());
+        assert!(matrix.target_only.is_empty());
+        assert!(matrix.prior_only.is_empty());
+        assert_eq!(matrix.overlap_ratio, 0.0);
+    }
+
+    #[test]
+    fn test_feature_matcher_all_exact() {
+        let features = vec![
+            CompareFeature {
+                id: "f1".into(),
+                description: "包含传感器模块".into(),
+            },
+            CompareFeature {
+                id: "f2".into(),
+                description: "包含处理器".into(),
+            },
+        ];
+        let result = FeatureMatcher::compare(&features, &features);
+        assert_eq!(result.exact_matches.len(), 2);
+        assert_eq!(result.coverage_ratio, 1.0);
+        assert_eq!(result.infringement_type, Some(InfringementType::Literal));
+    }
+
+    #[test]
+    fn test_feature_matcher_empty_target() {
+        let prior = vec![CompareFeature {
+            id: "p1".into(),
+            description: "包含传感器模块".into(),
+        }];
+        let result = FeatureMatcher::compare(&[], &prior);
+        assert_eq!(result.coverage_ratio, 0.0);
+        assert!(result.exact_matches.is_empty());
+    }
+
+    #[test]
+    fn test_feature_matcher_equivalent_match() {
+        let target = vec![CompareFeature {
+            id: "f1".into(),
+            description: "一种数据处理系统包含存储单元".into(),
+        }];
+        let prior = vec![CompareFeature {
+            id: "p1".into(),
+            description: "一种数据处理装置包含存储单元".into(),
+        }];
+        let result = FeatureMatcher::compare(&target, &prior);
+        assert_eq!(
+            result.infringement_type,
+            Some(InfringementType::DoctrineOfEquivalents)
+        );
+    }
+
+    #[test]
+    fn test_feature_matrix_cell_serialize() {
+        let cell = FeatureMatrixCell {
+            target_index: 0,
+            prior_index: 1,
+            lexical_score: 0.85,
+            matched: true,
+        };
+        let json = serde_json::to_string(&cell).unwrap();
+        assert!(json.contains("targetIndex"));
+        assert!(json.contains("lexicalScore"));
+    }
 }

@@ -442,6 +442,184 @@ fn analyze_distinctiveness(mark: &str) -> (String, f64) {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn patent_manager_default_action() {
+        let input = PatentManageInput {
+            action: "list".into(),
+            patent_id: None,
+            data: None,
+        };
+        let result = ManagementTools::patent_manager(input).unwrap();
+        assert_eq!(result["action"], "list");
+        let states = result["valid_states"].as_array().unwrap();
+        assert!(states.len() >= 5);
+    }
+
+    #[test]
+    fn template_library_oa_response() {
+        let result = ManagementTools::template_library("oa_response").unwrap();
+        assert_eq!(result["template_name"], "审查意见答复模板");
+        assert!(result["structure"].as_str().unwrap().contains("修改说明"));
+    }
+
+    #[test]
+    fn template_library_unknown() {
+        let result = ManagementTools::template_library("nonexistent").unwrap();
+        assert_eq!(result["template_name"], "通用模板");
+    }
+
+    #[test]
+    fn trademark_analysis_empty_mark_error() {
+        let result = ManagementTools::trademark_analysis("");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("不能为空"));
+    }
+
+    #[test]
+    fn trademark_analysis_coinage_high_score() {
+        let result = ManagementTools::trademark_analysis("IBM").unwrap();
+        let score = result["registrability_score"].as_f64().unwrap();
+        assert!(score >= 80.0, "coinage mark should score >= 80, got {score}");
+        assert!(result["distinctiveness"].as_str().unwrap().contains("臆造"));
+    }
+
+    #[test]
+    fn trademark_analysis_forbidden_words() {
+        let result = ManagementTools::trademark_analysis("中国XX品牌").unwrap();
+        let issues = result["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("禁用标志")));
+    }
+
+    #[test]
+    fn trademark_analysis_generic_low_score() {
+        let result = ManagementTools::trademark_analysis("电脑").unwrap();
+        let score = result["registrability_score"].as_f64().unwrap();
+        assert!(score < 20.0, "generic word should score very low, got {score}");
+    }
+
+    #[test]
+    fn fee_calculator_invention_year1() {
+        let input = FeeCalculatorInput {
+            patent_type: "invention".into(),
+            year: 1,
+            applicant_type: None,
+        };
+        let result = ManagementTools::fee_calculator(input).unwrap();
+        assert_eq!(result["annual_fee"], 900);
+        assert_eq!(result["original_fee"], 900);
+    }
+
+    #[test]
+    fn fee_calculator_utility_model_year4() {
+        let input = FeeCalculatorInput {
+            patent_type: "utility_model".into(),
+            year: 4,
+            applicant_type: None,
+        };
+        let result = ManagementTools::fee_calculator(input).unwrap();
+        assert_eq!(result["annual_fee"], 900);
+    }
+
+    #[test]
+    fn fee_calculator_invention_individual_85_percent_reduction() {
+        let input = FeeCalculatorInput {
+            patent_type: "invention".into(),
+            year: 1,
+            applicant_type: Some("individual".into()),
+        };
+        let result = ManagementTools::fee_calculator(input).unwrap();
+        assert_eq!(result["annual_fee"], 135);
+        assert_eq!(result["original_fee"], 900);
+    }
+
+    #[test]
+    fn fee_calculator_year0_error() {
+        let input = FeeCalculatorInput {
+            patent_type: "invention".into(),
+            year: 0,
+            applicant_type: None,
+        };
+        assert!(ManagementTools::fee_calculator(input).is_err());
+    }
+
+    #[test]
+    fn fee_calculator_invalid_type_error() {
+        let input = FeeCalculatorInput {
+            patent_type: "unknown".into(),
+            year: 1,
+            applicant_type: None,
+        };
+        assert!(ManagementTools::fee_calculator(input).is_err());
+    }
+
+    #[test]
+    fn fee_calculator_invention_out_of_range() {
+        let input = FeeCalculatorInput {
+            patent_type: "invention".into(),
+            year: 25,
+            applicant_type: None,
+        };
+        assert!(ManagementTools::fee_calculator(input).is_err());
+    }
+
+    #[test]
+    fn deadline_tracker_oa_response_first_round() {
+        let input = DeadlineTrackerInput {
+            event_type: "oa_response".into(),
+            reference_date: "2025-01-01".into(),
+            round: Some(1),
+        };
+        let result = ManagementTools::deadline_tracker(input).unwrap();
+        assert!(result["description"].as_str().unwrap().contains("4个月"));
+        assert_eq!(result["deadline"], "2025-05-01");
+    }
+
+    #[test]
+    fn deadline_tracker_oa_response_second_round() {
+        let input = DeadlineTrackerInput {
+            event_type: "oa_response".into(),
+            reference_date: "2025-01-01".into(),
+            round: Some(2),
+        };
+        let result = ManagementTools::deadline_tracker(input).unwrap();
+        assert!(result["description"].as_str().unwrap().contains("2个月"));
+        assert_eq!(result["deadline"], "2025-03-01");
+    }
+
+    #[test]
+    fn deadline_tracker_reexamination() {
+        let input = DeadlineTrackerInput {
+            event_type: "reexamination".into(),
+            reference_date: "2025-01-01".into(),
+            round: None,
+        };
+        let result = ManagementTools::deadline_tracker(input).unwrap();
+        assert_eq!(result["deadline"], "2025-04-01");
+    }
+
+    #[test]
+    fn deadline_tracker_invalid_date_error() {
+        let input = DeadlineTrackerInput {
+            event_type: "oa_response".into(),
+            reference_date: "not-a-date".into(),
+            round: None,
+        };
+        assert!(ManagementTools::deadline_tracker(input).is_err());
+    }
+
+    #[test]
+    fn process_chart_application() {
+        let result = ManagementTools::process_chart("application").unwrap();
+        assert!(result["mermaid"].as_str().unwrap().contains("graph LR"));
+        assert!(result["mermaid"].as_str().unwrap().contains("授权"));
+    }
+}
+
 pub fn register_management_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();

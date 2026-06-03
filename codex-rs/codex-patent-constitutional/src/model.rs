@@ -3,11 +3,13 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 /// 一组宪法规则，按名称索引。
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstitutionalRules {
     pub rules: HashMap<String, ConstitutionalRule>,
 }
 
 /// 单条宪法规则定义。
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstitutionalRule {
     pub id: String,
     pub name: String,
@@ -22,6 +24,8 @@ pub struct ConstitutionalRule {
 }
 
 /// 规则检查类型（tagged enum，按 type 字段区分）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum RuleCheck {
     #[serde(rename = "structural_analysis")]
     StructuralAnalysis {
@@ -400,6 +404,7 @@ pub struct PunitiveDef {
 }
 
 /// 规则严重级别。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RuleSeverity {
     Critical,
     Major,
@@ -417,6 +422,7 @@ impl RuleSeverity {
 }
 
 /// 规则触发时的动作。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RuleAction {
     Block,
     Warn,
@@ -691,5 +697,304 @@ mod tests {
         let back: SectionDef = serde_json::from_str(&json).unwrap();
         assert_eq!(back.name, "技术领域");
         assert_eq!(back.condition, Some("必须包含".into()));
+    }
+
+    // ── 更多 RuleCheck variant 反序列化 ──
+
+    #[test]
+    fn deserialize_category_detection() {
+        let json = r#"{
+            "type": "category_detection",
+            "categories": {
+                "智力活动": {
+                    "description": "智力活动规则",
+                    "patterns": ["博弈", "棋类"],
+                    "guidance": "排除"
+                }
+            },
+            "assessment": "检测排除客体"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::CategoryDetection { categories, .. } => {
+                assert!(categories.contains_key("智力活动"));
+                let cat = &categories["智力活动"];
+                assert_eq!(cat.patterns, vec!["博弈", "棋类"]);
+            }
+            other => panic!("expected CategoryDetection, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_specification_analysis() {
+        let json = r#"{
+            "type": "specification_analysis",
+            "dimensions": [
+                {"dimension": "充分公开", "description": "说明书应充分公开", "checks": ["实施方式", "实施例"]}
+            ],
+            "assessment": "分析说明书质量"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::SpecificationAnalysis { dimensions, .. } => {
+                assert_eq!(dimensions.len(), 1);
+                assert_eq!(dimensions[0].dimension, "充分公开");
+            }
+            other => panic!("expected SpecificationAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_section_structure() {
+        let json = r#"{
+            "type": "section_structure",
+            "required_sections": [
+                {"name": "技术领域", "patterns": ["技术领域"], "max_length": "", "description": "", "subsections": [], "condition": null}
+            ],
+            "forbidden_content": ["广告", "营销"]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::SectionStructure {
+                required_sections,
+                forbidden_content,
+            } => {
+                assert_eq!(required_sections.len(), 1);
+                assert_eq!(forbidden_content, vec!["广告", "营销"]);
+            }
+            other => panic!("expected SectionStructure, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_claim_clarity_analysis() {
+        let json = r#"{
+            "type": "claim_clarity_analysis",
+            "unclear_terms": ["大约", "左右"],
+            "over_broad": ["一种设备"],
+            "mixed_categories": {"description": "", "patterns": []},
+            "chained_references": {"description": "", "rule": ""},
+            "assessment": "权利要求清晰度"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::ClaimClarityAnalysis {
+                unclear_terms,
+                over_broad,
+                ..
+            } => {
+                assert_eq!(unclear_terms, vec!["大约", "左右"]);
+                assert_eq!(over_broad, vec!["一种设备"]);
+            }
+            other => panic!("expected ClaimClarityAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_support_analysis() {
+        let json = r#"{
+            "type": "support_analysis",
+            "methods": [
+                {"method": "直接支持", "description": "说明书直接支持权利要求", "rules": ["每项权利要求需在说明书中有支持"]}
+            ],
+            "severity_if_unsupported": "major"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::SupportAnalysis { methods, .. } => {
+                assert_eq!(methods.len(), 1);
+                assert_eq!(methods[0].method, "直接支持");
+            }
+            other => panic!("expected SupportAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_oa_response_strategy() {
+        let json = r#"{
+            "type": "oa_response_strategy",
+            "oa_type": "novelty_rejection",
+            "valid_strategies": [
+                {"strategy": "修改权利要求", "description": "缩小保护范围", "efficacy": "高", "details": [], "constraint": "", "requirement": null, "condition": null, "factors": null}
+            ],
+            "invalid_strategies": ["放弃"]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::OaResponseStrategy {
+                oa_type,
+                valid_strategies,
+                invalid_strategies,
+            } => {
+                assert_eq!(oa_type, "novelty_rejection");
+                assert_eq!(valid_strategies.len(), 1);
+                assert_eq!(invalid_strategies, vec!["放弃"]);
+            }
+            other => panic!("expected OaResponseStrategy, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_timing_analysis() {
+        let json = r#"{
+            "type": "timing_analysis",
+            "invention": ["申请日12个月"],
+            "utility": ["申请日6个月"],
+            "design": ["申请日3个月"]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::TimingAnalysis { invention, .. } => {
+                assert_eq!(invention, vec!["申请日12个月"]);
+            }
+            other => panic!("expected TimingAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_priority_analysis() {
+        let json = r#"{
+            "type": "priority_analysis",
+            "priority_type": "domestic",
+            "time_limit": {"domestic": "12个月"},
+            "requirements": ["在先申请副本"],
+            "constraints": [],
+            "special_notes": []
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::PriorityAnalysis {
+                priority_type,
+                requirements,
+                ..
+            } => {
+                assert_eq!(priority_type, "domestic");
+                assert_eq!(requirements, vec!["在先申请副本"]);
+            }
+            other => panic!("expected PriorityAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_invalidation_analysis() {
+        let json = r#"{
+            "type": "invalidation_analysis",
+            "grounds": [
+                {"ground": "不符合专利法第22条", "description": "不具备新颖性"}
+            ],
+            "restrictions": ["不能以相同理由重复无效"]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::InvalidationAnalysis { grounds, .. } => {
+                assert_eq!(grounds.len(), 1);
+                assert_eq!(grounds[0].ground, "不符合专利法第22条");
+            }
+            other => panic!("expected InvalidationAnalysis, got {:?}", other),
+        }
+    }
+
+    // ── ConstitutionalRules 容器 ──
+
+    #[test]
+    fn constitutional_rules_roundtrip() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "test_rule".into(),
+                ConstitutionalRule {
+                    id: "R001".into(),
+                    name: "测试".into(),
+                    description: "desc".into(),
+                    phase: "drafting".into(),
+                    severity: "critical".into(),
+                    action: "block".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::ScopeComparison {
+                        direction: "narrower".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let json = serde_json::to_string(&rules).unwrap();
+        let back: ConstitutionalRules = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.rules.len(), 1);
+        assert!(back.rules.contains_key("test_rule"));
+    }
+
+    // ── ScopeComparison / DivisionalRules 等简单 variant ──
+
+    #[test]
+    fn deserialize_scope_comparison() {
+        let json = r#"{"type": "scope_comparison", "direction": "narrower"}"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::ScopeComparison { direction } => {
+                assert_eq!(direction, "narrower");
+            }
+            other => panic!("expected ScopeComparison, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_divisional_rules() {
+        let json = r#"{
+            "type": "divisional_rules",
+            "timing": ["母案授权前"],
+            "constraints": ["不得超出母案范围"]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::DivisionalRules { timing, constraints } => {
+                assert_eq!(timing, vec!["母案授权前"]);
+                assert_eq!(constraints, vec!["不得超出母案范围"]);
+            }
+            other => panic!("expected DivisionalRules, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_infringement_analysis() {
+        let json = r#"{
+            "type": "infringement_analysis",
+            "principles": [
+                {"principle": "全面覆盖", "name": "全面覆盖原则", "description": "技术特征全部覆盖", "rules": ["相同特征"]}
+            ],
+            "defenses": [
+                {"defense": "先用权", "name": "先用权抗辩", "description": "在申请日前已制造", "condition": null}
+            ]
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::InfringementAnalysis { principles, defenses } => {
+                assert_eq!(principles.len(), 1);
+                assert_eq!(defenses.len(), 1);
+                assert_eq!(principles[0].principle, "全面覆盖");
+            }
+            other => panic!("expected InfringementAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_damages_analysis() {
+        let json = r#"{
+            "type": "damages_analysis",
+            "calculation_order": [
+                {"method": "实际损失", "description": "权利人因侵权受到的实际损失", "priority": 1, "notes": null}
+            ],
+            "punitive": {"condition": "恶意侵权", "multiplier": "3倍", "legal_basis": "专利法第65条"}
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::DamagesAnalysis {
+                calculation_order,
+                punitive,
+            } => {
+                assert_eq!(calculation_order.len(), 1);
+                assert_eq!(punitive.multiplier, "3倍");
+            }
+            other => panic!("expected DamagesAnalysis, got {:?}", other),
+        }
     }
 }

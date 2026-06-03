@@ -222,6 +222,162 @@ impl OaTools {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    // ── oa_type_str ──────────────────────────────────────────────────────
+
+    #[test]
+    fn oa_type_str_novelty() {
+        assert_eq!(OaTools::oa_type_str(&codex_patent_core::OaType::Novelty), "新颖性");
+    }
+
+    #[test]
+    fn oa_type_str_inventive_step() {
+        assert_eq!(
+            OaTools::oa_type_str(&codex_patent_core::OaType::InventiveStep),
+            "创造性"
+        );
+    }
+
+    #[test]
+    fn oa_type_str_other() {
+        assert_eq!(
+            OaTools::oa_type_str(&codex_patent_core::OaType::Other("test".into())),
+            "其他"
+        );
+    }
+
+    // ── build_argument ───────────────────────────────────────────────────
+
+    #[test]
+    fn build_argument_novelty_with_differences() {
+        let result = OaTools::build_argument(
+            "novelty",
+            &["特征A".into(), "特征B".into()],
+            &[],
+        );
+        assert!(result.contains("特征A、特征B"));
+        assert!(result.contains("新颖性"));
+    }
+
+    #[test]
+    fn build_argument_inventive_with_effects() {
+        let result = OaTools::build_argument(
+            "inventive",
+            &["区别特征X".into()],
+            &["非显而易见的效果".into()],
+        );
+        assert!(result.contains("区别特征X"));
+        assert!(result.contains("非显而易见的效果"));
+    }
+
+    #[test]
+    fn build_argument_empty_inputs_uses_defaults() {
+        let result = OaTools::build_argument("novelty", &[], &[]);
+        assert!(result.contains("区别技术特征"));
+    }
+
+    #[test]
+    fn build_argument_default_type() {
+        let result = OaTools::build_argument("clarity", &[], &[]);
+        assert!(result.contains("专利法"));
+    }
+
+    // ── get_response_template ────────────────────────────────────────────
+
+    #[test]
+    fn get_response_template_amend() {
+        let tpl = OaTools::get_response_template(&codex_patent_core::OaType::Novelty, "amend");
+        assert!(tpl.contains("修改"));
+        assert!(tpl.contains("专利法第三十三条"));
+    }
+
+    #[test]
+    fn get_response_template_argue() {
+        let tpl = OaTools::get_response_template(&codex_patent_core::OaType::InventiveStep, "argue");
+        assert!(tpl.contains("区别技术特征"));
+    }
+
+    #[test]
+    fn get_response_template_default_strategy() {
+        let tpl = OaTools::get_response_template(&codex_patent_core::OaType::Clarity, "hybrid");
+        assert!(tpl.contains("意见陈述书"));
+    }
+
+    // ── strategy_argument_generator ──────────────────────────────────────
+
+    #[test]
+    fn strategy_argument_generator_novelty_defaults_legal_basis() {
+        let input = ArgumentInput {
+            oa_type: "novelty".into(),
+            differences: vec!["特征A".into()],
+            technical_effects: vec!["效果1".into()],
+            legal_basis: None,
+        };
+        let result = OaTools::strategy_argument_generator(input).unwrap();
+        assert_eq!(result["legal_basis"], json!("专利法第22条第2款"));
+    }
+
+    #[test]
+    fn strategy_argument_generator_inventive_defaults_legal_basis() {
+        let input = ArgumentInput {
+            oa_type: "inventive".into(),
+            differences: vec![],
+            technical_effects: vec![],
+            legal_basis: None,
+        };
+        let result = OaTools::strategy_argument_generator(input).unwrap();
+        assert_eq!(result["legal_basis"], json!("专利法第22条第3款"));
+    }
+
+    // ── response_template ────────────────────────────────────────────────
+
+    #[test]
+    fn response_template_novelty() {
+        let input = TemplateInput {
+            oa_type: "novelty".into(),
+            format: Some("cnipa".into()),
+        };
+        let result = OaTools::response_template(input).unwrap();
+        assert_eq!(result["format"], json!("cnipa"));
+        assert_eq!(result["oa_type"], json!("novelty"));
+        assert!(result["template"].as_str().unwrap().contains("意见陈述书"));
+    }
+
+    // ── oa_parse_input deserialization ───────────────────────────────────
+
+    #[test]
+    fn oa_parse_input_deserialize() {
+        let json = json!({
+            "content": "OA文本",
+            "application_number": "202410001",
+        });
+        let input: OaParseInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.content, "OA文本");
+        assert_eq!(input.application_number, Some("202410001".into()));
+        assert!(input.patent_title.is_none());
+    }
+
+    // ── patent_responder ─────────────────────────────────────────────────
+
+    #[test]
+    fn patent_responder_minimal() {
+        let input = ResponderInput {
+            oa_content: "审查意见：本申请不具备新颖性。对比文件CN123456A公开了全部技术特征。".into(),
+            strategy: None,
+            patent_info: None,
+        };
+        let result = OaTools::patent_responder(input).unwrap();
+        assert!(result["strategy"].is_string());
+        assert!(result["confidence"].is_number());
+        assert!(result["template"].is_string());
+    }
+}
+
 pub fn register_oa_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();

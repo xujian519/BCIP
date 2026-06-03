@@ -666,4 +666,318 @@ mod tests {
         assert_eq!(kw.legal_basis, "专利法第25条");
         assert_eq!(kw.rule_name, "禁用词检查");
     }
+
+    #[test]
+    fn rules_context_for_phase_drafting() {
+        let engine = test_engine();
+        let ctx = engine.rules_context_for_phase("drafting");
+        assert!(ctx.contains("专利合规规则"));
+        assert!(ctx.contains("drafting 阶段"));
+        assert!(ctx.contains("[BLOCK]"));
+        assert!(ctx.contains("[WARN]"));
+        assert!(ctx.contains("专利法第25条"));
+    }
+
+    #[test]
+    fn rules_context_for_phase_review() {
+        let engine = test_engine();
+        let ctx = engine.rules_context_for_phase("review");
+        assert!(ctx.contains("审查指南第二部分第二章"));
+    }
+
+    #[test]
+    fn rules_context_for_empty_phase() {
+        let engine = test_engine();
+        let ctx = engine.rules_context_for_phase("nonexistent");
+        assert!(ctx.is_empty());
+    }
+
+    #[test]
+    fn auto_scan_for_phase_drafting() {
+        let engine = test_engine();
+        let results = engine.auto_scan_for_phase("drafting");
+        assert!(!results.is_empty());
+        for scanned in &results {
+            assert!(!scanned.active_rules.is_empty());
+            assert!(!scanned.tool_name.is_empty());
+        }
+    }
+
+    #[test]
+    fn auto_scan_for_phase_review() {
+        let engine = test_engine();
+        let results = engine.auto_scan_for_phase("review");
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn auto_scan_for_empty_phase_returns_no_tools() {
+        let engine = test_engine();
+        let results = engine.auto_scan_for_phase("nonexistent");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn category_detection_pass_when_no_match() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "cat_rule".into(),
+                ConstitutionalRule {
+                    id: "CD001".into(),
+                    name: "排除客体检测".into(),
+                    description: "检测排除客体".into(),
+                    phase: "drafting".into(),
+                    severity: "major".into(),
+                    action: "block".into(),
+                    legal_basis: "专利法第25条".into(),
+                    check: RuleCheck::CategoryDetection {
+                        categories: vec![(
+                            "智力活动".into(),
+                            CategoryDef {
+                                description: "智力活动规则".into(),
+                                patterns: vec!["博弈".into(), "棋类".into()],
+                                guidance: "排除".into(),
+                            },
+                        )]
+                        .into_iter()
+                        .collect(),
+                        assessment: "检测排除客体".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明涉及一种机械装置", None, "drafting");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+    }
+
+    #[test]
+    fn category_detection_fail_when_match() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "cat_rule".into(),
+                ConstitutionalRule {
+                    id: "CD001".into(),
+                    name: "排除客体检测".into(),
+                    description: "检测排除客体".into(),
+                    phase: "drafting".into(),
+                    severity: "critical".into(),
+                    action: "block".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::CategoryDetection {
+                        categories: vec![(
+                            "赌博".into(),
+                            CategoryDef {
+                                description: "赌博相关".into(),
+                                patterns: vec!["老虎机".into()],
+                                guidance: "".into(),
+                            },
+                        )]
+                        .into_iter()
+                        .collect(),
+                        assessment: "".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明是一种老虎机", None, "drafting");
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+    }
+
+    #[test]
+    fn specification_analysis_pass() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "spec_rule".into(),
+                ConstitutionalRule {
+                    id: "SPEC001".into(),
+                    name: "说明书分析".into(),
+                    description: "分析说明书维度".into(),
+                    phase: "review".into(),
+                    severity: "major".into(),
+                    action: "warn".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::SpecificationAnalysis {
+                        dimensions: vec![SpecDimension {
+                            dimension: "充分公开".into(),
+                            description: "说明书应充分公开".into(),
+                            checks: vec!["实施方式".into(), "实施例".into()],
+                        }],
+                        assessment: "".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明的实施方式和实施例如下", None, "review");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+    }
+
+    #[test]
+    fn specification_analysis_fail() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "spec_rule".into(),
+                ConstitutionalRule {
+                    id: "SPEC001".into(),
+                    name: "说明书分析".into(),
+                    description: "分析说明书维度".into(),
+                    phase: "review".into(),
+                    severity: "major".into(),
+                    action: "warn".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::SpecificationAnalysis {
+                        dimensions: vec![SpecDimension {
+                            dimension: "充分公开".into(),
+                            description: "说明书应充分公开".into(),
+                            checks: vec!["实施方式".into(), "实施例".into()],
+                        }],
+                        assessment: "".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明只有简单描述", None, "review");
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+    }
+
+    #[test]
+    fn section_structure_pass() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "sec_rule".into(),
+                ConstitutionalRule {
+                    id: "SEC001".into(),
+                    name: "章节结构检查".into(),
+                    description: "检查必要章节".into(),
+                    phase: "review".into(),
+                    severity: "major".into(),
+                    action: "warn".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::SectionStructure {
+                        required_sections: vec![SectionDef {
+                            name: "技术领域".into(),
+                            patterns: vec!["技术领域".into()],
+                            max_length: "".into(),
+                            description: "".into(),
+                            subsections: vec![],
+                            condition: None,
+                        }],
+                        forbidden_content: vec![],
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明的技术领域涉及机械", None, "review");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+    }
+
+    #[test]
+    fn section_structure_fail_missing() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "sec_rule".into(),
+                ConstitutionalRule {
+                    id: "SEC001".into(),
+                    name: "章节结构检查".into(),
+                    description: "检查必要章节".into(),
+                    phase: "review".into(),
+                    severity: "major".into(),
+                    action: "warn".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::SectionStructure {
+                        required_sections: vec![SectionDef {
+                            name: "技术领域".into(),
+                            patterns: vec!["技术领域".into()],
+                            max_length: "".into(),
+                            description: "".into(),
+                            subsections: vec![],
+                            condition: None,
+                        }],
+                        forbidden_content: vec![],
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "本发明是一种装置", None, "review");
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+    }
+
+    #[test]
+    fn fallback_for_unhandled_check_types() {
+        let rules = ConstitutionalRules {
+            rules: vec![(
+                "scope_rule".into(),
+                ConstitutionalRule {
+                    id: "SCOPE001".into(),
+                    name: "范围比较".into(),
+                    description: "比较范围".into(),
+                    phase: "review".into(),
+                    severity: "minor".into(),
+                    action: "log".into(),
+                    legal_basis: "".into(),
+                    check: RuleCheck::ScopeComparison {
+                        direction: "narrower".into(),
+                    },
+                },
+            )]
+            .into_iter()
+            .collect(),
+        };
+        let mut map = HashMap::new();
+        map.insert("test".into(), rules);
+        let engine = ConstitutionalEngine::new(map);
+
+        let results = engine.check_all("tool", "任意文本", None, "review");
+        assert_eq!(results.len(), 1);
+        assert!(results[0].passed);
+        assert_eq!(results[0].confidence, 0.5);
+    }
+
+    #[test]
+    fn rules_returns_reference() {
+        let engine = test_engine();
+        let rules = engine.rules();
+        assert!(rules.contains_key("test_ruleset"));
+    }
 }

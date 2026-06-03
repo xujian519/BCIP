@@ -195,3 +195,158 @@ impl CardIndex {
         results
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use codex_patent_core::KnowledgeCard;
+
+    fn make_card(id: &str, title: &str, concept: &str, domain: &str, quality: f64) -> KnowledgeCard {
+        KnowledgeCard {
+            id: id.into(),
+            file_path: format!("{id}.md"),
+            title: title.into(),
+            concept: concept.into(),
+            domain: domain.into(),
+            quality,
+            related_concepts: vec!["关联概念".into()],
+            generated_at: "2024-01-01".into(),
+            version: 1,
+        }
+    }
+
+    fn make_index_json(cards: &[KnowledgeCard]) -> String {
+        let cards_json: Vec<String> = cards
+            .iter()
+            .map(|c| {
+                format!(
+                    r#"{{"id":"{}","file_path":"{}","title":"{}","concept":"{}","domain":"{}","quality":{},"related_concepts":["关联概念"],"generated_at":"2024-01-01","version":1}}"#,
+                    c.id, c.file_path, c.title, c.concept, c.domain, c.quality
+                )
+            })
+            .collect();
+        format!(r#"{{"cards":[{}]}}"#, cards_json.join(","))
+    }
+
+    #[test]
+    fn load_valid_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let cards = vec![
+            make_card("c1", "新颖性", "novelty", "专利法", 0.9),
+            make_card("c2", "创造性", "inventiveness", "专利法", 0.8),
+        ];
+        std::fs::write(&index_path, make_index_json(&cards)).unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        assert_eq!(idx.len(), 2);
+        assert!(!idx.is_empty());
+    }
+
+    #[test]
+    fn load_missing_file_returns_error() {
+        let result = CardIndex::load("/nonexistent/card-index.json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_invalid_json_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("card-index.json");
+        std::fs::write(&path, "not json").unwrap();
+        let result = CardIndex::load(path.to_str().unwrap());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn search_by_keyword_concept_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let cards = vec![
+            make_card("c1", "新颖性概念", "novelty", "专利法", 0.9),
+            make_card("c2", "创造性概念", "inventiveness", "专利法", 0.8),
+        ];
+        std::fs::write(&index_path, make_index_json(&cards)).unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let results = idx.search_by_keyword("novelty", 10);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "c1");
+    }
+
+    #[test]
+    fn search_by_keyword_no_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let cards = vec![make_card("c1", "新颖性", "novelty", "专利法", 0.9)];
+        std::fs::write(&index_path, make_index_json(&cards)).unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let results = idx.search_by_keyword("量子计算", 10);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_by_concept_exact_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let cards = vec![
+            make_card("c1", "新颖性", "novelty", "专利法", 0.9),
+            make_card("c2", "创造性", "inventiveness", "专利法", 0.8),
+        ];
+        std::fs::write(&index_path, make_index_json(&cards)).unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let results = idx.search_by_concept("novelty", 10);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "c1");
+    }
+
+    #[test]
+    fn filter_by_quality() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let cards = vec![
+            make_card("c1", "A", "a", "d", 0.9),
+            make_card("c2", "B", "b", "d", 0.5),
+            make_card("c3", "C", "c", "d", 0.7),
+        ];
+        std::fs::write(&index_path, make_index_json(&cards)).unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let results = idx.filter_by_quality(0.7, 10);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].id, "c1");
+        assert_eq!(results[1].id, "c3");
+    }
+
+    #[test]
+    fn load_content_reads_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let card = make_card("c1", "Test", "test", "d", 0.9);
+        std::fs::write(&index_path, make_index_json(&[card.clone()])).unwrap();
+        let md_path = dir.path().join("c1.md");
+        std::fs::write(&md_path, "# Test Content\nHello world").unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let content = idx.load_content(&idx.all()[0]).unwrap();
+        assert!(content.contains("Hello world"));
+    }
+
+    #[test]
+    fn load_content_caches() {
+        let dir = tempfile::tempdir().unwrap();
+        let index_path = dir.path().join("card-index.json");
+        let card = make_card("c1", "Test", "test", "d", 0.9);
+        std::fs::write(&index_path, make_index_json(&[card.clone()])).unwrap();
+        let md_path = dir.path().join("c1.md");
+        std::fs::write(&md_path, "cached content").unwrap();
+
+        let idx = CardIndex::load(index_path.to_str().unwrap()).unwrap();
+        let _first = idx.load_content(&idx.all()[0]).unwrap();
+        std::fs::remove_file(dir.path().join("c1.md")).unwrap();
+        let second = idx.load_content(&idx.all()[0]).unwrap();
+        assert!(second.contains("cached content"));
+    }
+}

@@ -145,3 +145,116 @@ impl PatentError {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classify_retryable_timeout() {
+        assert_eq!(classify_tool_error("request timeout"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_connection() {
+        assert_eq!(classify_tool_error("connection refused"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_rate_limit() {
+        assert_eq!(classify_tool_error("rate limit exceeded"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_429() {
+        assert_eq!(classify_tool_error("HTTP 429"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_gateway() {
+        assert_eq!(classify_tool_error("502 bad gateway"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_broken_pipe() {
+        assert_eq!(classify_tool_error("broken pipe"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_retryable_try_again() {
+        assert_eq!(classify_tool_error("please try again"), ToolErrorKind::Retryable);
+    }
+
+    #[test]
+    fn classify_fatal_invalid_arg() {
+        assert_eq!(classify_tool_error("invalid argument"), ToolErrorKind::Fatal);
+    }
+
+    #[test]
+    fn classify_fatal_permission() {
+        assert_eq!(classify_tool_error("permission denied"), ToolErrorKind::Fatal);
+    }
+
+    #[test]
+    fn classify_fatal_unknown() {
+        assert_eq!(classify_tool_error("something went wrong"), ToolErrorKind::Fatal);
+    }
+
+    #[test]
+    fn api_key_error_display_missing() {
+        let err = ApiKeyError::Missing("OPENAI_API_KEY".into());
+        assert!(err.to_string().contains("not set"));
+    }
+
+    #[test]
+    fn api_key_error_display_empty() {
+        let err = ApiKeyError::Empty("OPENAI_API_KEY".into());
+        assert!(err.to_string().contains("empty"));
+    }
+
+    #[test]
+    fn api_key_error_display_proxy() {
+        let err = ApiKeyError::SuspectedProxyValue {
+            env_var: "OPENAI_API_KEY".into(),
+            len: 42,
+        };
+        assert!(err.to_string().contains("proxy"));
+    }
+
+    #[test]
+    fn patent_error_is_retryable_kg() {
+        let err = PatentError::KnowledgeGraph("test".into());
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn patent_error_is_retryable_io() {
+        let err = PatentError::Io(std::io::Error::new(std::io::ErrorKind::TimedOut, "timeout"));
+        assert!(err.is_retryable());
+    }
+
+    #[test]
+    fn patent_error_not_retryable_config() {
+        let err = PatentError::Config("bad config".into());
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn patent_error_not_retryable_validation() {
+        let err = PatentError::Validation("invalid".into());
+        assert!(!err.is_retryable());
+    }
+
+    #[test]
+    fn from_serde_json_error() {
+        let json_err = serde_json::from_str::<serde_json::Value>("{bad}");
+        let err = PatentError::from(json_err.unwrap_err());
+        assert!(matches!(err, PatentError::Serialization(_)));
+    }
+
+    #[test]
+    fn from_api_key_error() {
+        let err = PatentError::from(ApiKeyError::Missing("KEY".into()));
+        assert!(matches!(err, PatentError::ApiKey(_)));
+    }
+}

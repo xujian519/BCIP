@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 /// IPC 分类结果。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IpcResult {
     pub section: String,
     pub class: String,

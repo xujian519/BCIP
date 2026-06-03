@@ -224,6 +224,7 @@ fn uuid_simple() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cron::CronField;
 
     #[test]
     fn test_add_and_list_tasks() {
@@ -267,6 +268,190 @@ mod tests {
         };
 
         assert!(sched.add_task(task).is_err());
+    }
+
+    #[test]
+    fn test_remove_task() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+
+        let task = CronTask {
+            id: "remove-me".into(),
+            cron: "0 9 * * *".into(),
+            prompt: "test".into(),
+            name: "删除测试".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: None,
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        };
+
+        sched.add_task(task).unwrap();
+        assert_eq!(sched.list_tasks().len(), 1);
+
+        sched.remove_task("remove-me").unwrap();
+        assert!(sched.list_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_remove_nonexistent_task() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+
+        let result = sched.remove_task("nonexistent");
+        assert!(result.is_ok());
+        assert!(sched.list_tasks().is_empty());
+    }
+
+    #[test]
+    fn test_auto_generated_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+
+        let task = CronTask {
+            id: String::new(),
+            cron: "0 9 * * *".into(),
+            prompt: "test".into(),
+            name: "自动ID".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: None,
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        };
+
+        sched.add_task(task).unwrap();
+        let id = &sched.list_tasks()[0].id;
+        assert_eq!(id.len(), 16);
+    }
+
+    #[test]
+    fn test_detect_missed_tasks() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+
+        let past = Utc::now() - chrono::Duration::hours(2);
+        let task = CronTask {
+            id: "missed".into(),
+            cron: "* * * * *".into(),
+            prompt: "test".into(),
+            name: "过期任务".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: Some(past),
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        };
+
+        sched.add_task(task).unwrap();
+        let missed = sched.detect_missed_tasks(Utc::now());
+        assert_eq!(missed.len(), 1);
+        assert_eq!(missed[0].id, "missed");
+    }
+
+    #[test]
+    fn test_detect_no_missed_for_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+
+        let past = Utc::now() - chrono::Duration::hours(2);
+        let task = CronTask {
+            id: "disabled".into(),
+            cron: "* * * * *".into(),
+            prompt: "test".into(),
+            name: "禁用任务".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: Some(past),
+            recurring: true,
+            enabled: false,
+            jitter_ms: 0,
+        };
+
+        sched.add_task(task).unwrap();
+        let missed = sched.detect_missed_tasks(Utc::now());
+        assert!(missed.is_empty());
+    }
+
+    #[test]
+    fn test_reload_picks_up_new_tasks() {
+        let dir = tempfile::tempdir().unwrap();
+        let task_file = dir.path().join("scheduled_tasks.json");
+
+        let sched = CronScheduler::new(dir.path()).unwrap();
+        assert!(sched.list_tasks().is_empty());
+
+        let now = Utc::now();
+        let tasks = vec![CronTask {
+            id: "reloaded".into(),
+            cron: "0 9 * * *".into(),
+            prompt: "reloaded".into(),
+            name: "重新加载".into(),
+            description: "test".into(),
+            created_at: now,
+            last_fired_at: None,
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        }];
+        let json = serde_json::to_string_pretty(&tasks).unwrap();
+        std::fs::write(&task_file, &json).unwrap();
+
+        let mut sched = CronScheduler::new(dir.path()).unwrap();
+        sched.reload().unwrap();
+        assert_eq!(sched.list_tasks().len(), 1);
+        assert_eq!(sched.list_tasks()[0].id, "reloaded");
+    }
+
+    #[test]
+    fn test_validated_ok() {
+        let task = CronTask {
+            id: "v1".into(),
+            cron: "0 9 * * 1-5".into(),
+            prompt: "test".into(),
+            name: "验证".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: None,
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        };
+        let expr = task.validated().unwrap();
+        assert_eq!(expr.minute, CronField::Single(0));
+    }
+
+    #[test]
+    fn test_validated_err() {
+        let task = CronTask {
+            id: "v2".into(),
+            cron: "bad cron expr".into(),
+            prompt: "test".into(),
+            name: "无效".into(),
+            description: "test".into(),
+            created_at: Utc::now(),
+            last_fired_at: None,
+            recurring: true,
+            enabled: true,
+            jitter_ms: 0,
+        };
+        assert!(task.validated().is_err());
+    }
+
+    #[test]
+    fn test_scheduler_error_display() {
+        let err = SchedulerError::IoError("file not found".into());
+        assert!(format!("{err}").contains("file not found"));
+
+        let err = SchedulerError::CronParseError("bad expr".into());
+        assert!(format!("{err}").contains("bad expr"));
+
+        let err = SchedulerError::LockError("locked".into());
+        assert!(format!("{err}").contains("locked"));
     }
 }
 

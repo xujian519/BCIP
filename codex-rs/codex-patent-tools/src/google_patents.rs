@@ -42,13 +42,6 @@ pub struct PatentResult {
     /// 公开/公告日期。
     pub publication_date: Option<String>,
 }
-    pub patent_number: String,
-    pub title: String,
-    pub abstract_text: String,
-    pub assignee: Option<String>,
-    pub filing_date: Option<String>,
-    pub publication_date: Option<String>,
-}
 
 pub async fn fetch_google_patents(input: GooglePatentsInput) -> Result<Vec<PatentResult>, String> {
     let url = format!(
@@ -209,7 +202,6 @@ fn urlencoding(s: &str) -> String {
     s.replace(' ', "+").replace('&', "%26").replace('=', "%3D")
 }
 
-#[derive(Debug, Deserialize)]
 /// 专利 PDF 下载输入参数。
 #[derive(Debug, Deserialize)]
 pub struct PatentDownloadInput {

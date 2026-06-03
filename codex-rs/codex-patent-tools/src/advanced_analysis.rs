@@ -49,32 +49,6 @@ pub struct SuccessPredictorInput {
 
 /// 高级分析工具集。
 pub struct AdvancedAnalysisTools;
-    pub text_a: String,
-    pub text_b: String,
-    pub mode: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SynergyAnalysisInput {
-    pub features: Vec<String>,
-    pub description: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct HighCitationInput {
-    pub patent_number: String,
-    pub limit: Option<usize>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SuccessPredictorInput {
-    pub rejection_type: String,
-    pub has_differences: Option<bool>,
-    pub has_technical_effect: Option<bool>,
-    pub argument_count: Option<usize>,
-}
-
-pub struct AdvancedAnalysisTools;
 
 impl AdvancedAnalysisTools {
     pub fn semantic_compare(input: SemanticCompareInput) -> Result<serde_json::Value, String> {
@@ -231,5 +205,87 @@ impl AdvancedAnalysisTools {
                 },
             },
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn semantic_compare_lexical_identical() {
+        let input = SemanticCompareInput {
+            text_a: "一种传感器装置".into(),
+            text_b: "一种传感器装置".into(),
+            mode: Some("lexical".into()),
+        };
+        let result = AdvancedAnalysisTools::semantic_compare(input).unwrap();
+        assert_eq!(result["mode"], "lexical");
+        let lex = result["lexical_similarity"].as_f64().unwrap();
+        assert!(lex > 0.9, "identical text should have high lexical similarity, got {lex}");
+    }
+
+    #[test]
+    fn semantic_compare_hybrid_default() {
+        let input = SemanticCompareInput {
+            text_a: "技术方案A包含特征X。".into(),
+            text_b: "完全不同的文本Y。".into(),
+            mode: None,
+        };
+        let result = AdvancedAnalysisTools::semantic_compare(input).unwrap();
+        assert_eq!(result["mode"], "hybrid");
+        let hybrid = result["hybrid_score"].as_f64().unwrap();
+        assert!(hybrid < 1.0, "different text should have lower hybrid score, got {hybrid}");
+    }
+
+    #[test]
+    fn synergy_analysis_less_than_two_features() {
+        let input = SynergyAnalysisInput {
+            features: vec!["仅一个特征".into()],
+            description: "描述文本".into(),
+        };
+        let result = AdvancedAnalysisTools::synergy_analysis(input).unwrap();
+        assert_eq!(result["has_synergy"], false);
+        assert_eq!(result["synergy_score"], 0.0);
+    }
+
+    #[test]
+    fn synergy_analysis_features_in_description() {
+        let input = SynergyAnalysisInput {
+            features: vec!["特征Alpha".into(), "特征Beta".into()],
+            description: "本方案包含特征Alpha和特征Beta的协同作用".into(),
+        };
+        let result = AdvancedAnalysisTools::synergy_analysis(input).unwrap();
+        assert_eq!(result["feature_count"], 2);
+        assert_eq!(result["pairs_analyzed"], 1);
+    }
+
+    #[test]
+    fn success_predictor_novelty_with_bonuses() {
+        let input = SuccessPredictorInput {
+            rejection_type: "novelty".into(),
+            has_differences: Some(true),
+            has_technical_effect: Some(true),
+            argument_count: Some(3),
+        };
+        let result = AdvancedAnalysisTools::success_predictor(input).unwrap();
+        let prob = result["success_probability"].as_f64().unwrap();
+        assert!(prob > 0.5, "with differences + effect + 3 args, should be > 0.5, got {prob}");
+        assert_eq!(result["assessment"], "likely_success");
+    }
+
+    #[test]
+    fn success_predictor_unknown_rejection_no_bonuses() {
+        let input = SuccessPredictorInput {
+            rejection_type: "UnknownType".into(),
+            has_differences: Some(false),
+            has_technical_effect: Some(false),
+            argument_count: Some(1),
+        };
+        let result = AdvancedAnalysisTools::success_predictor(input).unwrap();
+        let prob = result["success_probability"].as_f64().unwrap();
+        assert!((0.3..=0.6).contains(&prob), "base case should be around 0.5, got {prob}");
+        assert_eq!(result["score_breakdown"]["rejection_type_impact"], 0.0);
     }
 }

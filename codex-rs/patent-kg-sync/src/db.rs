@@ -422,3 +422,63 @@ fn sanitize_judgment_id(case_number: &str) -> String {
             .replace([' ', '/'], "_")
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_id_replaces_special_chars() {
+        assert_eq!(sanitize_id("专利/侵权"), "专利_侵权");
+        assert_eq!(sanitize_id("test case"), "test_case");
+    }
+
+    #[test]
+    fn sanitize_id_chinese_punctuation() {
+        assert_eq!(sanitize_id("（测试）"), "_测试_");
+        assert_eq!(sanitize_id("甲、乙"), "甲_乙");
+    }
+
+    #[test]
+    fn sanitize_id_collapses_multiple_underscores() {
+        assert_eq!(sanitize_id("a///b"), "a_b");
+        assert_eq!(sanitize_id("a   b"), "a_b");
+    }
+
+    #[test]
+    fn sanitize_id_no_change() {
+        assert_eq!(sanitize_id("正常文本"), "正常文本");
+    }
+
+    #[test]
+    fn extract_ipc_subclass_valid() {
+        assert_eq!(extract_ipc_subclass("G06F3/00"), "G06F");
+        assert_eq!(extract_ipc_subclass("H02G 3/00"), "H02G");
+    }
+
+    #[test]
+    fn extract_ipc_subclass_already_subclass() {
+        assert_eq!(extract_ipc_subclass("A01B"), "A01B");
+    }
+
+    #[test]
+    fn extract_ipc_subclass_invalid() {
+        assert_eq!(extract_ipc_subclass("invalid"), "");
+    }
+
+    #[test]
+    fn sanitize_judgment_id_basic() {
+        assert_eq!(
+            sanitize_judgment_id("（2023）最高法知行终475号"),
+            "J_(2023)最高法知行终475号"
+        );
+    }
+
+    #[test]
+    fn sanitize_judgment_id_replaces_spaces() {
+        assert_eq!(
+            sanitize_judgment_id("(2023) abc/def"),
+            "J_(2023)_abc_def"
+        );
+    }
+}

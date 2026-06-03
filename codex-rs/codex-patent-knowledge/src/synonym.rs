@@ -153,3 +153,60 @@ impl Default for SynonymDict {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expand_novelty() {
+        let dict = SynonymDict::new();
+        let results = dict.expand("新颖性");
+        assert!(!results.is_empty());
+        assert!(results.contains(&"首次公开"));
+        assert!(results.contains(&"novelty"));
+    }
+
+    #[test]
+    fn expand_creativity() {
+        let dict = SynonymDict::new();
+        let results = dict.expand("创造性");
+        assert!(results.contains(&"非显而易见"));
+        assert!(results.contains(&"inventive step"));
+    }
+
+    #[test]
+    fn expand_no_match() {
+        let dict = SynonymDict::new();
+        let results = dict.expand("量子纠缠");
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn expand_by_synonym() {
+        let dict = SynonymDict::new();
+        let results = dict.expand("infringement");
+        assert!(results.contains(&"侵权"));
+    }
+
+    #[test]
+    fn search_synonyms_keyword() {
+        let dict = SynonymDict::new();
+        let results = dict.search_synonyms("prior");
+        assert!(results.iter().any(|s| s.contains("prior art")));
+    }
+
+    #[test]
+    fn search_synonyms_chinese() {
+        let dict = SynonymDict::new();
+        let results = dict.search_synonyms("无效");
+        assert!(results.iter().any(|s| s == "宣告无效"));
+    }
+
+    #[test]
+    fn default_equals_new() {
+        let d1 = SynonymDict::new();
+        let d2 = SynonymDict::default();
+        assert_eq!(d1.expand("新颖性"), d2.expand("新颖性"));
+    }
+}

@@ -87,3 +87,54 @@ impl PatentCronTemplate {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn weekly_prior_art_search_template() {
+        let tmpl = PatentCronTemplate::WeeklyPriorArtSearch {
+            search_query: "深度学习".into(),
+            ipc_class: "G06N".into(),
+        };
+        let task = tmpl.to_task();
+        assert!(task.prompt.contains("G06N"));
+        assert!(task.prompt.contains("深度学习"));
+        assert_eq!(task.cron, "0 9 * * 1");
+        assert!(task.recurring);
+    }
+
+    #[test]
+    fn daily_oa_deadline_check_template() {
+        let tmpl = PatentCronTemplate::DailyOaDeadlineCheck {
+            docket_path: "/data/docket.json".into(),
+        };
+        let task = tmpl.to_task();
+        assert!(task.prompt.contains("docket.json"));
+        assert_eq!(task.cron, "0 8 * * 1-5");
+        assert!(task.recurring);
+    }
+
+    #[test]
+    fn weekly_portfolio_report_template() {
+        let tmpl = PatentCronTemplate::WeeklyPortfolioReport {
+            patent_ids: vec!["CN001".into(), "CN002".into()],
+        };
+        let task = tmpl.to_task();
+        assert!(task.prompt.contains("CN001"));
+        assert!(task.prompt.contains("CN002"));
+        assert!(task.prompt.contains("2 件专利"));
+        assert_eq!(task.cron, "0 10 * * 1");
+    }
+
+    #[test]
+    fn daily_legal_status_monitor_template() {
+        let tmpl = PatentCronTemplate::DailyLegalStatusMonitor {
+            patent_numbers: vec!["CN100".into()],
+        };
+        let task = tmpl.to_task();
+        assert!(task.prompt.contains("CN100"));
+        assert_eq!(task.cron, "0 7 * * *");
+    }
+}

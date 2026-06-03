@@ -234,4 +234,108 @@ mod tests {
         let reasons = extract_reasons(content);
         assert!(reasons.contains(&"创造性".to_string()));
     }
+
+    #[test]
+    fn extract_conclusion_full_invalidity() {
+        let content = "现决定如下：宣告专利权全部无效\n根据专利法第46条第2款";
+        assert_eq!(extract_conclusion(content), "宣告专利权全部无效");
+    }
+
+    #[test]
+    fn extract_conclusion_partial_invalidity() {
+        let content = "现决定如下：宣告专利权部分无效\n根据专利法第46条第2款";
+        assert_eq!(extract_conclusion(content), "宣告专利权部分无效");
+    }
+
+    #[test]
+    fn extract_conclusion_maintained() {
+        let content = "现决定如下：维持专利权有效\n根据专利法第46条第2款";
+        assert_eq!(extract_conclusion(content), "维持专利权有效");
+    }
+
+    #[test]
+    fn extract_conclusion_fallback() {
+        assert_eq!(extract_conclusion("宣告专利权全部无效"), "宣告专利权全部无效");
+    }
+
+    #[test]
+    fn extract_conclusion_unknown() {
+        assert_eq!(extract_conclusion("no conclusion here"), "未知");
+    }
+
+    #[test]
+    fn extract_law_articles_with_rules() {
+        let content = "根据专利法实施细则第43条第1款";
+        let articles = extract_law_articles(content);
+        assert!(articles.contains(&"R43.1".to_string()));
+    }
+
+    #[test]
+    fn extract_law_articles_no_clause() {
+        let content = "根据专利法第22条的规定";
+        let articles = extract_law_articles(content);
+        assert!(articles.contains(&"A22".to_string()));
+    }
+
+    #[test]
+    fn extract_law_articles_dedup() {
+        let content = "专利法第22条第3款，专利法第22条第3款";
+        let articles = extract_law_articles(content);
+        assert_eq!(articles.iter().filter(|a| **a == "A22.3").count(), 1);
+    }
+
+    #[test]
+    fn extract_reasons_multiple() {
+        let content = "创造性、新颖性、实用性均存在问题，充分公开不满足，保护范围不清楚";
+        let reasons = extract_reasons(content);
+        assert!(reasons.contains(&"创造性".to_string()));
+        assert!(reasons.contains(&"新颖性".to_string()));
+        assert!(reasons.contains(&"实用性".to_string()));
+        assert!(reasons.contains(&"公开不充分".to_string()));
+        assert!(reasons.contains(&"保护范围不清楚".to_string()));
+    }
+
+    #[test]
+    fn extract_ipc_from_table_valid() {
+        let content = "国际分类号 | H02G 3/00";
+        assert_eq!(extract_ipc_from_table(content), Some("H02G3/00".to_string()));
+    }
+
+    #[test]
+    fn extract_ipc_from_table_colon() {
+        let content = "分类号：G06F 1/00";
+        assert_eq!(extract_ipc_from_table(content), Some("G06F1/00".to_string()));
+    }
+
+    #[test]
+    fn extract_ipc_from_table_none() {
+        assert_eq!(extract_ipc_from_table("no ipc here"), None);
+    }
+
+    #[test]
+    fn extract_summary_decision_point() {
+        let content = "决定要点\n这是一条重要的决定要点\n第二行";
+        let summary = extract_summary(content);
+        assert!(summary.contains("重要的决定要点"));
+    }
+
+    #[test]
+    fn extract_summary_case_origin() {
+        let content = "一、案由\n这是案由的内容";
+        let summary = extract_summary(content);
+        assert!(summary.contains("案由"));
+    }
+
+    #[test]
+    fn extract_summary_fallback() {
+        let content = "short content";
+        assert_eq!(extract_summary(content), "short content");
+    }
+
+    #[test]
+    fn extract_reasons_modification() {
+        let content = "存在修改超范围的问题";
+        let reasons = extract_reasons(content);
+        assert!(reasons.contains(&"修改超范围".to_string()));
+    }
 }

@@ -148,4 +148,61 @@ mod tests {
         assert_eq!(truncate("hello world", 5), "hello");
         assert_eq!(truncate("你好世界", 100), "你好世界");
     }
+
+    #[test]
+    fn chinese_to_number_single_digits() {
+        assert_eq!(chinese_to_number("一"), 1);
+        assert_eq!(chinese_to_number("九"), 9);
+        assert_eq!(chinese_to_number("1"), 1);
+        assert_eq!(chinese_to_number("9"), 9);
+    }
+
+    #[test]
+    fn chinese_to_number_teens() {
+        assert_eq!(chinese_to_number("十一"), 11);
+        assert_eq!(chinese_to_number("十九"), 19);
+    }
+
+    #[test]
+    fn chinese_to_number_hundreds() {
+        assert_eq!(chinese_to_number("一百"), 100);
+        assert_eq!(chinese_to_number("二百"), 200);
+        assert_eq!(chinese_to_number("一百五十"), 150);
+    }
+
+    #[test]
+    fn chinese_to_number_numeric_string() {
+        assert_eq!(chinese_to_number("10"), 10);
+        assert_eq!(chinese_to_number("20"), 20);
+        assert_eq!(chinese_to_number("30"), 30);
+        assert_eq!(chinese_to_number("50"), 50);
+    }
+
+    #[test]
+    fn chinese_to_number_unknown_returns_zero() {
+        assert_eq!(chinese_to_number("abc"), 0);
+        assert_eq!(chinese_to_number(""), 0);
+    }
+
+    #[test]
+    fn truncate_shorter_than_max() {
+        assert_eq!(truncate("hi", 10), "hi");
+    }
+
+    #[test]
+    fn truncate_exact_length() {
+        assert_eq!(truncate("hello", 5), "hello");
+    }
+
+    #[test]
+    fn truncate_trims_whitespace() {
+        assert_eq!(truncate("  hello  ", 100), "hello");
+    }
+
+    #[test]
+    fn truncate_utf8_boundary() {
+        let s = "你好世界测试";
+        let result = truncate(s, 6);
+        assert_eq!(result, "你好");
+    }
 }

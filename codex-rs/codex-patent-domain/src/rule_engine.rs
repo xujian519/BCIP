@@ -907,4 +907,257 @@ mod tests {
         let result = engine.suggest_oa_strategy(&ctx).unwrap();
         assert!(!result.applied_rules.is_empty());
     }
+
+    #[test]
+    fn test_novelty_empty_context_returns_insufficient_info() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext::default();
+        let result = engine.analyze_novelty(&ctx).unwrap();
+        assert_eq!(result.net_score, 0.0);
+        assert!(result.applied_rules.is_empty());
+        assert!(result.conclusion.contains("信息不足"));
+    }
+
+    #[test]
+    fn test_nr01_prior_art_contains_all() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            prior_art_contains_all: Some(true),
+            ..Default::default()
+        };
+        let result = engine.analyze_novelty(&ctx).unwrap();
+        let nr01 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-01"));
+        assert!(nr01.is_some());
+        assert!(nr01.unwrap().score < 0.2);
+        assert!(nr01.unwrap().conclusion.contains("全部技术特征"));
+    }
+
+    #[test]
+    fn test_nr01_prior_art_not_contains_all() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            prior_art_contains_all: Some(false),
+            ..Default::default()
+        };
+        let result = engine.analyze_novelty(&ctx).unwrap();
+        let nr01 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-01"));
+        assert!(nr01.is_some());
+        assert!(nr01.unwrap().score > 0.7);
+    }
+
+    #[test]
+    fn test_nr02_empty_differences() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            differences: Some(vec![]),
+            ..Default::default()
+        };
+        let result = engine.analyze_novelty(&ctx).unwrap();
+        let nr02 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-02"));
+        assert!(nr02.is_some());
+        assert!(nr02.unwrap().score < 0.1);
+    }
+
+    #[test]
+    fn test_nr03_substantially_same() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            invention: Some("一种数据处理方法".into()),
+            differences: Some(vec![]),
+            ..Default::default()
+        };
+        let result = engine.analyze_novelty(&ctx).unwrap();
+        let nr03 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("NR-03"));
+        assert!(nr03.is_some());
+        assert!(nr03.unwrap().conclusion.contains("实质相同"));
+        assert!(nr03.unwrap().score < 0.1);
+    }
+
+    #[test]
+    fn test_inventiveness_empty_context_returns_insufficient_info() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext::default();
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        assert_eq!(result.net_score, 0.0);
+        assert!(result.applied_rules.is_empty());
+        assert!(result.conclusion.contains("信息不足"));
+    }
+
+    #[test]
+    fn test_ir03_common_knowledge_short_feature() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            distinguishing_features: Some(vec!["弹簧".into()]),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir03 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-03"));
+        assert!(ir03.is_some());
+        assert!(ir03.unwrap().conclusion.contains("公知常识"));
+        assert!(ir03.unwrap().score < 0.3);
+    }
+
+    #[test]
+    fn test_ir03_non_common_knowledge_long_feature() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            distinguishing_features: Some(vec![
+                "基于深度学习的多模态特征融合与自适应权重分配机制".into(),
+            ]),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir03 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-03"));
+        assert!(ir03.is_some());
+        assert!(ir03.unwrap().score > 0.5);
+    }
+
+    #[test]
+    fn test_ir05_combination_simple_stack() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            is_combination: Some(CombinationType::SimpleStack),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir05 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-05"));
+        assert!(ir05.is_some());
+        assert!(ir05.unwrap().score < 0.3);
+        assert!(ir05.unwrap().conclusion.contains("简单叠加"));
+    }
+
+    #[test]
+    fn test_ir06_selection_without_effect() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            invention_type: Some(InventionType::Selection),
+            has_unexpected_effect: Some(false),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir06 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-06"));
+        assert!(ir06.is_some());
+        assert!(ir06.unwrap().score < 0.4);
+    }
+
+    #[test]
+    fn test_ir10_technical_effect() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            technical_effect: Some("显著提高了数据传输效率".into()),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir10 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-10"));
+        assert!(ir10.is_some());
+        assert!(ir10.unwrap().score > 0.6);
+    }
+
+    #[test]
+    fn test_ir11_performance_improvement_high() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            performance_improvement: Some(0.8),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir11 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-11"));
+        assert!(ir11.is_some());
+        assert!(ir11.unwrap().score > 0.8);
+        assert!(ir11.unwrap().conclusion.contains("80%"));
+    }
+
+    #[test]
+    fn test_ir11_performance_improvement_low() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            performance_improvement: Some(0.05),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir11 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-11"));
+        assert!(ir11.is_some());
+        assert!(ir11.unwrap().score < 0.35);
+    }
+
+    #[test]
+    fn test_ir12_obviousness_obvious() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            obviousness: Some(true),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir12 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-12"));
+        assert!(ir12.is_some());
+        assert!(ir12.unwrap().score < 0.2);
+        assert!(ir12.unwrap().conclusion.contains("显而易见"));
+    }
+
+    #[test]
+    fn test_ir12_obviousness_non_obvious() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            obviousness: Some(false),
+            ..Default::default()
+        };
+        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let ir12 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-12"));
+        assert!(ir12.is_some());
+        assert!(ir12.unwrap().score > 0.7);
+    }
+
+    #[test]
+    fn test_oa_strategy_novelty_rejection() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            rejection_type: Some("新颖性".into()),
+            ..Default::default()
+        };
+        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let oa01 = result.applied_rules.iter().find(|r| r.rule_name.contains("OA-01"));
+        assert!(oa01.is_some());
+        assert!(oa01.unwrap().conclusion.contains("新颖性驳回"));
+    }
+
+    #[test]
+    fn test_oa_strategy_cross_field() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            prior_art_different_field: Some(true),
+            ..Default::default()
+        };
+        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let oa03 = result.applied_rules.iter().find(|r| r.rule_name.contains("OA-03"));
+        assert!(oa03.is_some());
+        assert!(oa03.unwrap().conclusion.contains("不同技术领域"));
+    }
+
+    #[test]
+    fn test_oa_strategy_no_matching_rules() {
+        let mut engine = QualitativeRuleEngine::new();
+        let ctx = CaseContext {
+            rejection_type: Some("不清楚".into()),
+            ..Default::default()
+        };
+        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        assert!(result.applied_rules.is_empty());
+        assert!(result.conclusion.contains("无法确定"));
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let mut engine1 = QualitativeRuleEngine::new();
+        let mut engine2 = QualitativeRuleEngine::default();
+        let ctx = CaseContext {
+            prior_art_contains_all: Some(false),
+            ..Default::default()
+        };
+        let r1 = engine1.analyze_novelty(&ctx).unwrap();
+        let r2 = engine2.analyze_novelty(&ctx).unwrap();
+        assert_eq!(r1.net_score, r2.net_score);
+    }
 }

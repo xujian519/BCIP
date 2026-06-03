@@ -383,6 +383,8 @@ pub struct PatentDocument {
 // ── OA 相关类型 ──
 
 /// 审查意见类型。
+/// 审查意见类型。
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OaType {
     /// 缺乏新颖性。
     Novelty,
@@ -401,6 +403,7 @@ pub enum OaType {
 }
 
 /// 引用的对比文件（审查意见通知书中引用的现有技术文献）。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CitedReference {
     pub document_number: String,
     pub relevancy: String,
@@ -408,6 +411,7 @@ pub struct CitedReference {
 }
 
 /// 审查意见通知书。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OfficeAction {
     pub oa_type: OaType,
     pub citations: Vec<CitedReference>,
@@ -416,6 +420,7 @@ pub struct OfficeAction {
 }
 
 /// 答复策略类型。
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ResponseStrategyType {
     AmendClaims,
     Argue,
@@ -424,6 +429,7 @@ pub enum ResponseStrategyType {
 }
 
 /// 审查意见答复策略。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResponseStrategy {
     pub strategy_type: ResponseStrategyType,
     pub reasoning: String,
@@ -433,6 +439,7 @@ pub struct ResponseStrategy {
 // ── 质量评估相关类型 ──
 
 /// 单个质量问题的描述。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QualityIssue {
     pub dimension: String,
     pub severity: String,
@@ -441,6 +448,7 @@ pub struct QualityIssue {
 }
 
 /// 综合质量评估结果。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QualityAssessment {
     pub clarity_score: f32,
     pub support_score: f32,
@@ -453,6 +461,7 @@ pub struct QualityAssessment {
 // ── 技术特征相关类型 ──
 
 /// 技术特征类别。
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FeatureCategory {
     Structural,
     Functional,
@@ -462,6 +471,7 @@ pub enum FeatureCategory {
 }
 
 /// 技术特征描述。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TechnicalFeature {
     pub id: String,
     pub description: String,
@@ -472,6 +482,7 @@ pub struct TechnicalFeature {
 }
 
 /// 问题-特征-效果（PFE）三元组，用于创造性三步法分析。
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProblemFeatureEffect {
     pub id: String,
     pub technical_problem: String,

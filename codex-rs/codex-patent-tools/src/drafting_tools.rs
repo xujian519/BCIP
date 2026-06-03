@@ -129,6 +129,90 @@ impl DraftingTools {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn specification_draft_contains_all_sections() {
+        let input = SpecificationInput {
+            title: "测试发明".into(),
+            technical_field: "电子工程".into(),
+            background: "现有技术不足".into(),
+            invention_content: "提出一种新方案".into(),
+            embodiments: "实施例1：如图1所示".into(),
+        };
+        let result = DraftingTools::specification_draft(input).unwrap();
+        let spec = result["specification"].as_str().unwrap();
+        assert!(spec.contains("技术领域"));
+        assert!(spec.contains("背景技术"));
+        assert!(spec.contains("发明内容"));
+        assert!(spec.contains("具体实施方式"));
+        assert!(result["word_count"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn claim_generator_with_optional_features() {
+        let input = ClaimGeneratorInput {
+            invention_name: "传感器".into(),
+            essential_features: vec!["检测模块".into(), "处理模块".into()],
+            optional_features: Some(vec![
+                vec!["无线传输".into()],
+                vec!["低功耗模式".into()],
+            ]),
+        };
+        let result = DraftingTools::claim_generator(input).unwrap();
+        let claims = result["claims"].as_array().unwrap();
+        assert_eq!(claims.len(), 3);
+        assert_eq!(result["independent_count"], 1);
+        assert_eq!(result["dependent_count"], 2);
+        assert!(claims[0].as_str().unwrap().contains("传感器"));
+    }
+
+    #[test]
+    fn claim_generator_no_optional_features() {
+        let input = ClaimGeneratorInput {
+            invention_name: "装置".into(),
+            essential_features: vec!["特征A".into()],
+            optional_features: None,
+        };
+        let result = DraftingTools::claim_generator(input).unwrap();
+        let claims = result["claims"].as_array().unwrap();
+        assert_eq!(claims.len(), 1);
+        assert_eq!(result["dependent_count"], 0);
+    }
+
+    #[test]
+    fn abstract_draft_contains_components() {
+        let input = AbstractDraftInput {
+            title: "智能传感器".into(),
+            technical_problem: "检测精度低".into(),
+            technical_solution: "采用双模检测".into(),
+            technical_effect: "提高精度50%".into(),
+        };
+        let result = DraftingTools::abstract_draft(input).unwrap();
+        let text = result["abstract_text"].as_str().unwrap();
+        assert!(text.contains("智能传感器"));
+        assert!(text.contains("检测精度低"));
+        assert!(text.contains("双模检测"));
+        assert!(text.contains("提高精度50%"));
+    }
+
+    #[test]
+    fn innovation_evaluator_returns_valid_score() {
+        let result = DraftingTools::innovation_evaluator(
+            "一种新型量子计算方法".into(),
+            Some("大幅提高计算速度".into()),
+            Some(0.8),
+            Some(false),
+        ).unwrap();
+        let score = result["score"].as_f64().unwrap();
+        assert!((0.0..=1.0).contains(&score), "score should be in [0,1], got {score}");
+        assert!(result["innovation_level"].is_string());
+    }
+}
+
 pub fn register_drafting_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();

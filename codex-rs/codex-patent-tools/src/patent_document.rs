@@ -113,3 +113,67 @@ impl PatentDocumentTools {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn oa_parse_detects_cited_patents_and_sections() {
+        let input = OaParseInput {
+            oa_text: "审查意见：本申请不具备新颖性。对比文件CN1234567A公开了全部技术特征。权利要求1-3不具备新颖性，驳回。".into(),
+        };
+        let result = PatentDocumentTools::oa_parse(input).unwrap();
+        assert!(result["cited_patents"].as_array().unwrap().len() > 0);
+        assert!(result["sections"]["has_comparison"].as_bool().unwrap());
+        assert!(result["sections"]["has_claims_analysis"].as_bool().unwrap());
+        assert!(result["sections"]["has_conclusion"].as_bool().unwrap());
+    }
+
+    #[test]
+    fn oa_parse_empty_text_no_citations() {
+        let input = OaParseInput {
+            oa_text: "无实质内容".into(),
+        };
+        let result = PatentDocumentTools::oa_parse(input).unwrap();
+        assert!(result["cited_patents"].as_array().unwrap().is_empty());
+        assert!(!result["sections"]["has_comparison"].as_bool().unwrap());
+    }
+
+    #[test]
+    fn document_parse_identifies_sections() {
+        let input = DocumentParseInput {
+            document_text: "权利要求书\n说明书\n技术领域\n背景技术\n发明内容\n附图说明\n具体实施方式\n摘要".into(),
+            document_type: Some("patent".into()),
+        };
+        let result = PatentDocumentTools::document_parse(input).unwrap();
+        assert_eq!(result["document_type"], "patent");
+        assert!(result["has_claims"].as_bool().unwrap());
+        assert!(result["has_abstract"].as_bool().unwrap());
+        assert_eq!(result["sections_found"], 5);
+    }
+
+    #[test]
+    fn document_parse_minimal() {
+        let input = DocumentParseInput {
+            document_text: "一些文本".into(),
+            document_type: None,
+        };
+        let result = PatentDocumentTools::document_parse(input).unwrap();
+        assert_eq!(result["document_type"], "unknown");
+        assert_eq!(result["sections_found"], 0);
+    }
+
+    #[test]
+    fn drawing_understanding_detects_figures() {
+        let input = DrawingUnderstandingInput {
+            description: "图1是本发明整体结构示意图。包括壳体101，设有连接件102。".into(),
+        };
+        let result = PatentDocumentTools::drawing_understanding(input).unwrap();
+        assert!(result["has_numbering"].as_bool().unwrap());
+        assert!(result["has_components"].as_bool().unwrap());
+        assert!(result["has_connections"].as_bool().unwrap());
+        assert_eq!(result["figures_found"], 1);
+    }
+}
