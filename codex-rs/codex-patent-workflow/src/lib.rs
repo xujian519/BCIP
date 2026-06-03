@@ -4,6 +4,7 @@
 //! 上层通过 `Orchestrator` 入口驱动整个工作流。
 
 pub mod agent_bridge;
+pub mod assignment;
 pub mod checkpoint;
 pub mod collaboration;
 pub mod config;
@@ -14,3 +15,7 @@ pub mod orchestrator;
 pub mod plan;
 pub mod task;
 pub mod types;
+
+#[cfg(test)]
+#[path = "graph_executor_concurrency_tests.rs"]
+mod graph_executor_concurrency_tests;

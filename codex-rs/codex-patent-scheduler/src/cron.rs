@@ -17,6 +17,7 @@ pub struct CronExpression {
 }
 
 /// Cron 字段类型。
+#[derive(Debug, PartialEq)]
 pub enum CronField {
     Any,
     Single(u8),
@@ -26,6 +27,7 @@ pub enum CronField {
 }
 
 /// Cron 表达式解析错误。
+#[derive(Debug, thiserror::Error)]
 pub enum CronError {
     #[error("无效的 cron 表达式: {0}")]
     InvalidExpression(String),

@@ -22,7 +22,7 @@ use std::sync::atomic::Ordering;
 #[derive(Default)]
 pub(crate) struct AgentRegistry {
     active_agents: Mutex<ActiveAgents>,
-    total_count: AtomicUsize,
+    pub(crate) total_count: AtomicUsize,
 }
 
 #[derive(Default)]
@@ -342,3 +342,7 @@ impl Drop for SpawnReservation {
 #[cfg(test)]
 #[path = "registry_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "registry_concurrency_tests.rs"]
+mod concurrency_tests;

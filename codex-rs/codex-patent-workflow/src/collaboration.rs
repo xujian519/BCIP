@@ -70,9 +70,15 @@ impl CollaborationTemplate {
             Self::SearchAnalyzeDraft => "Retriever 检索 → Analyzer 分析 → Writer 撰写",
             Self::NoveltyCheck => "Retriever 检索 → NoveltyChecker 检查 → Reviewer 审核",
             Self::CreativityCheck => "Retriever 检索 → CreativityChecker 评估 → Reviewer 审核",
-            Self::InfringementAnalysis => "Retriever 检索 → InfringementChecker 分析 → Writer 撰写报告",
-            Self::InvalidityAnalysis => "Retriever 检索 → InvalidityChecker 分析 → Writer 撰写无效宣告",
-            Self::FullReview => "Retriever → (NoveltyChecker ∥ CreativityChecker) → Reviewer → QualityChecker",
+            Self::InfringementAnalysis => {
+                "Retriever 检索 → InfringementChecker 分析 → Writer 撰写报告"
+            }
+            Self::InvalidityAnalysis => {
+                "Retriever 检索 → InvalidityChecker 分析 → Writer 撰写无效宣告"
+            }
+            Self::FullReview => {
+                "Retriever → (NoveltyChecker ∥ CreativityChecker) → Reviewer → QualityChecker"
+            }
         }
     }
 
@@ -112,7 +118,11 @@ impl CollaborationTemplate {
                 goal,
                 "检索分析撰写",
                 &[
-                    ("retrieve", "retriever", "检索与目标相关的专利文献和现有技术"),
+                    (
+                        "retrieve",
+                        "retriever",
+                        "检索与目标相关的专利文献和现有技术",
+                    ),
                     ("analyze", "analyzer", "分析检索结果，提取关键技术特征"),
                     ("draft", "writer", "基于分析结果撰写文档"),
                 ],
@@ -140,7 +150,11 @@ impl CollaborationTemplate {
                 "侵权分析",
                 &[
                     ("retrieve", "retriever", "检索涉嫌侵权产品/专利"),
-                    ("check_infringement", "infringement_checker", "比对分析侵权要素"),
+                    (
+                        "check_infringement",
+                        "infringement_checker",
+                        "比对分析侵权要素",
+                    ),
                     ("draft_report", "writer", "撰写侵权分析报告"),
                 ],
             ),
@@ -165,11 +179,7 @@ impl std::fmt::Display for CollaborationTemplate {
 }
 
 /// 构建线性 3 步协作计划
-fn linear_plan(
-    goal: &str,
-    plan_name: &str,
-    steps: &[(&str, &str, &str)],
-) -> ExecutionPlan {
+fn linear_plan(goal: &str, plan_name: &str, steps: &[(&str, &str, &str)]) -> ExecutionPlan {
     let plan_steps: Vec<PlanStep> = steps
         .iter()
         .enumerate()
@@ -181,9 +191,7 @@ fn linear_plan(
                 prompt: if i == 0 {
                     format!("{goal}\n\n请基于以上目标执行{desc}。")
                 } else {
-                    format!(
-                        "上游步骤已完成。原始目标: {goal}\n\n请基于上游结果执行{desc}。"
-                    )
+                    format!("上游步骤已完成。原始目标: {goal}\n\n请基于上游结果执行{desc}。")
                 },
             },
             depends_on: if i > 0 {
@@ -206,7 +214,10 @@ fn linear_plan(
             complexity: "medium".into(),
             workflow: WorkflowType::PlanPlusHitl,
             suggested_tools: vec![],
-            suggested_agents: steps.iter().map(|(_, agent, _)| agent.to_string()).collect(),
+            suggested_agents: steps
+                .iter()
+                .map(|(_, agent, _)| agent.to_string())
+                .collect(),
             reasoning: format!("{plan_name}协作工作流"),
         },
         retry_on_failure: Some(2),
@@ -321,11 +332,14 @@ impl CollaborationRegistry {
 
     /// 按名称查找模板
     pub fn find_by_name(&self, name: &str) -> Option<CollaborationTemplate> {
-        self.templates.iter().find(|t| {
-            let binding = serde_json::to_value(**t).unwrap();
-            let snake = binding.as_str().unwrap_or("");
-            snake == name || t.display_name() == name
-        }).copied()
+        self.templates
+            .iter()
+            .find(|t| {
+                let binding = serde_json::to_value(**t).unwrap();
+                let snake = binding.as_str().unwrap_or("");
+                snake == name || t.display_name() == name
+            })
+            .copied()
     }
 
     /// 列出所有可用模板
@@ -358,7 +372,8 @@ impl CollaborationRegistry {
         if lower.contains("无效") || lower.contains("invalidity") {
             return CollaborationTemplate::InvalidityAnalysis;
         }
-        if lower.contains("全面") || lower.contains("full review") || lower.contains("综合审查") {
+        if lower.contains("全面") || lower.contains("full review") || lower.contains("综合审查")
+        {
             return CollaborationTemplate::FullReview;
         }
 
@@ -388,10 +403,7 @@ mod tests {
             CollaborationTemplate::SearchAnalyzeDraft.display_name(),
             "检索分析撰写"
         );
-        assert_eq!(
-            CollaborationTemplate::FullReview.display_name(),
-            "全面审查"
-        );
+        assert_eq!(CollaborationTemplate::FullReview.display_name(), "全面审查");
     }
 
     #[test]
@@ -430,8 +442,12 @@ mod tests {
         assert_eq!(plan.steps[2].depends_on, vec!["retrieve"]);
 
         // review 依赖两个检查步骤
-        assert!(plan.steps[3].depends_on.contains(&"check_novelty".to_string()));
-        assert!(plan.steps[3].depends_on.contains(&"check_creativity".to_string()));
+        assert!(plan.steps[3]
+            .depends_on
+            .contains(&"check_novelty".to_string()));
+        assert!(plan.steps[3]
+            .depends_on
+            .contains(&"check_creativity".to_string()));
 
         // quality_check 依赖 review
         assert_eq!(plan.steps[4].depends_on, vec!["review"]);
@@ -506,3 +522,7 @@ mod tests {
         assert_eq!(graph.edges.len(), 5);
     }
 }
+
+#[cfg(test)]
+#[path = "collaboration_assignment_tests.rs"]
+mod collaboration_assignment_tests;

@@ -3586,6 +3586,7 @@ dependencies = [
 name = "codex-patent-core"
 version = "0.1.0"
 dependencies = [
+ "pretty_assertions",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -3597,6 +3598,7 @@ version = "0.1.0"
 dependencies = [
  "codex-patent-core",
  "codex-patent-knowledge",
+ "pretty_assertions",
  "regex",
  "rusqlite",
  "serde",
@@ -3611,11 +3613,13 @@ version = "0.1.0"
 dependencies = [
  "codex-patent-core",
  "codex-patent-text",
+ "pretty_assertions",
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -3639,8 +3643,10 @@ dependencies = [
 name = "codex-patent-skills"
 version = "0.1.0"
 dependencies = [
+ "pretty_assertions",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
 ]
@@ -3667,10 +3673,12 @@ dependencies = [
  "codex-web-search",
  "futures",
  "liteparse",
+ "pretty_assertions",
  "regex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -10099,11 +10107,13 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "pretty_assertions",
  "regex",
  "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tempfile",
  "walkdir",
 ]
 

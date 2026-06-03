@@ -1341,3 +1341,7 @@ fn thread_spawn_depth(session_source: &SessionSource) -> Option<i32> {
 #[cfg(test)]
 #[path = "control_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "integration_concurrency_tests.rs"]
+mod integration_concurrency_tests;

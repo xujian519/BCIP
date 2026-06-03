@@ -13,6 +13,7 @@ use tracing::error;
 use tracing::info;
 
 /// 定时任务定义。
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct CronTask {
     pub id: String,
     pub cron: String,
@@ -33,6 +34,7 @@ impl CronTask {
 }
 
 /// 调度器错误类型。
+#[derive(Debug, thiserror::Error)]
 pub enum SchedulerError {
     #[error("文件操作失败: {0}")]
     IoError(String),
@@ -267,3 +269,7 @@ mod tests {
         assert!(sched.add_task(task).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "scheduler_concurrency_tests.rs"]
+mod scheduler_concurrency_tests;

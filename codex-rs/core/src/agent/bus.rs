@@ -6,13 +6,18 @@
 //! - Topic-based pub/sub
 //! - Role-based broadcast
 //! - Bounded message history for debugging
+//! - Heartbeat-based liveness monitoring
 
 use codex_protocol::AgentPath;
 use codex_protocol::agent_bus::AgentBusMessage;
+use codex_protocol::agent_bus::AgentBusMessageType;
 use codex_protocol::agent_bus::AgentBusRecipient;
+use codex_protocol::agent_bus::AgentLiveness;
+use codex_protocol::agent_bus::HeartbeatConfig;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::Receiver;
@@ -20,6 +25,7 @@ use tokio::sync::broadcast::Receiver;
 const DEFAULT_BUFFER_SIZE: usize = 256;
 const DEFAULT_MAX_HISTORY: usize = 1000;
 const DEFAULT_DLQ_CAPACITY: usize = 500;
+const DEFAULT_MAX_PAYLOAD_BYTES: usize = 1024 * 1024; // 1MB
 
 /// Filter for querying message history.
 #[derive(Debug, Clone, Default)]
@@ -35,6 +41,8 @@ pub enum BusError {
     NoReceivers,
     #[error("retry exhausted: {attempts} attempts")]
     RetryExhausted { attempts: u32 },
+    #[error("payload too large: {size} bytes (max {max})")]
+    PayloadTooLarge { size: usize, max: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -56,12 +64,21 @@ impl Default for RetryConfig {
     }
 }
 
+/// Tracked liveness state for a single agent on the bus.
+struct LivenessState {
+    last_seen: Instant,
+    missed_count: u32,
+    status: AgentLiveness,
+}
+
 pub(crate) struct AgentBus {
     tx: broadcast::Sender<AgentBusMessage>,
     topics: Arc<RwLock<HashMap<String, Vec<AgentPath>>>>,
     history: Arc<RwLock<VecDeque<AgentBusMessage>>>,
     dead_letter: Arc<RwLock<VecDeque<AgentBusMessage>>>,
+    liveness: Arc<RwLock<HashMap<AgentPath, LivenessState>>>,
     max_history: usize,
+    max_payload_bytes: usize,
 }
 
 impl AgentBus {
@@ -72,7 +89,9 @@ impl AgentBus {
             topics: Arc::new(RwLock::new(HashMap::new())),
             history: Arc::new(RwLock::new(VecDeque::with_capacity(max_history))),
             dead_letter: Arc::new(RwLock::new(VecDeque::with_capacity(DEFAULT_DLQ_CAPACITY))),
+            liveness: Arc::new(RwLock::new(HashMap::new())),
             max_history,
+            max_payload_bytes: DEFAULT_MAX_PAYLOAD_BYTES,
         }
     }
 
@@ -108,13 +127,13 @@ impl AgentBus {
     }
 
     pub(crate) fn send(&self, message: AgentBusMessage) -> Result<usize, BusError> {
-        let _span = tracing::debug_span!(
-            "agent_bus.send",
-            msg_id = %message.id,
-            msg_type = ?message.message_type,
-            from = %message.from,
-        )
-        .entered();
+        let payload_size = message.payload.to_string().len();
+        if payload_size > self.max_payload_bytes {
+            return Err(BusError::PayloadTooLarge {
+                size: payload_size,
+                max: self.max_payload_bytes,
+            });
+        }
 
         let result = self.tx.send(message.clone());
         if let Ok(mut history) = self.history.try_write() {
@@ -208,13 +227,6 @@ impl AgentBus {
         message: AgentBusMessage,
         config: RetryConfig,
     ) -> Result<usize, BusError> {
-        let _span = tracing::debug_span!(
-            "agent_bus.send_with_retry",
-            msg_id = %message.id,
-            max_retries = config.max_retries,
-        )
-        .entered();
-
         let mut delay_ms = config.initial_delay_ms;
         let mut attempts = 0;
 
@@ -234,7 +246,8 @@ impl AgentBus {
 
             tracing::debug!(attempt = attempts, delay_ms, "send_with_retry backing off");
             tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
-            delay_ms = ((delay_ms as f64) * config.backoff_multiplier).min(config.max_delay_ms as f64) as u64;
+            delay_ms = ((delay_ms as f64) * config.backoff_multiplier)
+                .min(config.max_delay_ms as f64) as u64;
         }
     }
 
@@ -266,6 +279,65 @@ impl AgentBus {
         match msg {
             Some(m) => self.send(m),
             None => Ok(0),
+        }
+    }
+
+    // ── Liveness tracking ──────────────────────────────────────────
+
+    pub(crate) async fn register_agent(&self, path: AgentPath) {
+        let mut liveness = self.liveness.write().await;
+        liveness.entry(path).or_insert(LivenessState {
+            last_seen: Instant::now(),
+            missed_count: 0,
+            status: AgentLiveness::Unknown,
+        });
+    }
+
+    pub(crate) async fn unregister_agent(&self, path: &AgentPath) {
+        self.liveness.write().await.remove(path);
+    }
+
+    pub(crate) async fn record_agent_alive(&self, path: &AgentPath) {
+        let mut liveness = self.liveness.write().await;
+        if let Some(state) = liveness.get_mut(path) {
+            state.last_seen = Instant::now();
+            state.missed_count = 0;
+            state.status = AgentLiveness::Alive;
+        }
+    }
+
+    pub(crate) async fn handle_heartbeat_ack(&self, from: &AgentPath) {
+        self.record_agent_alive(from).await;
+    }
+
+    pub(crate) async fn agent_liveness(&self, path: &AgentPath) -> AgentLiveness {
+        let liveness = self.liveness.read().await;
+        liveness
+            .get(path)
+            .map(|s| s.status)
+            .unwrap_or(AgentLiveness::Unknown)
+    }
+
+    pub(crate) async fn liveness_snapshot(&self) -> HashMap<AgentPath, AgentLiveness> {
+        let liveness = self.liveness.read().await;
+        liveness
+            .iter()
+            .map(|(k, v)| (k.clone(), v.status))
+            .collect()
+    }
+
+    pub(crate) async fn check_liveness(&self, config: &HeartbeatConfig) {
+        let mut liveness = self.liveness.write().await;
+        let timeout = std::time::Duration::from_secs(config.timeout_secs);
+        let now = Instant::now();
+
+        for state in liveness.values_mut() {
+            if now.duration_since(state.last_seen) > timeout {
+                state.missed_count += 1;
+                if state.missed_count >= config.max_missed {
+                    state.status = AgentLiveness::Unresponsive;
+                }
+            }
         }
     }
 }
@@ -319,18 +391,10 @@ mod tests {
         let bus = AgentBus::new(16, 100);
         let from = test_path("agent");
 
-        bus.publish(
-            from.clone(),
-            "test.topic",
-            serde_json::json!("data1"),
-        )
-        .unwrap();
-        bus.publish(
-            from.clone(),
-            "test.topic",
-            serde_json::json!("data2"),
-        )
-        .unwrap();
+        bus.publish(from.clone(), "test.topic", serde_json::json!("data1"))
+            .unwrap();
+        bus.publish(from.clone(), "test.topic", serde_json::json!("data2"))
+            .unwrap();
 
         let filter = MessageFilter {
             topic: Some("test.topic".to_string()),
@@ -409,11 +473,7 @@ mod tests {
         let _rx = bus.subscribe();
 
         let from = test_path("sender");
-        let msg = AgentBusMessage::direct(
-            from,
-            test_path("receiver"),
-            serde_json::json!("hello"),
-        );
+        let msg = AgentBusMessage::direct(from, test_path("receiver"), serde_json::json!("hello"));
 
         let result = bus
             .send_with_retry(msg, RetryConfig::default())
@@ -427,11 +487,8 @@ mod tests {
         let bus = AgentBus::new(16, 100);
 
         let from = test_path("sender");
-        let msg = AgentBusMessage::direct(
-            from,
-            test_path("nonexistent"),
-            serde_json::json!("lost"),
-        );
+        let msg =
+            AgentBusMessage::direct(from, test_path("nonexistent"), serde_json::json!("lost"));
 
         let config = RetryConfig {
             max_retries: 2,
@@ -458,11 +515,7 @@ mod tests {
         };
 
         for i in 0..3 {
-            let msg = AgentBusMessage::topic(
-                test_path("sender"),
-                "orphan",
-                serde_json::json!(i),
-            );
+            let msg = AgentBusMessage::topic(test_path("sender"), "orphan", serde_json::json!(i));
             let _ = bus.send_with_retry(msg, config.clone()).await;
         }
 
@@ -493,4 +546,108 @@ mod tests {
         let result = bus.replay_dead_letter(msg_id).unwrap();
         assert_eq!(result, 1);
     }
+
+    #[tokio::test]
+    async fn liveness_register_and_query() {
+        let bus = AgentBus::new(16, 100);
+        let agent = test_path("worker");
+
+        assert_eq!(bus.agent_liveness(&agent).await, AgentLiveness::Unknown);
+
+        bus.register_agent(agent.clone()).await;
+        assert_eq!(bus.agent_liveness(&agent).await, AgentLiveness::Unknown);
+
+        bus.handle_heartbeat_ack(&agent).await;
+        assert_eq!(bus.agent_liveness(&agent).await, AgentLiveness::Alive);
+    }
+
+    #[tokio::test]
+    async fn liveness_snapshot_returns_all() {
+        let bus = AgentBus::new(16, 100);
+        let a = test_path("a");
+        let b = test_path("b");
+
+        bus.register_agent(a.clone()).await;
+        bus.register_agent(b.clone()).await;
+        bus.handle_heartbeat_ack(&a).await;
+
+        let snap = bus.liveness_snapshot().await;
+        assert_eq!(snap.len(), 2);
+        assert_eq!(snap[&a], AgentLiveness::Alive);
+        assert_eq!(snap[&b], AgentLiveness::Unknown);
+    }
+
+    #[tokio::test]
+    async fn liveness_unregister_removes() {
+        let bus = AgentBus::new(16, 100);
+        let agent = test_path("temp");
+
+        bus.register_agent(agent.clone()).await;
+        bus.handle_heartbeat_ack(&agent).await;
+        assert_eq!(bus.agent_liveness(&agent).await, AgentLiveness::Alive);
+
+        bus.unregister_agent(&agent).await;
+        assert_eq!(bus.agent_liveness(&agent).await, AgentLiveness::Unknown);
+    }
+
+    #[tokio::test]
+    async fn check_liveness_marks_unresponsive() {
+        let bus = AgentBus::new(16, 100);
+        let agent = test_path("stale");
+
+        bus.register_agent(agent.clone()).await;
+        bus.handle_heartbeat_ack(&agent).await;
+
+        // Manually backdate last_seen beyond timeout
+        {
+            let mut lv = bus.liveness.write().await;
+            let state = lv.get_mut(&agent).unwrap();
+            state.last_seen = Instant::now() - std::time::Duration::from_secs(60);
+        }
+
+        let config = HeartbeatConfig {
+            timeout_secs: 30,
+            max_missed: 1,
+            ..Default::default()
+        };
+        bus.check_liveness(&config).await;
+
+        assert_eq!(
+            bus.agent_liveness(&agent).await,
+            AgentLiveness::Unresponsive
+        );
+    }
+
+    #[tokio::test]
+    async fn oversized_payload_rejected() {
+        let bus = AgentBus::new(16, 100);
+        let big_payload = serde_json::json!("x".repeat(DEFAULT_MAX_PAYLOAD_BYTES + 1));
+        let result = bus.send(AgentBusMessage::direct(
+            test_path("a"),
+            test_path("b"),
+            big_payload,
+        ));
+        match result {
+            Err(BusError::PayloadTooLarge { size, max }) => {
+                assert!(size > max);
+                assert_eq!(max, DEFAULT_MAX_PAYLOAD_BYTES);
+            }
+            other => panic!("expected PayloadTooLarge, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn normal_payload_accepted() {
+        let bus = AgentBus::new(16, 100);
+        let result = bus.send(AgentBusMessage::direct(
+            test_path("a"),
+            test_path("b"),
+            serde_json::json!({"key": "value"}),
+        ));
+        assert!(result.is_ok());
+    }
 }
+
+#[cfg(test)]
+#[path = "bus_concurrency_tests.rs"]
+mod bus_concurrency_tests;

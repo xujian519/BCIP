@@ -7,6 +7,7 @@
 //! 4. 重试/恢复策略
 
 use super::agent_bridge::AgentExecutor;
+use super::assignment::TaskAssignmentStrategy;
 use super::checkpoint::CheckpointStore;
 use super::graph_executor::CodeExecutor;
 use super::graph_executor::GraphExecution;
@@ -46,6 +47,7 @@ pub struct Orchestrator {
     tool_executor: Option<ToolExecutorFn>,
     agent_executor: Option<Box<dyn AgentExecutor>>,
     code_executor: Option<Box<dyn CodeExecutor>>,
+    assignment_strategy: Option<Box<dyn TaskAssignmentStrategy>>,
     max_retries: u32,
     current_plan: Option<ExecutionPlan>,
     routing_hint: Option<RoutingHint>,
@@ -61,6 +63,7 @@ impl Orchestrator {
             tool_executor: None,
             agent_executor: None,
             code_executor: None,
+            assignment_strategy: None,
             max_retries: 3,
             current_plan: None,
             routing_hint: None,
@@ -100,6 +103,12 @@ impl Orchestrator {
     /// 设置路由提示（影响执行策略）
     pub fn with_routing_hint(mut self, hint: RoutingHint) -> Self {
         self.routing_hint = Some(hint);
+        self
+    }
+
+    /// 设置任务分配策略
+    pub fn with_assignment_strategy(mut self, strategy: Box<dyn TaskAssignmentStrategy>) -> Self {
+        self.assignment_strategy = Some(strategy);
         self
     }
 

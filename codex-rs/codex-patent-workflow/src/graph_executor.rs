@@ -818,4 +818,240 @@ mod tests {
         assert_eq!(result.node_results.len(), 2);
         assert!(!result.node_results.iter().any(|r| r.node_id == "step2"));
     }
+
+    #[test]
+    fn test_classify_tool_error_retryable() {
+        assert!(matches!(
+            classify_tool_error("connection timed out"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("network error"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("rate limit exceeded"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("HTTP 429 Too Many Requests"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("502 Bad Gateway"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("connection refused"),
+            ErrorKind::Retryable
+        ));
+        assert!(matches!(
+            classify_tool_error("broken pipe"),
+            ErrorKind::Retryable
+        ));
+    }
+
+    #[test]
+    fn test_classify_tool_error_fatal() {
+        assert!(matches!(
+            classify_tool_error("invalid argument"),
+            ErrorKind::Fatal
+        ));
+        assert!(matches!(
+            classify_tool_error("permission denied"),
+            ErrorKind::Fatal
+        ));
+        assert!(matches!(
+            classify_tool_error("file not found"),
+            ErrorKind::Fatal
+        ));
+    }
+
+    #[test]
+    fn test_code_block_execution() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store).with_code_executor(Box::new(NoopCodeExecutor));
+
+        let graph = FlowGraph {
+            id: "code".into(),
+            name: "代码执行测试".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "run_code".into(),
+                step: FlowStep::CodeBlock {
+                    language: "python".into(),
+                    code: "print('hello')".into(),
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert_eq!(result.status, FlowStatus::Completed);
+        assert_eq!(result.node_results.len(), 1);
+        assert!(result.node_results[0].step_result.success);
+        let output = result.node_results[0].step_result.output.as_ref().unwrap();
+        assert!(output["output"].as_str().unwrap().contains("NOOP"));
+    }
+
+    #[test]
+    fn test_noop_code_executor() {
+        let mut exec = NoopCodeExecutor;
+        let result = exec.execute("rust", "fn main() {}").unwrap();
+        assert!(result.success);
+        assert!(result.output.contains("NOOP"));
+        assert_eq!(result.language, "rust");
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_code_block_without_executor() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store);
+
+        let graph = FlowGraph {
+            id: "no_exec".into(),
+            name: "无执行器测试".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "code_step".into(),
+                step: FlowStep::CodeBlock {
+                    language: "python".into(),
+                    code: "1+1".into(),
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert_eq!(result.status, FlowStatus::Failed);
+        assert!(!result.node_results[0].step_result.success);
+        assert!(result.node_results[0]
+            .step_result
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("未注册"));
+    }
+
+    #[test]
+    fn test_tool_call_without_executor() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store);
+
+        let graph = FlowGraph {
+            id: "no_tool".into(),
+            name: "无工具执行器测试".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "tool_step".into(),
+                step: FlowStep::ToolCall {
+                    tool_name: "search".into(),
+                    input: serde_json::json!({"q": "test"}),
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert!(!result.node_results[0].step_result.success);
+        assert!(result.node_results[0]
+            .step_result
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("未注册"));
+    }
+
+    #[test]
+    fn test_with_max_retries_builder() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store)
+            .with_tool_executor(Box::new(|_name, _input| Ok("done".into())))
+            .with_max_retries(0);
+
+        let graph = FlowGraph {
+            id: "retries".into(),
+            name: "重试测试".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "tool".into(),
+                step: FlowStep::ToolCall {
+                    tool_name: "test".into(),
+                    input: serde_json::json!({}),
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert_eq!(result.status, FlowStatus::Completed);
+        assert!(result.node_results[0].step_result.success);
+    }
+
+    #[test]
+    fn test_quality_check_always_succeeds() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store);
+
+        let graph = FlowGraph {
+            id: "qc".into(),
+            name: "质量检查测试".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "check".into(),
+                step: FlowStep::QualityCheck {
+                    criteria: vec!["完整性".into(), "准确性".into()],
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert_eq!(result.status, FlowStatus::Completed);
+        assert!(result.node_results[0].step_result.success);
+        let output = result.node_results[0].step_result.output.as_ref().unwrap();
+        assert!(output["passed"].as_bool().unwrap());
+    }
+
+    #[test]
+    fn test_agent_call_without_executor() {
+        let (_file, store) = temp_db();
+        let executor = GraphExecutor::new(store);
+
+        let graph = FlowGraph {
+            id: "no_agent".into(),
+            name: "无Agent执行器".into(),
+            entry_node: None,
+            nodes: vec![FlowNode {
+                id: "call".into(),
+                step: FlowStep::AgentCall {
+                    agent_name: "worker".into(),
+                    prompt: "do something".into(),
+                },
+                label: None,
+            }],
+            edges: vec![],
+            retry_on_failure: None,
+        };
+
+        let result = executor.execute(&graph).unwrap();
+        assert!(!result.node_results[0].step_result.success);
+        assert!(result.node_results[0]
+            .step_result
+            .error
+            .as_ref()
+            .unwrap()
+            .contains("未注册"));
+    }
 }
