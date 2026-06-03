@@ -2581,92 +2581,107 @@ async fn permission_request_hook_runs_after_remembered_mcp_approval() {
     );
 }
 
-#[tokio::test]
-async fn guardian_mode_mcp_denial_returns_rationale_message() {
-    let server = start_mock_server().await;
-    let guardian_request_log = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_response_created("resp-guardian"),
-            ev_assistant_message(
-                "msg-guardian",
-                &serde_json::json!({
-                    "risk_level": "high",
-                    "user_authorization": "low",
-                    "outcome": "deny",
-                    "rationale": "The tool call would expose private calendar data without clear user authorization.",
-                })
-                .to_string(),
-            ),
-            ev_completed("resp-guardian"),
-        ]),
-    )
-    .await;
+#[test]
+fn guardian_mode_mcp_denial_returns_rationale_message() {
+    const TEST_STACK_SIZE_BYTES: usize = 4 * 1024 * 1024;
 
-    let (mut session, mut turn_context) = make_session_and_context().await;
-    turn_context
-        .approval_policy
-        .set(AskForApproval::OnRequest)
-        .expect("test setup should allow updating approval policy");
-    let mut config = (*turn_context.config).clone();
-    config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
-    config.approvals_reviewer = ApprovalsReviewer::AutoReview;
-    let config = Arc::new(config);
-    let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
-        config.model_provider.clone(),
-    );
-    session.services.models_manager = models_manager;
-    turn_context.config = Arc::clone(&config);
-    turn_context.provider = create_model_provider(
-        config.model_provider.clone(),
-        turn_context.auth_manager.clone(),
-    );
+    let handle = std::thread::Builder::new()
+        .name("guardian_mode_mcp_denial_returns_rationale_message".to_string())
+        .stack_size(TEST_STACK_SIZE_BYTES)
+        .spawn(|| {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("build tokio runtime");
+            runtime.block_on(Box::pin(async {
+                let server = start_mock_server().await;
+                let guardian_request_log = mount_sse_once(
+                    &server,
+                    sse(vec![
+                        ev_response_created("resp-guardian"),
+                        ev_assistant_message(
+                            "msg-guardian",
+                            &serde_json::json!({
+                                "risk_level": "high",
+                                "user_authorization": "low",
+                                "outcome": "deny",
+                                "rationale": "The tool call would expose private calendar data without clear user authorization.",
+                            })
+                            .to_string(),
+                        ),
+                        ev_completed("resp-guardian"),
+                    ]),
+                )
+                .await;
 
-    let session = Arc::new(session);
-    let turn_context = Arc::new(turn_context);
-    let invocation = McpInvocation {
-        server: "custom_server".to_string(),
-        tool: "dangerous_tool".to_string(),
-        arguments: Some(serde_json::json!({ "calendar_id": "primary" })),
-    };
-    let metadata = McpToolApprovalMetadata {
-        annotations: Some(annotations(Some(false), Some(true), Some(true))),
-        connector_id: None,
-        connector_name: None,
-        connector_description: None,
-        plugin_id: None,
-        tool_title: Some("Dangerous Tool".to_string()),
-        tool_description: Some("Reads calendar data.".to_string()),
-        mcp_app_resource_uri: None,
-        codex_apps_meta: None,
-        openai_file_input_params: None,
-    };
+                let (mut session, mut turn_context) = make_session_and_context().await;
+                turn_context
+                    .approval_policy
+                    .set(AskForApproval::OnRequest)
+                    .expect("test setup should allow updating approval policy");
+                let mut config = (*turn_context.config).clone();
+                config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
+                config.approvals_reviewer = ApprovalsReviewer::AutoReview;
+                let config = Arc::new(config);
+                let models_manager = models_manager_with_provider(
+                    config.codex_home.to_path_buf(),
+                    Arc::clone(&session.services.auth_manager),
+                    config.model_provider.clone(),
+                );
+                session.services.models_manager = models_manager;
+                turn_context.config = Arc::clone(&config);
+                turn_context.provider = create_model_provider(
+                    config.model_provider.clone(),
+                    turn_context.auth_manager.clone(),
+                );
 
-    let decision = maybe_request_mcp_tool_approval(
-        &session,
-        &turn_context,
-        "call-guardian-deny",
-        &invocation,
-        "mcp__test__tool",
-        Some(&metadata),
-        AppToolApproval::Auto,
-    )
-    .await;
+                let session = Arc::new(session);
+                let turn_context = Arc::new(turn_context);
+                let invocation = McpInvocation {
+                    server: "custom_server".to_string(),
+                    tool: "dangerous_tool".to_string(),
+                    arguments: Some(serde_json::json!({ "calendar_id": "primary" })),
+                };
+                let metadata = McpToolApprovalMetadata {
+                    annotations: Some(annotations(Some(false), Some(true), Some(true))),
+                    connector_id: None,
+                    connector_name: None,
+                    connector_description: None,
+                    plugin_id: None,
+                    tool_title: Some("Dangerous Tool".to_string()),
+                    tool_description: Some("Reads calendar data.".to_string()),
+                    mcp_app_resource_uri: None,
+                    codex_apps_meta: None,
+                    openai_file_input_params: None,
+                };
 
-    let Some(McpToolApprovalDecision::Decline {
-        message: Some(message),
-    }) = decision
-    else {
-        panic!("guardian-denied MCP approval should carry a rejection message");
-    };
-    assert!(message.contains("Reason: The tool call would expose private calendar data"));
-    assert!(message.contains("policy circumvention"));
-    assert_eq!(
-        guardian_request_log.single_request().path(),
-        "/v1/responses"
-    );
+                let decision = maybe_request_mcp_tool_approval(
+                    &session,
+                    &turn_context,
+                    "call-guardian-deny",
+                    &invocation,
+                    "mcp__test__tool",
+                    Some(&metadata),
+                    AppToolApproval::Auto,
+                )
+                .await;
+
+                let Some(McpToolApprovalDecision::Decline {
+                    message: Some(message),
+                }) = decision
+                else {
+                    panic!("guardian-denied MCP approval should carry a rejection message");
+                };
+                assert!(message.contains("Reason: The tool call would expose private calendar data"));
+                assert!(message.contains("policy circumvention"));
+                assert_eq!(
+                    guardian_request_log.single_request().path(),
+                    "/v1/responses"
+                );
+            }));
+        })
+        .expect("spawn test thread");
+    handle.join().expect("test thread panicked");
 }
 
 #[tokio::test]
