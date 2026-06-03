@@ -1,7 +1,19 @@
+//! 搜索工具注册模块。
+//!
+//! 统一注册专利检索、批量检索、专利族追踪等工具到全局工具注册表。
+//! 工具列表：
+//! - `PatentSearch` — 关键词/号码检索
+//! - `GooglePatentsFetch` — Google Patents 原始检索
+//! - `SearchQueryBuilder` — 分阶段查询式构建
+//! - `IterativeSearch` — 多轮迭代检索（同义词展开）
+//! - `PatentDownload` — 专利 PDF 下载
+//! - `PatentFamilyTracker` — 专利族追踪
+
 use crate::google_patents::*;
 use crate::patent_search::*;
 use std::collections::HashMap;
 
+/// 注册全部搜索工具到全局注册表。
 pub fn register_search_tools() -> HashMap<String, crate::ToolHandler> {
     let mut tools: HashMap<String, crate::ToolHandler> = HashMap::new();
 

@@ -68,36 +68,54 @@ impl std::fmt::Display for ApiKeyError {
 
 impl std::error::Error for ApiKeyError {}
 
+/// BCIP 专利系统统一错误类型。
+///
+/// 每个变体携带简明的字符串描述。部分变体通过 `is_retryable()` 标记可重试性。
 #[derive(Error, Debug)]
 pub enum PatentError {
+    /// 知识图谱操作错误（查询、写入、连接等）。
     #[error("kg error: {0}")]
     KnowledgeGraph(String),
+    /// 法律数据库操作错误。
     #[error("law db error: {0}")]
     LawDb(String),
+    /// 检索/搜索失败。
     #[error("search error: {0}")]
     Search(String),
+    /// 权利要求解析错误。
     #[error("claim parse error: {0}")]
     ClaimParse(String),
+    /// 规则引擎执行错误。
     #[error("rule engine error: {0}")]
     RuleEngine(String),
+    /// 底层 IO 错误。
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+    /// 资源未找到（文档、配置项等）。
     #[error("not found: {0}")]
     NotFound(String),
+    /// 配置解析/校验错误。
     #[error("config error: {0}")]
     Config(String),
+    /// Agent 执行期间的错误。
     #[error("agent error: {0}")]
     Agent(String),
+    /// API key 配置错误（缺失/无效）。
     #[error("api key error: {0}")]
     ApiKey(String),
+    /// AI 服务提供商调用错误。
     #[error("provider error: {0}")]
     Provider(String),
+    /// 序列化/反序列化错误。
     #[error("serialization error: {0}")]
     Serialization(String),
+    /// 数据校验未通过。
     #[error("validation error: {0}")]
     Validation(String),
+    /// 学习/训练流程错误。
     #[error("learning error: {0}")]
     Learning(String),
+    /// 反思/自评流程错误。
     #[error("reflection error: {0}")]
     Reflection(String),
 }

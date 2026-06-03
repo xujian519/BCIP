@@ -1,3 +1,9 @@
+//! 用户交互意图识别
+//!
+//! 通过正则模式匹配分析用户输入文本，判断用户情绪（满意/沮丧）、
+//! 意图（继续/停止）、以及所需分析深度（普通/深度/超级思考）。
+//! 用于 Agent 响应策略的动态调整。
+
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -67,6 +73,7 @@ impl EffortLevel {
     }
 }
 
+/// 判断用户输入是否表达沮丧/不满情绪
 pub fn is_frustrated(text: &str) -> bool {
     for pattern in NEGATIVE_PATTERNS {
         if let Ok(re) = regex::Regex::new(pattern)
@@ -78,6 +85,7 @@ pub fn is_frustrated(text: &str) -> bool {
     false
 }
 
+/// 判断用户输入是否表达继续执行的意愿
 pub fn wants_continue(text: &str) -> bool {
     if is_frustrated(text) {
         return false;
@@ -92,6 +100,9 @@ pub fn wants_continue(text: &str) -> bool {
     false
 }
 
+/// 判断用户输入是否要求升级分析深度
+///
+/// 返回建议的 EffortLevel，如果不需要升级则返回 None。
 pub fn would_upgrade_effort(text: &str) -> Option<EffortLevel> {
     for pattern in ULTRATHINK_PATTERNS {
         if let Ok(re) = regex::Regex::new(pattern)
@@ -103,6 +114,7 @@ pub fn would_upgrade_effort(text: &str) -> Option<EffortLevel> {
     None
 }
 
+/// 根据用户输入选择最合适的响应策略
 pub fn response_strategy(text: &str) -> ResponseStrategy {
     if is_frustrated(text) {
         ResponseStrategy::Reassuring
@@ -113,6 +125,9 @@ pub fn response_strategy(text: &str) -> ResponseStrategy {
     }
 }
 
+/// 响应策略枚举
+///
+/// 根据用户意图匹配结果，选择合适的 Agent 响应方式。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResponseStrategy {
     Normal,

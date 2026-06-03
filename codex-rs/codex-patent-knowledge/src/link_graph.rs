@@ -1,3 +1,8 @@
+//! [[双链]] 知识图谱
+//!
+//! 解析 markdown 文件中的 `[[双链]]` 引用关系，构建有向图，
+//! 支持按源文件、目标文件、关键词检索引用关系。
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -6,6 +11,7 @@ static LINK_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|[^\]]+)?\]\]").expect("link regex")
 });
 
+/// 双链表中的一条引用关系
 #[derive(Debug, Clone)]
 pub struct WikiLink {
     pub source_file: String,
@@ -21,6 +27,7 @@ pub struct LinkGraph {
 }
 
 impl LinkGraph {
+    /// 扫描 `root_dir` 下的所有 markdown 文件，构建 [[双链]] 图
     pub fn build(root_dir: &str) -> Result<Self, String> {
         let mut links = Vec::new();
         let mut by_source: HashMap<String, Vec<WikiLink>> = HashMap::new();
@@ -46,10 +53,12 @@ impl LinkGraph {
         })
     }
 
+    /// 返回图中引用总数
     pub fn total_links(&self) -> usize {
         self.links.len()
     }
 
+    /// 返回指定源文件的所有出链引用
     pub fn targets_of(&self, source_file: &str) -> Vec<&WikiLink> {
         self.by_source
             .get(source_file)
@@ -57,6 +66,7 @@ impl LinkGraph {
             .unwrap_or_default()
     }
 
+    /// 返回到目标文件的入链引用（反向链接）
     pub fn backlinks_to(&self, target_file: &str) -> Vec<&WikiLink> {
         self.by_target
             .get(target_file)
@@ -64,6 +74,7 @@ impl LinkGraph {
             .unwrap_or_default()
     }
 
+    /// 按关键词搜索相关引用（匹配源文件名或目标文件名）
     pub fn search_by_concept(&self, keyword: &str) -> Vec<&WikiLink> {
         let lower = keyword.to_lowercase();
         self.links
@@ -75,6 +86,7 @@ impl LinkGraph {
             .collect()
     }
 
+    /// 返回全部引用
     pub fn all_links(&self) -> &[WikiLink] {
         &self.links
     }

@@ -1,3 +1,8 @@
+//! 审查员模拟与工作流调度工具集。
+//!
+//! 提供审查员行为模拟、OA 答复评估、规则分析、反馈记录与模式提取，
+//! 以及工作流场景调度（ScenarioDispatch）功能。
+
 use codex_patent_agents::scenario::ScenarioRegistry;
 use codex_patent_core::CaseContext;
 use codex_patent_domain::examiner_simulator::ExaminerSimulator;
@@ -8,48 +13,74 @@ use codex_patent_domain::oa_pattern::PatternExtractor;
 use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use serde::Deserialize;
 
+/// 审查员模拟工具集。
 pub struct SimulatorTools;
 
+/// 审查员模拟输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ExaminerSimulateInput {
+    /// OA 文本内容。
     pub oa_text: String,
+    /// 权利要求列表。
     pub claims: Vec<String>,
 }
 
+/// 审查员答复输入参数（模拟审查员对申请人答复的回应）。
 #[derive(Debug, Deserialize)]
 pub struct ExaminerRespondInput {
+    /// 申请人论述内容。
     pub applicant_argument: String,
+    /// 驳回类型。
     pub rejection_type: Option<String>,
+    /// 当前辩论轮次。
     pub round_number: Option<u32>,
 }
 
+/// 答复质量评估输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ResponseEvaluateInput {
+    /// 答复文本内容。
     pub response_text: String,
 }
 
+/// 规则分析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct RuleAnalysisInput {
+    /// 分析类型：novelty / inventiveness / oa_strategy。
     pub analysis_type: String,
+    /// 区别技术特征列表。
     pub differences: Option<Vec<String>>,
+    /// 技术效果列表。
     pub technical_effects: Option<Vec<String>>,
+    /// 驳回类型。
     pub rejection_type: Option<String>,
 }
 
+/// 反馈记录输入参数。
 #[derive(Debug, Deserialize)]
 pub struct FeedbackRecordInput {
+    /// OA 编号。
     pub oa_id: String,
+    /// 专利编号。
     pub patent_id: String,
+    /// 反馈类型：success / partial_success / failure / quality_issue。
     pub feedback_type: String,
+    /// 最终结果描述。
     pub outcome: String,
+    /// 质量评分。
     pub quality_score: f64,
+    /// 使用的策略。
     pub strategy_used: Option<String>,
+    /// 备注说明。
     pub comments: Option<String>,
 }
 
+/// 模式提取输入参数。
 #[derive(Debug, Deserialize)]
 pub struct PatternExtractInput {
+    /// 最小支持度（默认 3）。
     pub min_support: Option<usize>,
+    /// 最小成功率（默认 0.6）。
     pub min_success_rate: Option<f64>,
 }
 

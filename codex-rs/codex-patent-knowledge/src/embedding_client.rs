@@ -1,3 +1,7 @@
+//! MLX Embedding 服务客户端。
+//!
+//! 基于 blocking HTTP 请求调用 MLX 向量嵌入服务，支持结果缓存和健康检查。
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -15,6 +19,7 @@ pub struct EmbeddingClient {
 }
 
 impl EmbeddingClient {
+    /// 创建 Embedding 客户端。
     pub fn new(base_url: &str, api_key: &str, model: &str) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
@@ -28,6 +33,7 @@ impl EmbeddingClient {
         }
     }
 
+    /// 从环境变量构造客户端（`BCIP_MLX_URL`/`BCIP_MLX_API_KEY`/`BCIP_MLX_MODEL`）。
     pub fn from_env() -> Option<Self> {
         let base_url =
             std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8009".into());

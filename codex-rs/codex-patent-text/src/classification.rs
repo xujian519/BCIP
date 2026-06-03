@@ -2,7 +2,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// IPC 分类结果。
 pub struct IpcResult {
     pub section: String,
     pub class: String,
@@ -12,6 +12,7 @@ pub struct IpcResult {
     pub score: f64,
 }
 
+/// 基于关键词匹配的 IPC 部级分类器。
 pub struct IpcClassifier {
     section_keywords: HashMap<String, Vec<String>>,
 }

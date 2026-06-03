@@ -1,3 +1,8 @@
+//! 知识库资源路径解析。
+//!
+//! 统一管理 `patent_kg.db`、`laws.db`、`card-index.json` 等资源文件的路径，
+//! 优先使用 `BCIP_ASSETS_DIR` 环境变量，默认回退到 `../codex-patent-assets`。
+
 use std::path::PathBuf;
 
 const DEFAULT_ASSETS_DIR: &str = "../codex-patent-assets";

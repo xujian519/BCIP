@@ -1,5 +1,6 @@
 use crate::scheduler::CronTask;
 
+/// 专利业务定时任务模板。
 pub enum PatentCronTemplate {
     WeeklyPriorArtSearch {
         search_query: String,

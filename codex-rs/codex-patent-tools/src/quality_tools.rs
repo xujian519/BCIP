@@ -1,3 +1,9 @@
+//! 专利质量检测工具。
+//!
+//! 提供权利要求格式检查、客体审查、单一性检查、形式审查、法律用语合规检查等质量相关功能。
+//! 所有检测器通过 [`QualityTools`] 结构体的静态方法暴露，
+//! 并通过 [`register_quality_tools`] 注册到统一的工具注册表。
+
 use codex_patent_core::ClaimDraft;
 use codex_patent_core::ClaimType;
 use codex_patent_core::QualityAssessment;
@@ -6,63 +12,100 @@ use codex_patent_domain::quality::QualityAssessor;
 use codex_patent_domain::quality_rules;
 use serde::Deserialize;
 
+/// 质量检查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct QualityCheckInput {
+    /// 待检查的权利要求列表。
     pub claims: Vec<ClaimDraftInput>,
+    /// 专利类型（可选，如 "invention" / "utility_model"）。
     pub patent_type: Option<String>,
 }
 
+/// 单条权利要求草稿输入。
 #[derive(Debug, Deserialize)]
 pub struct ClaimDraftInput {
+    /// 权利要求序号。
     pub id: Option<String>,
+    /// 权利要求类型："independent" 或 "dependent"。
     pub claim_type: String,
+    /// 前序部分。
     pub preamble: String,
+    /// 过渡语（如 "包括"、"由……组成"）。
     pub transitional_phrase: Option<String>,
+    /// 技术特征列表。
     pub elements: Vec<String>,
+    /// 引用的权利要求序号（从属权利要求时）。
     pub dependent_on: Option<String>,
 }
 
+/// 客体审查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct SubjectMatterInput {
+    /// 发明名称。
     pub invention_title: String,
+    /// 权利要求全文列表。
     pub claims: Vec<String>,
+    /// 专利类型（可选）。
     pub patent_type: Option<String>,
 }
 
+/// 单一性检查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct UnityInput {
+    /// 权利要求全文列表。
     pub claims: Vec<String>,
+    /// 专利类型（可选）。
     pub patent_type: Option<String>,
+    /// 发明名称（可选）。
     pub invention_title: Option<String>,
 }
 
+/// 说明书形式审查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct SpecFormalityInput {
+    /// 说明书各部分内容。
     pub specification: SpecInput,
+    /// 权利要求列表。
     pub claims: Vec<String>,
+    /// 专利类型（可选）。
     pub patent_type: Option<String>,
 }
 
+/// 说明书各部分输入。
 #[derive(Debug, Deserialize)]
 pub struct SpecInput {
+    /// 技术领域。
     pub technical_field: Option<String>,
+    /// 背景技术。
     pub background_art: Option<String>,
+    /// 发明内容。
     pub invention_content: Option<String>,
+    /// 具体实施方式。
     pub embodiment: Option<String>,
+    /// 附图说明（可选，有图则提供）。
     pub drawings_description: Option<String>,
 }
 
+/// 法律用语合规检查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct LegalLanguageInput {
+    /// 权利要求全文列表。
     pub claims: Vec<String>,
+    /// 检查严格程度（1-3，默认 1）。
     pub check_level: Option<u32>,
 }
 
+/// 权利要求依赖关系检查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ClaimDependencyInput {
+    /// 权利要求全文列表。
     pub claims: Vec<String>,
 }
 
+/// 专利质量检测工具集合。
+///
+/// 提供权利要求质量检查、客体审查、单一性判断、说明书形式审查、
+/// 法律用语合规检测和引用依赖关系验证等功能。
 pub struct QualityTools;
 
 impl QualityTools {
@@ -94,6 +137,10 @@ impl QualityTools {
         issues
     }
 
+    /// 统一质量检查入口。
+    ///
+    /// 结合规则质检和语义分析，返回综合质量评估结果。
+    /// 包含权利要求格式验证、模糊用语检测等维度。
     pub fn unified_quality(input: QualityCheckInput) -> Result<serde_json::Value, String> {
         let drafts: Vec<ClaimDraft> = input.claims.iter().map(Self::to_claim_draft).collect();
         let assessment = QualityAssessor::assess_claims(&drafts);
@@ -125,6 +172,10 @@ impl QualityTools {
         serde_json::to_value(merged).map_err(|e| format!("{e}"))
     }
 
+    /// 基础质量检查器。
+    ///
+    /// 检测权利要求中是否包含模糊用语（如"约"、"大致"、"优选"），
+    /// 返回检查通过状态和问题列表。
     pub fn quality_checker(input: QualityCheckInput) -> Result<serde_json::Value, String> {
         let texts: Vec<String> = input
             .claims
@@ -137,6 +188,11 @@ impl QualityTools {
         )
     }
 
+    /// 专利客体审查。
+    ///
+    /// 根据专利法第5条（违反法律/社会公德）和第25条（不授予专利权的客体）
+    /// 排除规则，判断发明主题是否属于授权客体。通过关键词和正则模式匹配
+    /// 检测排除客体。
     pub fn subject_matter_checker(input: SubjectMatterInput) -> Result<serde_json::Value, String> {
         let text = input.claims.join(" ");
         let t = text.to_lowercase();
@@ -181,6 +237,10 @@ impl QualityTools {
         )
     }
 
+    /// 单一性检查。
+    ///
+    /// 判断多项权利要求之间是否具备单一性（属于一个总的发明构思）。
+    /// 通过共享技术特征的数量判断是否满足单一性要求。
     pub fn unity_checker(input: UnityInput) -> Result<serde_json::Value, String> {
         if input.claims.len() <= 1 {
             return Ok(serde_json::json!({"has_unity": true, "reason": "单一权利要求"}));
@@ -201,6 +261,10 @@ impl QualityTools {
         }
     }
 
+    /// 说明书形式审查。
+    ///
+    /// 检查说明书是否包含必要部分：技术领域、背景技术、发明内容、
+    /// 具体实施方式。如果存在附图说明但缺少附图文件说明也会提示。
     pub fn spec_formality_checker(input: SpecFormalityInput) -> Result<serde_json::Value, String> {
         let s = &input.specification;
         let mut missing = Vec::new();
@@ -226,6 +290,10 @@ impl QualityTools {
         Ok(serde_json::json!({"passed": missing.is_empty(), "missing_sections": missing}))
     }
 
+    /// 法律用语合规检查。
+    ///
+    /// 检测权利要求中是否包含禁用词（绝对性用语、广告用语）和
+    /// 商业宣传用语（如"世界领先"、"独一无二"），确保法律用语严谨。
     pub fn legal_language_checker(input: LegalLanguageInput) -> Result<serde_json::Value, String> {
         let mut issues = Vec::new();
         let forbidden = quality_rules::forbidden_terms();
@@ -245,6 +313,10 @@ impl QualityTools {
         Ok(serde_json::json!({"passed": issues.is_empty(), "issues": issues}))
     }
 
+    /// 格式规则检查。
+    ///
+    /// 检查文档格式合规性。对权利要求书统计独立/从属权利要求数量，
+    /// 对其他文档类型返回字数和类型信息。
     pub fn format_rules(content: &str, doc_type: &str) -> Result<serde_json::Value, String> {
         let report = if doc_type == "claims" {
             let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
@@ -264,6 +336,13 @@ impl QualityTools {
         Ok(report)
     }
 
+    /// 权利要求依赖关系验证。
+    ///
+    /// 验证权利要求引用关系的合法性：
+    /// - 引用的权利要求必须存在
+    /// - 不能引用自身或后续权利要求
+    /// - 引用链不能存在循环引用
+    /// - 至少包含一条独立权利要求
     pub fn claim_dependency_validator(input: ClaimDependencyInput) -> Result<serde_json::Value, String> {
         let claims = &input.claims;
         if claims.is_empty() {
@@ -738,6 +817,16 @@ mod tests {
     }
 }
 
+/// 注册质量检测工具到工具注册表。
+///
+/// 注册的工具列表：
+/// - `UnifiedQuality`: 统一质量检查
+/// - `SubjectMatterChecker`: 客体审查
+/// - `UnityChecker`: 单一性检查
+/// - `SpecFormalityChecker`: 说明书形式审查
+/// - `LegalLanguageChecker`: 法律用语合规检查
+/// - `FormatRules`: 格式规则检查
+/// - `ClaimDependencyValidator`: 权利要求依赖验证
 pub fn register_quality_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();

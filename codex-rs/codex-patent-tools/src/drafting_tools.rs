@@ -1,34 +1,58 @@
+//! 专利撰写工具集。
+//!
+//! 提供权利要求生成、说明书撰写、摘要撰写、创造性评估等专利撰写辅助能力。
+
 use codex_patent_core::CaseContext;
 use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use serde::Deserialize;
 
+/// 说明书撰写输入参数。
 #[derive(Debug, Deserialize)]
 pub struct SpecificationInput {
+    /// 发明名称。
     pub title: String,
+    /// 技术领域。
     pub technical_field: String,
+    /// 背景技术。
     pub background: String,
+    /// 发明内容。
     pub invention_content: String,
+    /// 具体实施方式。
     pub embodiments: String,
 }
+
+/// 权利要求生成器输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ClaimGeneratorInput {
+    /// 发明名称。
     pub invention_name: String,
+    /// 必要技术特征列表。
     pub essential_features: Vec<String>,
+    /// 可选技术特征分组（每个 Vec 为一组可选特征）。
     pub optional_features: Option<Vec<Vec<String>>>,
 }
+
+/// 摘要撰写输入参数。
 #[derive(Debug, Deserialize)]
 pub struct AbstractDraftInput {
+    /// 发明名称。
     pub title: String,
+    /// 要解决的技术问题。
     pub technical_problem: String,
+    /// 技术方案。
     pub technical_solution: String,
+    /// 技术效果。
     pub technical_effect: String,
 }
 
+/// 权利要求结构分析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ClaimsStructureInput {
+    /// 权利要求文本（多行）。
     pub claims_text: String,
 }
 
+/// 专利撰写工具集。
 pub struct DraftingTools;
 
 impl DraftingTools {

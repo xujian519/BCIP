@@ -1,45 +1,69 @@
+//! 专利案件管理工具集。
+//!
+//! 提供专利生命周期管理、模板库、商标分析、年费计算、期限追踪等管理功能。
+
 use serde::Deserialize;
 
+/// 专利管理输入参数。
 #[derive(Debug, Deserialize)]
 pub struct PatentManageInput {
+    /// 操作类型（如 "list", "create", "update", "delete"）。
     #[serde(default = "default_pm_action")]
     pub action: String,
+    /// 专利 ID。
     pub patent_id: Option<String>,
+    /// 关联数据。
     pub data: Option<serde_json::Value>,
 }
 fn default_pm_action() -> String {
     "list".into()
 }
+
+/// 流程图生成输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ProcessChartInput {
+    /// 流程类型（如 "application", "invalidation"）。
     #[serde(default = "default_process_type")]
     pub process_type: String,
 }
 fn default_process_type() -> String {
     "application".into()
 }
+
+/// 商标分析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct TrademarkAnalysisInput {
+    /// 商标名称。
     pub mark: String,
 }
 
+/// 年费计算器输入参数。
 #[derive(Debug, Deserialize)]
 pub struct FeeCalculatorInput {
-    pub patent_type: String,       // "invention" / "utility_model" / "design"
-    pub year: u32,                 // 1-based, 第几年
-    pub applicant_type: Option<String>, // "individual" / "enterprise"
+    /// 专利类型：invention / utility_model / design。
+    pub patent_type: String,
+    /// 年度（从第 1 年开始）。
+    pub year: u32,
+    /// 申请人类型：individual / enterprise。
+    pub applicant_type: Option<String>,
 }
 
+/// 期限追踪输入参数。
 #[derive(Debug, Deserialize)]
 pub struct DeadlineTrackerInput {
-    pub event_type: String,       // "oa_response" / "annual_fee" / "reexamination" / "invalidation"
-    pub reference_date: String,   // ISO date string "YYYY-MM-DD"
-    pub round: Option<u32>,       // OA 轮次（仅 oa_response 用）
+    /// 事件类型：oa_response / annual_fee / reexamination / invalidation。
+    pub event_type: String,
+    /// 参考日期（ISO 格式 "YYYY-MM-DD"）。
+    pub reference_date: String,
+    /// OA 轮次（仅 oa_response 使用）。
+    pub round: Option<u32>,
 }
 
+/// 专利案件管理工具集。
 pub struct ManagementTools;
 
 impl ManagementTools {
+    /// 专利生命周期管理：列出可用状态和当前操作。
     pub fn patent_manager(input: PatentManageInput) -> Result<serde_json::Value, String> {
         let states = [
             "draft",
@@ -55,6 +79,7 @@ impl ManagementTools {
         )
     }
 
+    /// 获取模板库中的指定模板结构。
     pub fn template_library(template_type: &str) -> Result<serde_json::Value, String> {
         let templates: [(&str, &str, &str); 5] = [
             (
@@ -91,6 +116,7 @@ impl ManagementTools {
         Ok(serde_json::json!({"template_name": found.0, "structure": found.1}))
     }
 
+    /// 对商标名称进行可注册性分析（含显著性分级、禁用标志检查）。
     pub fn trademark_analysis(mark: &str) -> Result<serde_json::Value, String> {
         if mark.trim().is_empty() {
             return Err("商标名称不能为空".to_string());
@@ -192,6 +218,7 @@ impl ManagementTools {
         }))
     }
 
+    /// 生成指定专利流程的 Mermaid 流程图。
     pub fn process_chart(process_type: &str) -> Result<serde_json::Value, String> {
         let chart = match process_type {
             "application" => {
@@ -205,6 +232,7 @@ impl ManagementTools {
         Ok(serde_json::json!({"process_type": process_type, "mermaid": chart}))
     }
 
+    /// 计算指定专利类型和年度的年费金额（含费用减缓计算）。
     pub fn fee_calculator(input: FeeCalculatorInput) -> Result<serde_json::Value, String> {
         if input.year == 0 {
             return Err("年度必须大于0".to_string());
@@ -289,6 +317,7 @@ impl ManagementTools {
         }))
     }
 
+    /// 计算专利事务期限（OA 答复、年费、复审、无效请求等）。
     pub fn deadline_tracker(input: DeadlineTrackerInput) -> Result<serde_json::Value, String> {
         let ref_date = chrono::NaiveDate::parse_from_str(&input.reference_date, "%Y-%m-%d")
             .map_err(|e| format!("日期格式错误（需 YYYY-MM-DD）: {e}"))?;

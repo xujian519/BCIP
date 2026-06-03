@@ -18,6 +18,7 @@ pub enum AnalysisDimension {
 }
 
 impl AnalysisDimension {
+    /// 返回该维度的中文名称
     pub fn name(&self) -> &'static str {
         match self {
             Self::Novelty => "新颖性",
@@ -28,6 +29,7 @@ impl AnalysisDimension {
         }
     }
 
+    /// 返回该维度的权重系数（所有维度权重之和为 1.0）
     pub fn weight(&self) -> f64 {
         match self {
             Self::Novelty => 0.25,

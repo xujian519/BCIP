@@ -1,3 +1,8 @@
+//! 互联网搜索工具集。
+//!
+//! 封装 AnySearch / Tavily / Exa 等多个搜索提供商，提供统一搜索接口。
+//! 支持单次搜索、批量搜索、网页内容提取等功能。
+
 use codex_web_search::anysearch::AnySearchProvider;
 use codex_web_search::exa::ExaProvider;
 use codex_web_search::provider::SearchProvider;
@@ -10,6 +15,7 @@ use codex_web_search::types::Zone;
 use serde::Deserialize;
 use std::collections::HashMap;
 
+/// 网页搜索输入参数（内部使用）。
 #[derive(Deserialize)]
 struct WebSearchInput {
     query: String,
@@ -169,6 +175,7 @@ async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value,
     }))
 }
 
+/// 格式化搜索结果列表为可读文本。
 fn format_search_results(results: &[SearchResult]) -> String {
     let mut out = String::new();
     for (i, r) in results.iter().enumerate() {
@@ -184,6 +191,7 @@ fn format_search_results(results: &[SearchResult]) -> String {
     out
 }
 
+/// 注册全部网页搜索工具到全局工具注册表。
 pub fn register_web_search_tools() -> HashMap<String, crate::ToolHandler> {
     let mut tools: HashMap<String, crate::ToolHandler> = HashMap::new();
 

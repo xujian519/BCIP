@@ -1,3 +1,8 @@
+//! 统一搜索核心
+//!
+//! 聚合多源检索能力：专利知识图谱（SQLite FTS5）+ 法规数据库 + 知识卡片 + 语义向量索引。
+//! 支持关键词增强和混合搜索两种模式，含查询结果缓存和实时线程池搜索。
+
 use crate::cards::CardIndex;
 use crate::embedding_client::EmbeddingClient;
 use crate::graph::SqliteKnowledgeGraph;
@@ -14,16 +19,21 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::time::Instant;
 
+/// 搜索模式
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SearchMode {
+    /// 纯文本匹配
     Text,
+    /// 关键词增强（默认）
     #[default]
     KeywordEnhanced,
+    /// 传统 FTS 搜索
     Legacy,
     /// 关键词 + 语义混合搜索
     Hybrid,
 }
 
+/// 搜索配置
 pub struct SearchConfig {
     pub query: String,
     pub limit: usize,
@@ -72,6 +82,7 @@ const MAX_CACHE_ENTRIES: usize = 256;
 static GLOBAL_SEARCH: OnceLock<UnifiedSearch> = OnceLock::new();
 
 impl UnifiedSearch {
+    /// 创建基础版统一搜索引擎（不含语义索引）
     pub fn new(
         kg_path: Option<&str>,
         law_db_path: Option<&str>,
@@ -168,6 +179,10 @@ impl UnifiedSearch {
         self.card_index.as_ref()
     }
 
+    /// 执行多源搜索，按 `SearchConfig` 配置检索知识图谱/法规库/知识卡片/语义索引
+    ///
+    /// 使用 `std::thread::scope` 并行发起多个数据源的搜索，结果合并去重后按
+    /// 相关性分数排序。支持 300 秒 TTL 的结果缓存。
     pub fn search(&self, config: &SearchConfig) -> Vec<SearchResult> {
         let cache_key = format!(
             "{}|{}|{}|{}|{}|{}",
@@ -446,6 +461,7 @@ fn compute_score(query: &str, title: &str, content: &str, _item_type: &str) -> f
 }
 
 impl UnifiedSearch {
+    /// 返回搜索引擎各组件可用性状态（JSON）
     pub fn status(&self) -> serde_json::Value {
         serde_json::json!({
             "knowledge_graph": self.kg.as_ref().and_then(|kg| kg.lock().ok().and_then(|g| g.stats().ok().map(|s| serde_json::json!({

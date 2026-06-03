@@ -22,6 +22,7 @@ use super::graph::GraphNodeResult;
 pub type ToolExecutorFn =
     Box<dyn Fn(&str, &serde_json::Value) -> Result<String, String> + Send + Sync>;
 
+/// 图执行状态
 #[derive(Debug, Clone)]
 pub struct GraphExecution {
     pub flow_id: String,
@@ -30,6 +31,7 @@ pub struct GraphExecution {
     pub node_results: Vec<GraphNodeResult>,
 }
 
+/// DAG 图执行器 — 按拓扑层级并行执行 FlowGraph 节点
 pub struct GraphExecutor {
     #[allow(dead_code)]
     checkpoint_store: CheckpointStore,
@@ -40,6 +42,7 @@ pub struct GraphExecutor {
 }
 
 impl GraphExecutor {
+    /// 创建图执行器，注入检查点存储
     pub fn new(checkpoint_store: CheckpointStore) -> Self {
         Self {
             checkpoint_store,
@@ -50,26 +53,31 @@ impl GraphExecutor {
         }
     }
 
+    /// 设置工具执行器
     pub fn with_tool_executor(mut self, executor: ToolExecutorFn) -> Self {
         self.tool_executor = Some(Arc::new(executor));
         self
     }
 
+    /// 设置 Agent 执行器
     pub fn with_agent_executor(mut self, executor: Box<dyn AgentExecutor>) -> Self {
         self.agent_executor = Some(Arc::new(Mutex::new(executor)));
         self
     }
 
+    /// 设置代码执行器
     pub fn with_code_executor(mut self, executor: Box<dyn CodeExecutor>) -> Self {
         self.code_executor = Some(Arc::new(Mutex::new(executor)));
         self
     }
 
+    /// 设置最大重试次数
     pub fn with_max_retries(mut self, retries: u32) -> Self {
         self.max_retries = retries;
         self
     }
 
+    /// 执行 DAG 图，按拓扑层级并行推进各节点
     pub fn execute(&self, graph: &FlowGraph) -> Result<GraphExecution, String> {
         graph.validate().map_err(|errs| errs.join("; "))?;
 
@@ -511,10 +519,12 @@ fn classify_tool_error(msg: &str) -> ErrorKind {
     }
 }
 
+/// 代码执行器 trait — 允许工作流执行任意编程语言代码
 pub trait CodeExecutor: Send {
     fn execute(&mut self, language: &str, code: &str) -> Result<CodeExecutionResult, String>;
 }
 
+/// 代码执行结果
 #[derive(Debug, Clone)]
 pub struct CodeExecutionResult {
     pub output: String,
@@ -523,6 +533,7 @@ pub struct CodeExecutionResult {
     pub error: Option<String>,
 }
 
+/// 空操作代码执行器（测试/禁用时使用）
 pub struct NoopCodeExecutor;
 
 impl CodeExecutor for NoopCodeExecutor {

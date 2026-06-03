@@ -102,7 +102,10 @@ impl HybridSearcher {
     }
 }
 
-/// 引用扩展
+/// 引用扩展 — 在原始引用列表基础上添加关联引用。
+///
+/// 对以 "D" 开头的引用，自动追加 `{id}-related` 形式的关联项。
+/// 用于模拟用户点击后的引用链条展开。
 pub fn expand_citations(citations: &[String]) -> Vec<String> {
     let mut expanded = Vec::new();
     for citation in citations {
@@ -115,7 +118,9 @@ pub fn expand_citations(citations: &[String]) -> Vec<String> {
     expanded
 }
 
-/// 现有技术加权
+/// 根据引用次数对现有技术结果进行加权提升。
+///
+/// 引用越多，加权因子越大（上限 1.5×）。仅作用于来源为 `patent_db` 的结果。
 pub fn boost_prior_art(results: &mut [RetrievedSnippet], citation_count: u32) {
     let boost = 1.0 + (citation_count as f64 * 0.05).min(0.5);
     for result in results.iter_mut() {

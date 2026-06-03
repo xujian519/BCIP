@@ -1,3 +1,8 @@
+//! 质量规则配置加载与词汇查询
+//!
+//! 从 YAML 配置文件加载专利说明书质量相关的关键词列表、正则模式及阈值。
+//! 提供 `vague_words()` 等静态词汇表及 `commercial_terms()` 等动态配置查询。
+
 use serde::Deserialize;
 
 const RULES_YAML: &str = include_str!("../../codex-patent-assets/rules/spec-quality.yaml");
@@ -72,34 +77,52 @@ fn load_config() -> SpecQualityConfig {
     serde_yaml::from_str(RULES_YAML).unwrap_or_default()
 }
 
+/// 返回静态定义的模糊词汇列表，如"大约""左右""基本上"等。
+///
+/// 这些词汇在权利要求中使用时可能影响清晰性判断。
 pub fn vague_words() -> Vec<&'static str> {
     vec!["大约", "左右", "基本上", "适当", "一定", "某种"]
 }
 
+/// 从 YAML 配置加载商业性用语（如"最佳""世界领先"等）。
+///
+/// 这些用语在专利文件中应当避免使用，以免引起夸大宣传嫌疑。
 pub fn commercial_terms() -> Vec<String> {
     load_config().keyword_lists.commercial_terms.items
 }
 
+/// 从 YAML 配置加载不确定用语（如"大约""左右"等）。
+///
+/// 这些用语可能导致权利要求保护范围不清晰。
 pub fn uncertain_terms() -> Vec<String> {
     load_config().keyword_lists.uncertain_terms.items
 }
 
+/// 从 YAML 配置加载模糊范围用语（如"以上""以下"等）。
+///
+/// 这些用语在数值范围限定中可能导致保护边界不明确。
 pub fn vague_range_terms() -> Vec<String> {
     load_config().keyword_lists.vague_range_terms.items
 }
 
+/// 从 YAML 配置加载模糊动作用语（如"适当调整"等）。
+///
+/// 这些用语在描述技术方案时可能导致可实施性不足。
 pub fn fuzzy_action_terms() -> Vec<String> {
     load_config().keyword_lists.fuzzy_action_terms.items
 }
 
+/// 获取禁止引用的正则模式字符串，用于检测说明书中对权利要求的直接引用。
 pub fn prohibited_reference_regex() -> String {
     load_config().patterns.prohibited_references.regex
 }
 
+/// 获取可实施性评估中每项权利要求的最少字数阈值。
 pub fn enablement_min_words() -> usize {
     load_config().thresholds.enablement_min_words.as_usize()
 }
 
+/// 获取背景技术部分的最少字符数阈值。
 pub fn background_min_chars() -> usize {
     load_config().thresholds.background_min_chars.as_usize()
 }

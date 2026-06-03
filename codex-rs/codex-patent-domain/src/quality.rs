@@ -1,3 +1,8 @@
+//! 权利要求质量评估引擎
+//!
+//! 从清晰性、支持性、保护范围、可实施性四个维度评估专利权利要求书的质量。
+//! 评分均为 0.0~1.0，高于阈值表示该维度通过评估。
+
 use crate::quality_rules;
 use codex_patent_core::*;
 use serde::Deserialize;
@@ -7,9 +12,16 @@ const CLARITY_THRESHOLD: f32 = 0.6;
 const SUPPORT_THRESHOLD: f32 = 0.6;
 const SCOPE_THRESHOLD: f32 = 0.5;
 
+/// 权利要求质量评估器
+///
+/// 对一组权利要求进行多维度质量分析，返回各维度评分及问题列表。
 pub struct QualityAssessor;
 
 impl QualityAssessor {
+    /// 对权利要求集进行全面质量评估
+    ///
+    /// 从清晰性、支持性、保护范围、可实施性四个维度分别评分，
+    /// 加权计算总分，并识别具体质量问题。
     pub fn assess_claims(claims: &[ClaimDraft]) -> QualityAssessment {
         let clarity_score = Self::assess_clarity(claims);
         let support_score = Self::assess_support(claims);
@@ -158,6 +170,9 @@ impl QualityAssessor {
     }
 }
 
+/// 质量评估器配置
+///
+/// 可自定义各维度的评分阈值。默认值与模块级常量保持一致。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityAssessorConfig {
     pub clarity_threshold: f32,

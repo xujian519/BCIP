@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use tracing::error;
 use tracing::info;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// 定时任务定义。
 pub struct CronTask {
     pub id: String,
     pub cron: String,
@@ -32,7 +32,7 @@ impl CronTask {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+/// 调度器错误类型。
 pub enum SchedulerError {
     #[error("文件操作失败: {0}")]
     IoError(String),
@@ -42,7 +42,7 @@ pub enum SchedulerError {
     LockError(String),
 }
 
-#[derive(Debug)]
+/// Cron 调度器，管理定时任务的注册、持久化和触发。
 pub struct CronScheduler {
     tasks: Vec<CronTask>,
     task_file: PathBuf,

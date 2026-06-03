@@ -21,6 +21,10 @@ pub struct ProviderEntry {
     pub api_key_env: String,
 }
 
+/// LLM provider 类型枚举。
+///
+/// 区分 Anthropic（原生 API）和 OpenAI 兼容（DeepSeek/Qwen/Moonshot/GLM 等）两类 provider，
+/// 以便在调用时选择正确的请求格式和身份认证方式。
 #[derive(Debug, Clone)]
 pub enum AgentProvider {
     Anthropic {

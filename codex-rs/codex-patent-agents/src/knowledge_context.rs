@@ -1,3 +1,8 @@
+//! Agent 知识上下文模块
+//!
+//! 根据 Agent 角色和任务描述自动注入知识图谱、法律知识库和关联卡片。
+//! 通过 `KnowledgeContext` 为 LLM 提供检索增强的上下文信息。
+
 use codex_patent_knowledge::CitationTracker;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
@@ -5,6 +10,9 @@ use codex_patent_knowledge::UnifiedSearch;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// 自动知识注入的配置项
+///
+/// 控制是否启用知识上下文、以及从哪些来源（知识图谱、法律库、卡片索引）注入。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AutoKnowledgeConfig {
     #[serde(default)]
@@ -41,9 +49,15 @@ impl Default for AutoKnowledgeConfig {
     }
 }
 
+/// 角色关键词映射
+///
+/// 为每个专利 Agent 角色提供默认的检索关键词，用于知识上下文查询。
 pub struct RoleKeywords;
 
 impl RoleKeywords {
+    /// 获取给定角色的搜索关键词
+    ///
+    /// 返回空字符串表示无特殊关键词。
     pub fn for_role(role_id: &str) -> &'static str {
         match role_id {
             "novelty_checker" => "新颖性 单独对比 现有技术 抵触申请 实质审查 对比文件",
@@ -67,6 +81,9 @@ impl RoleKeywords {
         }
     }
 
+    /// 组合角色关键词和任务描述
+    ///
+    /// 在角色关键词基础上追加具体任务描述，提高知识检索的精确度。
     pub fn for_role_and_task(role_id: &str, task: &str) -> String {
         let base = Self::for_role(role_id);
         if task.is_empty() {
@@ -77,12 +94,20 @@ impl RoleKeywords {
     }
 }
 
+/// 知识上下文引擎
+///
+/// 根据 Agent 角色和任务描述自动检索相关知识库，
+/// 生成结构化的知识注入内容用于 LLM prompt。
 pub struct KnowledgeContext {
     search: &'static UnifiedSearch,
     config: AutoKnowledgeConfig,
 }
 
 impl KnowledgeContext {
+    /// 创建知识上下文引擎实例
+    ///
+    /// `_kg_path` / `_law_db_path` / `_card_index_path` / `_semantic_index_path`
+    /// 当前保留供未来使用，实际查询使用全局 `UnifiedSearch` 实例。
     pub fn new(
         _kg_path: &str,
         _law_db_path: &str,

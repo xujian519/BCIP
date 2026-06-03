@@ -1,3 +1,8 @@
+//! 专利知识图谱（SQLite FTS5）
+//!
+//! 提供图谱的节点/边查询、全文搜索、BFS 遍历、路径查找和 IPC 分类搜索。
+//! 使用只读 SQLite 连接 + RwLock 查询缓存优化读性能。
+
 use codex_patent_core::KgEdge;
 use codex_patent_core::KgNode;
 use rusqlite::Connection;
@@ -8,18 +13,21 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::RwLock;
 
+/// 知识图谱统计信息
 #[derive(Debug)]
 pub struct KgStats {
     pub node_count: usize,
     pub edge_count: usize,
 }
 
+/// 节点类型分布统计
 #[derive(Debug)]
 pub struct NodeTypeCount {
     pub node_type: String,
     pub count: usize,
 }
 
+/// IPC 分类搜索结果
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct IpcSearchResult {
     pub code: String,
@@ -28,6 +36,10 @@ pub struct IpcSearchResult {
     pub parent_code: Option<String>,
 }
 
+/// 基于 SQLite FTS5 的专利知识图谱
+///
+/// 包装只读 SQLite 连接，通过 RwLock 缓存 FTS5 查询结果。
+/// 所有数据访问方法返回 `Result`，可空结果以 `Vec` 空值表示。
 pub struct SqliteKnowledgeGraph {
     conn: Connection,
     /// 读多写少的查询缓存：命中（read）远多于插入（write）。
@@ -36,6 +48,10 @@ pub struct SqliteKnowledgeGraph {
 }
 
 impl SqliteKnowledgeGraph {
+    /// 打开只读知识图谱数据库
+    ///
+    /// `path` 为 SQLite 数据库文件路径。使用 `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX`
+    /// 模式打开，并配置缓存大小和锁定模式。
     pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let conn = Connection::open_with_flags(
             path,
@@ -55,6 +71,7 @@ impl SqliteKnowledgeGraph {
         })
     }
 
+    /// 用已有 SQLite 连接构造（主要用于测试）
     pub fn from_connection(conn: Connection) -> Self {
         Self {
             conn,
@@ -62,6 +79,7 @@ impl SqliteKnowledgeGraph {
         }
     }
 
+    /// 返回图谱中节点和边的总数
     pub fn stats(&self) -> Result<KgStats, String> {
         let node_count = self
             .conn
@@ -77,6 +95,7 @@ impl SqliteKnowledgeGraph {
         })
     }
 
+    /// FTS5 全文搜索节点，支持按节点类型过滤，结果缓存 100 条
     pub fn search_nodes(
         &self,
         query: &str,
@@ -124,10 +143,12 @@ impl SqliteKnowledgeGraph {
         Ok(nodes)
     }
 
+    /// 清空查询缓存
     pub fn clear_cache(&self) {
         self.query_cache.write().unwrap().clear();
     }
 
+    /// 获取与指定节点相连的所有边（双向）
     pub fn get_edges(&self, node_id: &str) -> Result<Vec<KgEdge>, String> {
         let sql = "SELECT id, source, target, relation FROM edges WHERE source = ?1 OR target = ?1";
         let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
@@ -147,6 +168,7 @@ impl SqliteKnowledgeGraph {
         Ok(edges)
     }
 
+    /// 按节点类型获取节点列表
     pub fn get_nodes_by_type(&self, node_type: &str, limit: usize) -> Result<Vec<KgNode>, String> {
         let sql = "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
                    FROM nodes WHERE node_type = ?1 LIMIT ?2";
@@ -398,6 +420,7 @@ impl SqliteKnowledgeGraph {
             .map_err(|e| format!("{e}"))
     }
 
+    /// 返回各节点类型的数量分布（降序）
     pub fn node_type_distribution(&self) -> Result<Vec<NodeTypeCount>, String> {
         let sql =
             "SELECT node_type, COUNT(*) as cnt FROM nodes GROUP BY node_type ORDER BY cnt DESC";

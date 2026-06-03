@@ -3,6 +3,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+/// 工作流配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowConfig {
     pub max_retries: u32,

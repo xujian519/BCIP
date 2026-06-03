@@ -1,5 +1,10 @@
+//! 搜索结果引用追踪。
+//!
+//! 为检索结果生成标准化的引用格式，用于 Agent prompt 注入和报告附录。
+
 use codex_patent_core::SearchResult;
 
+/// 搜索结果元数据，用于引用溯源。
 #[derive(Debug, Clone)]
 pub struct CitationMeta {
     pub source_title: String,
@@ -9,6 +14,9 @@ pub struct CitationMeta {
     pub score: f64,
 }
 
+/// 引用格式化工具。
+///
+/// 提供 `format_citations`（完整引用列表）和 `citation_prefix`（Agent prompt 简洁前缀）两种格式。
 pub struct CitationTracker;
 
 impl CitationTracker {

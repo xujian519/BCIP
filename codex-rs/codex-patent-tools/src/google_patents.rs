@@ -1,22 +1,47 @@
+//! Google Patents 数据源交互模块。
+//!
+//! 封装从 Google Patents 获取专利数据的底层逻辑，包括 HTML 抓取、
+//! 重试机制、HTML 解析等。提供 [`fetch_google_patents`] 和 [`download_patent`] 两个核心入口。
+
 use serde::Deserialize;
 use serde::Serialize;
 
+/// 最大重试次数（429 时指数退避）。
 const MAX_RETRIES: u32 = 2;
 
+/// Google Patents 检索输入参数。
 #[derive(Debug, Deserialize)]
 pub struct GooglePatentsInput {
+    /// 检索查询字符串。
     pub query: String,
+    /// 返回结果数量上限（默认 10）。
     #[serde(default = "default_limit")]
     pub limit: usize,
+    /// 专利号码（可选，用于精确匹配）。
     pub patent_number: Option<String>,
 }
 
+/// 返回默认搜索限制数量（10）。
 pub fn default_limit() -> usize {
     10
 }
 
+/// Google Patents 搜索结果条目。
 #[derive(Debug, Serialize, Clone)]
 pub struct PatentResult {
+    /// 专利号码。
+    pub patent_number: String,
+    /// 专利标题。
+    pub title: String,
+    /// 摘要文本。
+    pub abstract_text: String,
+    /// 专利权人。
+    pub assignee: Option<String>,
+    /// 申请日期。
+    pub filing_date: Option<String>,
+    /// 公开/公告日期。
+    pub publication_date: Option<String>,
+}
     pub patent_number: String,
     pub title: String,
     pub abstract_text: String,
@@ -185,10 +210,17 @@ fn urlencoding(s: &str) -> String {
 }
 
 #[derive(Debug, Deserialize)]
+/// 专利 PDF 下载输入参数。
+#[derive(Debug, Deserialize)]
 pub struct PatentDownloadInput {
+    /// 要下载的专利号码。
     pub patent_number: String,
 }
 
+/// 从 Google Patents 下载专利 PDF 到本地。
+///
+/// 下载目录由环境变量 `BCIP_DOWNLOAD_DIR` 指定，默认使用系统临时目录。
+/// 文件命名为 `{patent_number}.pdf`。
 pub async fn download_patent(input: PatentDownloadInput) -> Result<String, String> {
     let url = format!(
         "https://patentimages.storage.googleapis.com/pdfs/{}.pdf",

@@ -1,52 +1,84 @@
+//! 审查意见（OA）答复工具集。
+//!
+//! 提供 OA 解析、策略分析、答复生成、论证构建等功能，
+//! 覆盖从接收审查意见到生成答复文书的完整流程。
+
 use codex_patent_core::OfficeAction;
 use codex_patent_domain::oa::OaParser;
 use codex_patent_domain::oa::OaResponder;
 use serde::Deserialize;
 
+/// OA 解析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct OaParseInput {
+    /// OA 原始文本内容。
     pub content: String,
+    /// 申请号。
     pub application_number: Option<String>,
+    /// 专利标题。
     pub patent_title: Option<String>,
+    /// 文档类型。
     pub document_type: Option<String>,
 }
 
+/// OA 策略分析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct OaStrategyInput {
+    /// OA 类型（novelty / inventive / clarity / support 等）。
     pub oa_type: String,
+    /// 审查员论证理由。
     pub examiner_arguments: String,
+    /// 受影响的权利要求索引。
     pub affected_claims: Vec<usize>,
+    /// 引用对比文件列表。
     pub citations: Vec<CitationInput>,
 }
 
+/// 对比文件引用信息。
 #[derive(Debug, Deserialize)]
 pub struct CitationInput {
+    /// 对比文件号码。
     pub document_number: String,
+    /// 相关度（如 "X", "Y", "A"）。
     pub relevancy: Option<String>,
+    /// 受影响的权利要求索引。
     pub claims_affected: Option<Vec<usize>>,
 }
 
+/// 答复生成器输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ResponderInput {
+    /// OA 原始内容。
     pub oa_content: String,
+    /// 答复策略（amend / argue / hybrid / withdraw）。
     pub strategy: Option<String>,
+    /// 专利信息。
     pub patent_info: Option<String>,
 }
 
+/// 论证构建输入参数。
 #[derive(Debug, Deserialize)]
 pub struct ArgumentInput {
+    /// OA 类型。
     pub oa_type: String,
+    /// 区别技术特征列表。
     pub differences: Vec<String>,
+    /// 技术效果列表。
     pub technical_effects: Vec<String>,
+    /// 法律依据（如 "专利法第22条第3款"）。
     pub legal_basis: Option<String>,
 }
 
+/// 答复模板输入参数。
 #[derive(Debug, Deserialize)]
 pub struct TemplateInput {
+    /// OA 类型。
     pub oa_type: String,
+    /// 输出格式（如 "cnipa"）。
     pub format: Option<String>,
 }
 
+/// OA 审查意见答复工具集。
 pub struct OaTools;
 
 impl OaTools {

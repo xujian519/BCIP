@@ -9,14 +9,17 @@ pub struct InvalidDecisionStore {
 }
 
 impl InvalidDecisionStore {
+    /// 创建新的无效决定存储实例
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 添加一条无效决定记录
     pub fn add(&mut self, decision: InvalidDecision) {
         self.decisions.push(decision);
     }
 
+    /// 按专利号搜索相关无效决定
     pub fn search_by_patent(&self, patent_number: &str) -> Vec<&InvalidDecision> {
         self.decisions
             .iter()
@@ -24,6 +27,7 @@ impl InvalidDecisionStore {
             .collect()
     }
 
+    /// 按无效理由关键词搜索相关决定
     pub fn search_by_ground(&self, ground: &str) -> Vec<&InvalidDecision> {
         self.decisions
             .iter()
@@ -31,6 +35,7 @@ impl InvalidDecisionStore {
             .collect()
     }
 
+    /// 获取所有无效决定记录
     pub fn all(&self) -> &[InvalidDecision] {
         &self.decisions
     }

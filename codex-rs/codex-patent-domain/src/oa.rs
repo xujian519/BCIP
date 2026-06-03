@@ -1,9 +1,19 @@
+//! 审查意见通知书（Office Action）解析与答复策略推荐。
+//!
+//! - `OaParser`：解析 OA 文本，提取类型、引用文献、影响的权利要求及审查员意见。
+//! - `OaResponder`：根据 OA 类型推荐答复策略（争辩、修改权利要求、混合策略）。
+
 use codex_patent_core::*;
 use regex::Regex;
 
+/// 审查意见通知书解析器
+///
+/// 通过文本模式匹配识别 OA 类型（新颖性/创造性/清楚/支持等），
+/// 并提取引用对比文件、影响的权利要求编号及审查员论证内容。
 pub struct OaParser;
 
 impl OaParser {
+    /// 解析 OA 文本，返回结构化 OfficeAction
     pub fn parse(text: &str) -> OfficeAction {
         let oa_type = Self::detect_oa_type(text);
         let citations = Self::extract_citations(text);
@@ -114,9 +124,14 @@ impl OaParser {
     }
 }
 
+/// OA 答复策略推荐器
+///
+/// 根据 OA 类型（新颖性、创造性、清楚、支持等）推荐相应的答复策略，
+/// 包括争辩、修改权利要求或混合策略，并给出置信度评分。
 pub struct OaResponder;
 
 impl OaResponder {
+    /// 分析 OA 并推荐答复策略列表（按置信度降序排列）
     pub fn analyze_and_recommend(oa: &OfficeAction) -> Vec<ResponseStrategy> {
         let mut strategies = Vec::new();
 

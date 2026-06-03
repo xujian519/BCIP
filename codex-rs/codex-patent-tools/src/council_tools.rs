@@ -1,8 +1,14 @@
+//! 专利无效/复审（Council）域工具。
+//!
+//! 通过 Python 桥接脚本调用多模型专家委员会（Council）系统，
+//! 提供无效宣告分析、质量门控等服务。
+//! 使用外部 Python 进程（council_bridge.py）作为执行引擎。
+
 use std::collections::HashMap;
 
 use crate::ToolHandler;
 
-/// 默认 Python 桥接脚本路径（相对于 codex-patent-tools crate 根目录）
+/// 默认 Python 桥接脚本路径（相对于 codex-patent-tools crate 根目录）。
 const DEFAULT_BRIDGE_RELATIVE: &str =
     "../../.codex/skills/patent-council/scripts/council_bridge.py";
 

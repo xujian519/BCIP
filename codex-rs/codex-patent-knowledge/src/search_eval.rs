@@ -1,8 +1,14 @@
+//! 搜索质量评估
+//!
+//! 提供精确率（Precision@K）、召回率（Recall）、MRR 等指标，
+//! 用于对比不同搜索模式（文本/混合等）的效果。
+
 use crate::search::SearchConfig;
 use crate::search::SearchMode;
 use crate::search::UnifiedSearch;
 use serde::Deserialize;
 
+/// 评估查询
 #[derive(Debug, Deserialize)]
 pub struct EvalQuery {
     pub query: String,
@@ -10,6 +16,7 @@ pub struct EvalQuery {
     pub domain: String,
 }
 
+/// 单个评估结果
 #[derive(Debug)]
 pub struct EvalResult {
     pub query: String,
@@ -21,12 +28,16 @@ pub struct EvalResult {
     pub miss: Vec<String>,
 }
 
+/// 搜索评估器
 pub struct SearchEval {
     search: UnifiedSearch,
     queries: Vec<EvalQuery>,
 }
 
 impl SearchEval {
+    /// 创建搜索评估器
+    ///
+    /// 加载评估查询集并初始化统一搜索引擎。
     pub fn new(
         kg_path: Option<&str>,
         law_db_path: Option<&str>,
@@ -41,6 +52,7 @@ impl SearchEval {
         Ok(Self { search, queries })
     }
 
+    /// 运行评估，返回每个查询的评估结果
     pub fn run(&self, mode: SearchMode) -> Vec<EvalResult> {
         self.queries
             .iter()

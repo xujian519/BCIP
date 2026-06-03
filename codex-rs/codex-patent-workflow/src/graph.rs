@@ -13,6 +13,7 @@ use super::flow::FlowStatus;
 use super::flow::FlowStep;
 use super::flow::StepResult;
 
+/// DAG 图节点 — 包含一个工作流步骤
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowNode {
     pub id: String,
@@ -21,6 +22,7 @@ pub struct FlowNode {
     pub label: Option<String>,
 }
 
+/// 边执行条件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Condition {
@@ -29,6 +31,7 @@ pub enum Condition {
     OnFailure,
 }
 
+/// DAG 有向边
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowEdge {
     pub from: String,
@@ -41,6 +44,7 @@ fn default_condition() -> Condition {
     Condition::Always
 }
 
+/// DAG 图定义 — 节点 + 有向边 + 重试策略
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowGraph {
     pub id: String,
@@ -54,12 +58,14 @@ pub struct FlowGraph {
     pub retry_on_failure: Option<u32>,
 }
 
+/// DAG 图节点执行结果
 #[derive(Debug, Clone)]
 pub struct GraphNodeResult {
     pub node_id: String,
     pub step_result: StepResult,
 }
 
+/// DAG 图整体执行结果
 #[derive(Debug, Clone)]
 pub struct GraphExecutionResult {
     pub flow_id: String,

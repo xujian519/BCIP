@@ -1,3 +1,7 @@
+//! BGE-M3 语义向量索引
+//!
+//! 从 SQLite 文件中加载 1024 维向量嵌入，提供余弦相似度搜索。
+
 use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use std::path::Path;
@@ -69,14 +73,17 @@ impl VectorIndex {
         Ok(Self { chunks, dim })
     }
 
+    /// 返回索引中的向量总数
     pub fn len(&self) -> usize {
         self.chunks.len()
     }
 
+    /// 返回索引是否为空
     pub fn is_empty(&self) -> bool {
         self.chunks.is_empty()
     }
 
+    /// 返回向量的维度（BGE-M3 为 1024）
     pub fn dimension(&self) -> usize {
         self.dim
     }

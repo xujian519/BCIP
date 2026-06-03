@@ -1,9 +1,17 @@
+//! 场景规则系统
+//!
+//! 定义专利任务场景的编排规则，支持拓扑排序和并行分组执行。
+//! 每个场景包含元数据、提示词模板、法律依据和处理步骤。
+
 use codex_patent_core::PatentError;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 
 /// 场景规则定义
+///
+/// 描述一个专利任务的完整处理场景，包括元数据、提示词模板、
+/// 法律依据和处理步骤。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioRule {
     pub scenario: ScenarioMeta,
@@ -14,6 +22,7 @@ pub struct ScenarioRule {
     pub processing: ScenarioProcessing,
 }
 
+/// 场景元数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioMeta {
     pub rule_id: String,
@@ -28,12 +37,14 @@ fn default_agent_level() -> String {
     "L2".into()
 }
 
+/// 场景提示词模板
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioPrompts {
     pub system_template: String,
     pub user_template: String,
 }
 
+/// 法律依据定义
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LegalBasis {
     #[serde(default)]
@@ -42,12 +53,14 @@ pub struct LegalBasis {
     pub reference_cases: Vec<String>,
 }
 
+/// 场景处理步骤定义
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScenarioProcessing {
     #[serde(default)]
     pub steps: Vec<ScenarioStep>,
 }
 
+/// 单个场景处理步骤
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioStep {
     pub name: String,
@@ -69,6 +82,7 @@ impl ScenarioStep {
 }
 
 impl ScenarioProcessing {
+    /// 拓扑排序：按依赖关系排列步骤
     pub fn topological_order(&self) -> Vec<&ScenarioStep> {
         let steps = &self.steps;
         let mut visited = std::collections::HashSet::new();
@@ -95,6 +109,7 @@ impl ScenarioProcessing {
         result
     }
 
+    /// 分组：返回可并行执行的步骤组列表
     pub fn parallel_groups(&self) -> Vec<Vec<&ScenarioStep>> {
         let ordered = self.topological_order();
         let mut groups: Vec<Vec<&ScenarioStep>> = Vec::new();
@@ -125,6 +140,8 @@ impl ScenarioProcessing {
 }
 
 /// 场景规则注册表
+///
+/// 管理所有专利任务场景的注册、查找和提示词解析。
 #[derive(Debug, Default)]
 pub struct ScenarioRegistry {
     rules: HashMap<String, ScenarioRule>,

@@ -3,6 +3,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
+/// 任务类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskType {
@@ -12,6 +13,7 @@ pub enum TaskType {
     HumanApproval,
 }
 
+/// 任务定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: String,
@@ -21,6 +23,7 @@ pub struct Task {
     pub input: serde_json::Value,
 }
 
+/// 任务执行结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskResult {
     pub task_id: String,

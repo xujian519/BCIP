@@ -382,25 +382,32 @@ pub struct PatentDocument {
 
 // ── OA 相关类型 ──
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// 审查意见类型。
 pub enum OaType {
+    /// 缺乏新颖性。
     Novelty,
+    /// 缺乏创造性（非显而易见性）。
     InventiveStep,
+    /// 不清楚/不明确。
     Clarity,
+    /// 权利要求得不到说明书支持。
     Support,
+    /// 超范围/修改超范围。
     Scope,
+    /// 形式缺陷。
     Formal,
+    /// 其他类型的审查意见。
     Other(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 引用的对比文件（审查意见通知书中引用的现有技术文献）。
 pub struct CitedReference {
     pub document_number: String,
     pub relevancy: String,
     pub claims_affected: Vec<usize>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 审查意见通知书。
 pub struct OfficeAction {
     pub oa_type: OaType,
     pub citations: Vec<CitedReference>,
@@ -408,7 +415,7 @@ pub struct OfficeAction {
     pub affected_claims: Vec<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// 答复策略类型。
 pub enum ResponseStrategyType {
     AmendClaims,
     Argue,
@@ -416,7 +423,7 @@ pub enum ResponseStrategyType {
     Withdraw,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 审查意见答复策略。
 pub struct ResponseStrategy {
     pub strategy_type: ResponseStrategyType,
     pub reasoning: String,
@@ -425,7 +432,7 @@ pub struct ResponseStrategy {
 
 // ── 质量评估相关类型 ──
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 单个质量问题的描述。
 pub struct QualityIssue {
     pub dimension: String,
     pub severity: String,
@@ -433,7 +440,7 @@ pub struct QualityIssue {
     pub suggestion: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 综合质量评估结果。
 pub struct QualityAssessment {
     pub clarity_score: f32,
     pub support_score: f32,
@@ -445,7 +452,7 @@ pub struct QualityAssessment {
 
 // ── 技术特征相关类型 ──
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// 技术特征类别。
 pub enum FeatureCategory {
     Structural,
     Functional,
@@ -454,7 +461,7 @@ pub enum FeatureCategory {
     Other,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 技术特征描述。
 pub struct TechnicalFeature {
     pub id: String,
     pub description: String,
@@ -464,7 +471,7 @@ pub struct TechnicalFeature {
     pub function: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 问题-特征-效果（PFE）三元组，用于创造性三步法分析。
 pub struct ProblemFeatureEffect {
     pub id: String,
     pub technical_problem: String,
@@ -472,14 +479,14 @@ pub struct ProblemFeatureEffect {
     pub technical_effects: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 技术交底书文档。
 pub struct DisclosureDoc {
     pub raw_text: String,
     pub sections: std::collections::HashMap<String, String>,
     pub confidence: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 权利要求草稿（撰写过程中使用）。
 pub struct ClaimDraft {
     pub id: String,
     pub claim_type: ClaimType,

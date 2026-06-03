@@ -1,8 +1,17 @@
+//! 知识卡片索引。
+//!
+//! 从 `card-index.json` 加载概念卡片（知识图谱中的原子知识点），
+//! 支持关键词搜索、概念关联搜索、质量过滤，以及卡片内容的延迟加载和缓存。
+
 use codex_patent_core::KnowledgeCard;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// 知识卡片索引。
+///
+/// 管理一组 [`KnowledgeCard`]，提供基于关键词/概念的评分搜索，
+/// 并支持按质量阈值过滤。卡片内容按需从文件系统加载，使用 `RefCell` 缓存。
 pub struct CardIndex {
     cards: Vec<KnowledgeCard>,
     base_dir: String,
@@ -10,6 +19,10 @@ pub struct CardIndex {
 }
 
 impl CardIndex {
+    /// 从 JSON 索引文件加载卡片列表。
+    ///
+    /// JSON 格式：`{"cards": [{id, file_path, title, concept, domain, quality, related_concepts}]}`
+    /// `base_dir` 由索引文件所在目录自动推断，用于解析相对路径的卡片内容文件。
     pub fn load(index_path: &str) -> Result<Self, String> {
         let content =
             std::fs::read_to_string(index_path).map_err(|e| format!("读取卡片索引失败: {e}"))?;
@@ -49,18 +62,22 @@ impl CardIndex {
         })
     }
 
+    /// 返回卡片总数。
     pub fn len(&self) -> usize {
         self.cards.len()
     }
 
+    /// 索引是否为空。
     pub fn is_empty(&self) -> bool {
         self.cards.is_empty()
     }
 
+    /// 返回所有卡片的引用。
     pub fn all(&self) -> &[KnowledgeCard] {
         &self.cards
     }
 
+    /// 基于关键词搜索卡片，使用评分排序（title > concept > domain > related_concepts）。
     pub fn search_by_keyword(&self, keyword: &str, limit: usize) -> Vec<&KnowledgeCard> {
         let kw_lower = keyword.to_lowercase();
         let mut scored: Vec<(&KnowledgeCard, f64)> = self
@@ -124,6 +141,7 @@ impl CardIndex {
         scored.into_iter().take(limit).map(|(c, _)| c).collect()
     }
 
+    /// 按质量阈值过滤卡片，返回评分 ≥ threshold 的前 limit 张。
     pub fn filter_by_quality(&self, threshold: f64, limit: usize) -> Vec<&KnowledgeCard> {
         let mut results: Vec<&KnowledgeCard> = self
             .cards
@@ -139,6 +157,7 @@ impl CardIndex {
         results
     }
 
+    /// 加载卡片的 Markdown 内容（带缓存，最多缓存 200 项）。
     pub fn load_content(&self, card: &KnowledgeCard) -> Result<String, String> {
         {
             let cache = self.content_cache.borrow();
@@ -162,6 +181,9 @@ impl CardIndex {
         Ok(content)
     }
 
+    /// 关键词搜索并直接加载内容，返回 `(卡片, 内容)` 元组。
+    ///
+    /// 是 `search_by_keyword` + `load_content` 的组合操作，方便工具函数调用。
     pub fn search_with_content(&self, keyword: &str, limit: usize) -> Vec<(KnowledgeCard, String)> {
         let cards_refs = self.search_by_keyword(keyword, limit);
         let mut results = Vec::new();

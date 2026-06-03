@@ -2,12 +2,12 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 一组宪法规则，按名称索引。
 pub struct ConstitutionalRules {
     pub rules: HashMap<String, ConstitutionalRule>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 单条宪法规则定义。
 pub struct ConstitutionalRule {
     pub id: String,
     pub name: String,
@@ -21,8 +21,7 @@ pub struct ConstitutionalRule {
     pub check: RuleCheck,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+/// 规则检查类型（tagged enum，按 type 字段区分）。
 pub enum RuleCheck {
     #[serde(rename = "structural_analysis")]
     StructuralAnalysis {
@@ -400,7 +399,7 @@ pub struct PunitiveDef {
     pub legal_basis: String,
 }
 
-#[derive(Debug, Clone)]
+/// 规则严重级别。
 pub enum RuleSeverity {
     Critical,
     Major,
@@ -417,7 +416,7 @@ impl RuleSeverity {
     }
 }
 
-#[derive(Debug, Clone)]
+/// 规则触发时的动作。
 pub enum RuleAction {
     Block,
     Warn,

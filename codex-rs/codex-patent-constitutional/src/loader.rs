@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::model::ConstitutionalRules;
 
-#[derive(Debug, thiserror::Error)]
+/// 规则加载器错误类型。
 pub enum LoaderError {
     #[error("failed to read rules file: {0}")]
     Io(#[from] std::io::Error),
@@ -14,6 +14,9 @@ pub enum LoaderError {
     DirNotFound(String),
 }
 
+/// 合规规则加载器。
+///
+/// 支持从文件或目录加载 YAML 格式的宪法规则。
 pub struct RuleLoader;
 
 impl RuleLoader {

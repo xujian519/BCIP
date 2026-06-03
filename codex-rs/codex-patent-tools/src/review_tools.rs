@@ -1,17 +1,31 @@
+//! 专利评审工具集。
+//!
+//! 提供形式审查（FormalCheck）和质量评估（QualityAssess）功能，
+//! 用于检查专利申请文件的形式合规性和整体质量。
+
 use serde::Deserialize;
 
+/// 形式审查输入参数。
 #[derive(Debug, Deserialize)]
 pub struct FormalCheckInput {
+    /// 权利要求文本列表。
     pub claims: Vec<String>,
+    /// 说明书章节列表。
     pub specification_sections: Option<Vec<String>>,
+    /// 发明名称。
     pub invention_title: Option<String>,
 }
+
+/// 质量评估输入参数。
 #[derive(Debug, Deserialize)]
 pub struct QualityAssessInput {
+    /// 权利要求文本列表。
     pub claims: Vec<String>,
+    /// 说明书字数。
     pub specification_word_count: usize,
 }
 
+/// 专利评审工具集。
 pub struct ReviewTools;
 
 impl ReviewTools {

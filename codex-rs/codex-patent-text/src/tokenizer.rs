@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+/// 分词结果中的一个词元。
 pub struct Token {
     pub text: String,
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug)]
+/// 文本统计信息。
 pub struct TextStats {
     pub char_count: usize,
     pub word_count: usize,
@@ -16,6 +16,7 @@ pub struct TextStats {
     pub ascii_word_count: usize,
 }
 
+/// 对文本进行分词（支持中英文混合）。
 pub fn tokenize(text: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
     let mut current_start = 0;
@@ -66,6 +67,7 @@ pub fn tokenize(text: &str) -> Vec<Token> {
     tokens
 }
 
+/// 统计文本基本信息（字符数、词数、中文字符数等）。
 pub fn text_stats(text: &str) -> TextStats {
     let char_count = text.chars().count();
     let cjk_char_count = text.chars().filter(|c| is_cjk_char(*c)).count();
@@ -85,6 +87,7 @@ pub fn text_stats(text: &str) -> TextStats {
     }
 }
 
+/// 基于词频提取关键词（支持中英文）。
 pub fn extract_keywords(text: &str, top_n: usize) -> Vec<(String, usize)> {
     let tokens = tokenize(text);
     let mut freq: HashMap<String, usize> = HashMap::new();

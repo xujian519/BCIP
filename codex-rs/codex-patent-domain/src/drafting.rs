@@ -7,6 +7,8 @@ use codex_patent_core::DraftQualityReport;
 use codex_patent_core::QualityDimension;
 
 /// 根据各维度分数重新计算总分
+///
+/// 取所有维度的算术平均值作为总分。如果维度列表为空，则总分置零。
 pub fn recalculate_overall_score(report: &mut DraftQualityReport) {
     if report.dimensions.is_empty() {
         report.overall_score = 0.0;
@@ -17,6 +19,9 @@ pub fn recalculate_overall_score(report: &mut DraftQualityReport) {
 }
 
 /// 创建默认撰写质量报告
+///
+/// 包含 7 个预定义维度（权利要求清晰性、权利要求层次、技术方案完整性、
+/// 说明书充分公开、实施例充分性、附图引用、形式规范），所有评分初始为零。
 pub fn default_quality_report() -> DraftQualityReport {
     DraftQualityReport {
         overall_score: 0.0,

@@ -1,44 +1,68 @@
+//! 评估工具集。
+//!
+//! 提供行动审查、LLM 输出反思、忠实度评估、自一致性评估、G-Eval 等评估能力，
+//! 用于评估 Agent 输出质量和行为正确性。
+
 use serde::Deserialize;
 
+/// 行动审查输入参数：比较预期与实际结果。
 #[derive(Debug, Deserialize)]
 pub struct ActionReviewInput {
+    /// 执行的操作名称。
     pub action: String,
+    /// 预期结果。
     pub expected: String,
+    /// 实际结果。
     pub actual: String,
 }
 
+/// LLM 输出反思评估输入参数。
 #[derive(Debug, Deserialize)]
 pub struct LlmReflectionInput {
+    /// LLM 输出文本。
     pub output: String,
+    /// 评估标准列表。
     #[serde(default)]
     pub criteria: Vec<String>,
 }
 
+/// 忠实度评估输入参数：比较源文本与输出文本的内容一致性。
 #[derive(Debug, Deserialize)]
 pub struct FaithfulnessEvalInput {
+    /// 源文本。
     pub source: String,
+    /// 待评估的输出文本。
     pub output: String,
 }
 
+/// 自一致性评估输入参数：比较多个结果的相互一致性。
 #[derive(Debug, Deserialize)]
 pub struct SelfConsistencyEvalInput {
+    /// 多个待比较的结果文本。
     #[serde(default)]
     pub results: Vec<String>,
 }
 
+/// 评分量规项定义。
 #[derive(Debug, Deserialize)]
 pub struct RubricItem {
+    /// 评分标准名称。
     pub name: String,
+    /// 权重。
     pub weight: f64,
 }
 
+/// G-Eval 综合评分输入参数。
 #[derive(Debug, Deserialize)]
 pub struct GEvalInput {
+    /// 待评估的输出文本。
     pub output: String,
+    /// 评分量规列表。
     #[serde(default)]
     pub rubric: Vec<RubricItem>,
 }
 
+/// 评估工具集。
 pub struct EvaluationTools;
 
 impl EvaluationTools {

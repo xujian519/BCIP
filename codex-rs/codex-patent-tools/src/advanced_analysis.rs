@@ -1,8 +1,54 @@
+//! 高级分析工具集。
+//!
+//! 提供语义对比、技术特征协同分析、高引专利检索、OA 成功率预测等高级分析能力。
+
 use codex_patent_domain::compare;
 use serde::Deserialize;
 
+/// 语义对比输入参数。
 #[derive(Debug, Deserialize)]
 pub struct SemanticCompareInput {
+    /// 第一段待比较文本。
+    pub text_a: String,
+    /// 第二段待比较文本。
+    pub text_b: String,
+    /// 对比模式：lexical / structural / hybrid（默认）。
+    pub mode: Option<String>,
+}
+
+/// 技术特征协同作用分析输入参数。
+#[derive(Debug, Deserialize)]
+pub struct SynergyAnalysisInput {
+    /// 技术特征列表。
+    pub features: Vec<String>,
+    /// 技术方案整体描述。
+    pub description: String,
+}
+
+/// 高引专利检索输入参数。
+#[derive(Debug, Deserialize)]
+pub struct HighCitationInput {
+    /// 目标专利号码。
+    pub patent_number: String,
+    /// 返回结果数量上限。
+    pub limit: Option<usize>,
+}
+
+/// OA 答复成功率预测输入参数。
+#[derive(Debug, Deserialize)]
+pub struct SuccessPredictorInput {
+    /// 驳回类型（如 "novelty", "inventiveness" 等）。
+    pub rejection_type: String,
+    /// 是否具备区别技术特征。
+    pub has_differences: Option<bool>,
+    /// 是否具备技术效果。
+    pub has_technical_effect: Option<bool>,
+    /// 论证次数。
+    pub argument_count: Option<usize>,
+}
+
+/// 高级分析工具集。
+pub struct AdvancedAnalysisTools;
     pub text_a: String,
     pub text_b: String,
     pub mode: Option<String>,

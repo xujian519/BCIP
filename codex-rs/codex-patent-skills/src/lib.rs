@@ -1,3 +1,10 @@
+//! codex-patent-skills — 技能定义加载与解析引擎。
+//!
+//! 从 `skills/` 目录加载 TOML 格式的技能定义，支持：
+//! - `{{include:_shared/...}}` 内联指令递归展开
+//! - 防循环引用检测
+//! - 技能-专利生命周期阶段映射
+
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;

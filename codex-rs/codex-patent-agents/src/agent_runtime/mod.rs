@@ -17,18 +17,31 @@ use crate::provider_router::detect_provider;
 use crate::roles::PatentAgentRole;
 use codex_patent_core::PatentError;
 
+/// Agent 生成输入参数
 #[derive(Debug, Clone)]
 pub struct AgentSpawnInput {
+    /// 任务描述
     pub description: String,
+    /// Agent 执行提示词
     pub prompt: String,
+    /// 子代理类型（如 `analyzer`、`writer`）
     pub subagent_type: Option<String>,
+    /// 自定义 agent 名称（可选）
     pub name: Option<String>,
+    /// 指定模型（可选，默认使用 BCIP_DEFAULT_MODEL）
     pub model: Option<String>,
 }
 
+/// 独立 Agent 运行时
+///
+/// 提供不依赖 Codex core 的独立 agent 执行环境。
+/// 支持线程调度、状态持久化和生命周期管理。
 pub struct PatentAgentRuntime;
 
 impl PatentAgentRuntime {
+    /// 生成并启动一个 Agent
+    ///
+    /// 验证输入、创建 manifest、持久化初始状态后在新线程中启动执行。
     pub fn spawn_agent(input: AgentSpawnInput) -> Result<AgentManifest, PatentError> {
         if input.description.trim().is_empty() {
             return Err(PatentError::Validation(
@@ -106,14 +119,19 @@ impl PatentAgentRuntime {
         Ok(manifest)
     }
 
+    /// 查询 Agent 当前状态
     pub fn get_agent_status(agent_id: &str) -> Result<AgentManifest, PatentError> {
         load_manifest(agent_id)
     }
 
+    /// 列出所有 Agent
     pub fn list_agents() -> Result<Vec<AgentManifest>, PatentError> {
         list_agent_manifests()
     }
 
+    /// 取消正在运行的 Agent
+    ///
+    /// 已完成或已失败的 agent 不可取消。
     pub fn cancel_agent(agent_id: &str) -> Result<(), PatentError> {
         let mut manifest = load_manifest(agent_id)?;
 

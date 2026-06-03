@@ -1,3 +1,8 @@
+//! 关键词搜索与 CJK n-gram 提取
+//!
+//! 提供停用词过滤、CJK n-gram 提取和相关性评分。
+//! 适用于专利文本的关键词匹配搜索场景。
+
 use std::collections::HashSet;
 
 const STOP_WORDS: &[&str] = &[
@@ -12,6 +17,10 @@ const STOP_WORDS: &[&str] = &[
 const NGRAM_MIN: usize = 2;
 const NGRAM_MAX: usize = 4;
 
+/// CJK 关键词搜索引擎
+///
+/// 对中文专利文本提取 2-4 gram 并计算相关性分数。
+/// 通过 n-gram 匹配覆盖率和密度双重指标评分。
 pub struct KeywordSearch;
 
 impl KeywordSearch {

@@ -165,6 +165,9 @@ pub fn ipc_alignment(target_ipc: &[String], prior_ipc: &[String]) -> f64 {
 pub struct FeatureMatcher;
 
 impl FeatureMatcher {
+    /// 对比目标特征与现有技术特征，返回匹配结果
+    ///
+    /// 使用词法相似度（bigram Jaccard）逐一匹配，自动分类为精确匹配、等同匹配、不同或缺失。
     pub fn compare(target: &[CompareFeature], prior: &[CompareFeature]) -> FeatureMatchResult {
         let mut exact = Vec::new();
         let mut equivalent = Vec::new();

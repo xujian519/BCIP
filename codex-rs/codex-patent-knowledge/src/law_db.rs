@@ -1,3 +1,8 @@
+//! 法规数据库访问层
+//!
+//! 提供对专利法律数据库的只读查询接口，支持名称搜索、内容搜索、分级查询等。
+//! 使用进程级缓存避免重复打开 SQLite 连接。
+
 use codex_patent_core::LawCategory;
 use codex_patent_core::LawDocument;
 use rusqlite::Connection;
@@ -8,6 +13,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+/// 法规数据库访问器
+///
+/// 包装只读 SQLite 连接，通过进程级缓存复用数据库句柄。
+/// 支持按名称、内容、法律层级等维度检索法律条文。
 pub struct LawDatabase {
     // 包装在 Arc<Mutex<…>> 内的目的是允许同一进程内多份工具调用复用同一份
     // 只读 SQLite 连接，避免每次都重新 `open` + `PRAGMA`。
@@ -28,6 +37,10 @@ fn cache_store() -> &'static Mutex<std::collections::HashMap<PathBuf, Arc<Mutex<
 }
 
 impl LawDatabase {
+    /// 打开或复用法规数据库连接
+    ///
+    /// `path` 为 SQLite 数据库文件路径。同一路径在同一进程内只会打开一次，
+    /// 后续调用返回缓存连接。
     pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path_buf = path.as_ref().to_path_buf();
         let conn = {
@@ -56,6 +69,7 @@ impl LawDatabase {
         Ok(Self { conn })
     }
 
+    /// 按法规名称关键词搜索
     pub fn search_by_name(&self, keyword: &str, limit: usize) -> Result<Vec<LawDocument>, String> {
         let pattern = format!("%{keyword}%");
         let sql = "SELECT id, level, name, filename, publish, expired, category_id, subtitle, content \
@@ -63,6 +77,7 @@ impl LawDatabase {
         self.query_laws(sql, params![pattern, limit])
     }
 
+    /// 按法规正文内容关键词搜索（也匹配名称）
     pub fn search_by_content(
         &self,
         keyword: &str,
@@ -74,12 +89,14 @@ impl LawDatabase {
         self.query_laws(sql, params![pattern, limit])
     }
 
+    /// 按法律层级列出法规（法律、行政法规、部门规章等）
     pub fn list_by_level(&self, level: &str, limit: usize) -> Result<Vec<LawDocument>, String> {
         let sql = "SELECT id, level, name, filename, publish, expired, category_id, subtitle, content \
                    FROM law WHERE level = ?1 ORDER BY publish DESC LIMIT ?2";
         self.query_laws(sql, params![level, limit])
     }
 
+    /// 列出数据库中所有不同的法律层级
     pub fn list_levels(&self) -> Result<Vec<String>, String> {
         let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
         let sql = "SELECT DISTINCT level FROM law ORDER BY level";
@@ -91,6 +108,7 @@ impl LawDatabase {
         Ok(levels)
     }
 
+    /// 列出所有法规分类
     pub fn list_categories(&self) -> Result<Vec<LawCategory>, String> {
         let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
         let sql = "SELECT id, name, folder, isSubFolder, \"group\", \"order\" FROM category ORDER BY \"order\"";
@@ -111,12 +129,14 @@ impl LawDatabase {
         Ok(cats)
     }
 
+    /// 返回数据库中法规总数
     pub fn count(&self) -> Result<usize, String> {
         let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
         conn.query_row("SELECT COUNT(*) FROM law", [], |row| row.get(0))
             .map_err(|e| format!("{e}"))
     }
 
+    /// 分页列出全部法规
     pub fn list_all(&self, limit: usize, offset: usize) -> Result<Vec<LawDocument>, String> {
         let sql = "SELECT id, level, name, filename, publish, expired, category_id, subtitle, content \
                    FROM law ORDER BY id LIMIT ?1 OFFSET ?2";

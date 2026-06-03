@@ -1,3 +1,8 @@
+//! 发明类型分类器 — 基于特征对比结果的启发式分类。
+//!
+//! 根据权利要求特征与对比文件特征的匹配程度，判断发明属于
+//! 开拓性发明、选择发明或未知类型。
+
 use codex_patent_core::CompareFeature;
 use codex_patent_core::InventionType;
 

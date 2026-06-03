@@ -1,8 +1,14 @@
+//! 知识库刷新流水线
+//!
+//! 检测 markdown 知识库的文件变更（新增、更新、删除），
+//! 辅助增量索引更新。
+
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// 知识库文件快照
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileSnapshot {
     pub path: String,
@@ -11,12 +17,14 @@ pub struct FileSnapshot {
     pub last_indexed: String,
 }
 
+/// 知识库版本快照
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KbVersion {
     pub updated_at: String,
     pub files: HashMap<String, FileSnapshot>,
 }
 
+/// 文件变更检测结果
 #[derive(Debug)]
 pub struct RefreshResult {
     pub added: Vec<String>,
@@ -25,12 +33,16 @@ pub struct RefreshResult {
     pub unchanged: usize,
 }
 
+/// 知识库文件变更检测流水线
 pub struct RefreshPipeline {
     kb_root: String,
     version_file: String,
 }
 
 impl RefreshPipeline {
+    /// 创建刷新流水线
+    ///
+    /// `kb_root` 为知识库根目录，`version_file` 为版本文件（JSON）路径。
     pub fn new(kb_root: &str, version_file: &str) -> Self {
         Self {
             kb_root: kb_root.to_string(),
@@ -38,6 +50,7 @@ impl RefreshPipeline {
         }
     }
 
+    /// 加载已保存的版本快照，不存在则返回空版本
     pub fn load_version(&self) -> Result<KbVersion, String> {
         if Path::new(&self.version_file).exists() {
             let content = std::fs::read_to_string(&self.version_file)
@@ -51,6 +64,7 @@ impl RefreshPipeline {
         }
     }
 
+    /// 检测知识库文件变更（新增/更新/删除）
     pub fn detect_changes(&self) -> Result<RefreshResult, String> {
         let old = self.load_version()?;
         let mut current: HashMap<String, FileSnapshot> = HashMap::new();
@@ -132,6 +146,7 @@ impl RefreshPipeline {
         })
     }
 
+    /// 将变更检测结果输出为 JSON 格式
     pub fn status_json(&self) -> Result<serde_json::Value, String> {
         let changes = self.detect_changes()?;
         Ok(serde_json::json!({

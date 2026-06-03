@@ -1,10 +1,23 @@
+//! 专利说明书解析与特征提取
+//!
+//! 提供两套能力：
+//! - `DisclosureParser`：将专利说明书原文按标准章节（技术领域、背景技术等）拆解
+//! - `FeatureExtractor`：从说明书文本中提取结构化技术特征
+
 use codex_patent_core::*;
 use regex::Regex;
 use std::collections::HashMap;
 
+/// 说明书解析器
+///
+/// 根据标准的说明书章节标题（如"技术领域""背景技术""发明内容"等）
+/// 将原始文本拆解为结构化章节映射。
 pub struct DisclosureParser;
 
 impl DisclosureParser {
+    /// 解析专利说明书文本，返回结构化文档
+    ///
+    /// 自动识别各章节内容并计算解析置信度分数。
     pub fn parse(text: &str) -> DisclosureDoc {
         let sections = Self::extract_sections(text);
         let confidence = Self::calculate_confidence(&sections, text);
@@ -121,9 +134,16 @@ impl DisclosureParser {
     }
 }
 
+/// 技术特征提取器
+///
+/// 从专利说明书原文中自动识别并提取组件特征、步骤特征、参数特征等结构化信息。
 pub struct FeatureExtractor;
 
 impl FeatureExtractor {
+    /// 从说明书文本中提取技术特征列表
+    ///
+    /// 优先使用已解析的章节映射中的"技术方案"部分；
+    /// 如果未提供，则从原文自动提取。结果包含组件、步骤和参数三类特征。
     pub fn extract_features(
         text: &str,
         sections: Option<&HashMap<String, String>>,
@@ -141,6 +161,9 @@ impl FeatureExtractor {
         features
     }
 
+    /// 构建技术问题-特征-效果三元组
+    ///
+    /// 用于"问题-特征-效果"映射分析，关联技术问题与对应的特征和效果描述。
     pub fn extract_problem_feature_effects(
         text: &str,
         sections: Option<&HashMap<String, String>>,

@@ -7,7 +7,7 @@ use chrono::Utc;
 #[cfg(test)]
 use chrono::Weekday;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Cron 表达式（5 字段标准格式）。
 pub struct CronExpression {
     pub minute: CronField,
     pub hour: CronField,
@@ -16,7 +16,7 @@ pub struct CronExpression {
     pub day_of_week: CronField,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Cron 字段类型。
 pub enum CronField {
     Any,
     Single(u8),
@@ -25,7 +25,7 @@ pub enum CronField {
     Step { start: u8, step: u8, max: u8 },
 }
 
-#[derive(Debug, thiserror::Error)]
+/// Cron 表达式解析错误。
 pub enum CronError {
     #[error("无效的 cron 表达式: {0}")]
     InvalidExpression(String),

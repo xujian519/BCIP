@@ -1,3 +1,12 @@
+//! Agent 角色系统
+//!
+//! 定义专利领域 9 个专业角色的配置结构、Prompt 构建、include 解析和工具域映射。
+//!
+//! ## 角色配置
+//!
+//! 每个角色均有 `.toml` 配置文件，支持 `{{include:_shared/name}}` 内联标记
+//! 以复用共享技能模块。配置路径通过 `bcip_roles::config_file_contents` 编译时嵌入。
+
 use crate::knowledge_context::AutoKnowledgeConfig;
 use crate::knowledge_context::KnowledgeContext;
 use codex_patent_core::PatentError;
@@ -12,40 +21,64 @@ use std::path::PathBuf;
 /// 值 = 4 表示允许 root + 3 层递归 include。
 const MAX_INCLUDE_DEPTH: usize = 4;
 
+/// 方法论步骤定义
+///
+/// 描述角色执行任务时应遵循的步骤序列。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct MethodologyStep {
+    /// 步骤编号（从 1 开始）
     pub step_number: usize,
+    /// 步骤名称
     pub step_name: String,
+    /// 步骤描述
     pub description: String,
 }
 
+/// Agent 角色配置
+///
+/// 从 `.toml` 文件反序列化，包含角色的身份定义、方法论、工具域、
+/// 约束条件和知识注入配置。
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AgentRoleConfig {
     #[serde(default)]
+    /// 角色 ID（如 `retriever`、`analyzer`）
     pub role_id: String,
     #[serde(default)]
+    /// 角色显示名称（如 `检索专家`）
     pub name: String,
     #[serde(default)]
+    /// 角色身份声明
     pub identity: String,
     #[serde(default)]
+    /// 角色描述（可选）
     pub description: Option<String>,
     #[serde(default)]
+    /// BCIP 新版格式的完整专业提示词
+    ///
+    /// 当存在时优先使用，回退到旧版 identity + methodology 模式。
     pub developer_instructions: Option<String>,
     #[serde(default)]
+    /// 方法论步骤
     pub methodology: Vec<MethodologyStep>,
     #[serde(default)]
+    /// 输出格式要求
     pub output_format: String,
     #[serde(default)]
+    /// 核心工具列表
     pub primary_tools: Vec<String>,
     #[serde(default)]
+    /// 辅助工具列表
     pub secondary_tools: Vec<String>,
     #[serde(default)]
+    /// 约束条件
     pub constraints: Vec<String>,
     #[serde(default)]
+    /// 自动知识注入配置
     pub auto_knowledge: Option<AutoKnowledgeConfig>,
     #[serde(default)]
+    /// 包含的共享模块路径列表
     pub includes: Vec<String>,
 }
 
@@ -158,6 +191,10 @@ pub fn find_skills_shared_dir() -> Option<PathBuf> {
         .find(|candidate| candidate.is_dir())
 }
 
+/// 专利 Agent 角色枚举
+///
+/// 定义 BCIP 系统内置的 9 个专业角色，每个角色关联特定的
+/// 工具域、temperature 和 token 预算配置。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PatentAgentRole {
     Retriever,
@@ -172,6 +209,7 @@ pub enum PatentAgentRole {
 }
 
 impl PatentAgentRole {
+    /// 返回角色的字符串标识符
     pub fn role_id(&self) -> &'static str {
         match self {
             Self::Retriever => "retriever",
@@ -186,6 +224,7 @@ impl PatentAgentRole {
         }
     }
 
+    /// 返回角色的中文显示名称
     pub fn name(&self) -> &'static str {
         match self {
             Self::Retriever => "检索专家",
@@ -201,6 +240,7 @@ impl PatentAgentRole {
     }
 
     #[allow(clippy::should_implement_trait)]
+    /// 从字符串解析角色，不区分大小写
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "retriever" => Some(Self::Retriever),
@@ -281,6 +321,7 @@ impl PatentAgentRole {
         }
     }
 
+    /// 返回所有角色的列表
     pub fn all() -> &'static [PatentAgentRole] {
         &[
             Self::Retriever,
@@ -295,6 +336,7 @@ impl PatentAgentRole {
         ]
     }
 
+    /// 构建基础的 agent 系统提示词（无上下文）
     pub fn system_prompt(&self, config: &AgentRoleConfig) -> String {
         self.system_prompt_with_context(config, "", None, None)
     }
@@ -397,25 +439,32 @@ impl PatentAgentRole {
     }
 }
 
+/// Agent 角色注册表
+///
+/// 从文件系统加载角色配置，提供按角色 ID 查找和系统提示词构建功能。
 pub struct AgentRegistry {
     configs: HashMap<String, AgentRoleConfig>,
 }
 
 impl AgentRegistry {
+    /// 从指定目录加载所有角色配置
     pub fn new(role_dir: &str) -> Result<Self, PatentError> {
         Ok(Self {
             configs: PatentAgentRole::load_config(role_dir)?,
         })
     }
 
+    /// 根据角色 ID 获取配置
     pub fn get(&self, role_id: &str) -> Option<&AgentRoleConfig> {
         self.configs.get(role_id)
     }
 
+    /// 列出所有已注册的角色 ID
     pub fn list_roles(&self) -> Vec<&str> {
         self.configs.keys().map(|s| s.as_str()).collect()
     }
 
+    /// 为指定角色生成系统提示词（不包含知识上下文）
     pub fn system_prompt_for(&self, role_id: &str) -> Option<String> {
         let role = PatentAgentRole::from_str(role_id)?;
         let config = self.configs.get(role_id)?;

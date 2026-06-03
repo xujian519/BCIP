@@ -17,6 +17,7 @@ use super::plan::PlanGenerator;
 use super::plan::PlanStepStatus;
 use super::plan::RoutingHint;
 
+/// 编排器执行状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrchestrationStatus {
     Running,
@@ -25,6 +26,7 @@ pub enum OrchestrationStatus {
     Suspended,
 }
 
+/// 编排器执行结果
 #[derive(Debug, Clone)]
 pub struct OrchestrationResult {
     pub plan_id: String,
@@ -36,6 +38,7 @@ pub struct OrchestrationResult {
     pub errors: Vec<String>,
 }
 
+/// 工作流编排器 — 规划 → 执行 → 恢复 闭环
 pub struct Orchestrator {
     plan_generator: Box<dyn PlanGenerator>,
     graph_executor: Option<GraphExecutor>,
@@ -49,6 +52,7 @@ pub struct Orchestrator {
 }
 
 impl Orchestrator {
+    /// 创建编排器，注入计划生成器
     pub fn new(plan_generator: Box<dyn PlanGenerator>) -> Self {
         Self {
             plan_generator,
@@ -63,31 +67,37 @@ impl Orchestrator {
         }
     }
 
+    /// 设置检查点存储
     pub fn with_checkpoint_store(mut self, store: CheckpointStore) -> Self {
         self.checkpoint_store = Some(store);
         self
     }
 
+    /// 设置工具执行器
     pub fn with_tool_executor(mut self, executor: ToolExecutorFn) -> Self {
         self.tool_executor = Some(executor);
         self
     }
 
+    /// 设置 Agent 执行器
     pub fn with_agent_executor(mut self, executor: Box<dyn AgentExecutor>) -> Self {
         self.agent_executor = Some(executor);
         self
     }
 
+    /// 设置代码执行器
     pub fn with_code_executor(mut self, executor: Box<dyn CodeExecutor>) -> Self {
         self.code_executor = Some(executor);
         self
     }
 
+    /// 设置最大重试次数
     pub fn with_max_retries(mut self, retries: u32) -> Self {
         self.max_retries = retries;
         self
     }
 
+    /// 设置路由提示（影响执行策略）
     pub fn with_routing_hint(mut self, hint: RoutingHint) -> Self {
         self.routing_hint = Some(hint);
         self
@@ -121,6 +131,7 @@ impl Orchestrator {
             .ok_or_else(|| "GraphExecutor 未初始化".to_string())
     }
 
+    /// 执行一次完整工作流编排（规划 → 执行 → 返回结果）
     pub fn orchestrate(&mut self, goal: &str) -> Result<OrchestrationResult, String> {
         let mut plan = if let Some(ref hint) = self.routing_hint {
             self.plan_generator.generate_with_hint(goal, hint)?
@@ -181,6 +192,7 @@ impl Orchestrator {
         })
     }
 
+    /// 执行工作流编排并自动重试（按配置的最大重试次数）
     pub fn orchestrate_with_retry(&mut self, goal: &str) -> Result<OrchestrationResult, String> {
         let mut last_error = String::new();
 

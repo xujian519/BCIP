@@ -1,21 +1,33 @@
+//! 专利文档解析工具。
+//!
+//! 提供审查意见（OA）解析、文档类型识别、附图理解等文档处理能力。
+
 use serde::Deserialize;
 
+/// OA（Office Action）解析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct OaParseInput {
+    /// OA 文本内容。
     pub oa_text: String,
 }
 
+/// 专利文档解析输入参数。
 #[derive(Debug, Deserialize)]
 pub struct DocumentParseInput {
+    /// 文档文本内容。
     pub document_text: String,
+    /// 文档类型（如 "patent", "oa" 等）。
     pub document_type: Option<String>,
 }
 
+/// 附图理解输入参数。
 #[derive(Debug, Deserialize)]
 pub struct DrawingUnderstandingInput {
+    /// 附图文字描述。
     pub description: String,
 }
 
+/// 专利文档解析工具集。
 pub struct PatentDocumentTools;
 
 impl PatentDocumentTools {

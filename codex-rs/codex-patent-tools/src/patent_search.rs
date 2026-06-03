@@ -1,3 +1,8 @@
+//! 专利检索核心实现。
+//!
+//! 提供关键词检索、同义词展开、多轮迭代检索（iterative search）等核心功能。
+//! 底层封装 Google Patents 数据源，上层提供结构化检索接口。
+
 use crate::google_patents::GooglePatentsInput;
 use crate::google_patents::fetch_google_patents;
 use codex_patent_knowledge::synonym::SynonymDict;
@@ -6,8 +11,40 @@ use futures::stream::StreamExt;
 use serde::Deserialize;
 use std::sync::OnceLock;
 
+/// 专利检索输入参数。
 #[derive(Debug, Deserialize)]
 pub struct PatentSearchInput {
+    /// 检索关键词。
+    pub query: String,
+    /// 返回结果数量上限。
+    #[serde(default = "crate::common::default_limit")]
+    pub limit: usize,
+    /// 专利号码（精确匹配）。
+    pub patent_number: Option<String>,
+    /// 是否自动展开同义词。
+    pub use_synonyms: Option<bool>,
+}
+
+/// 分阶段查询式构建输入参数。
+#[derive(Debug, Deserialize)]
+pub struct SearchQueryBuilderInput {
+    /// 核心概念词。
+    pub concept: String,
+    /// 限定的检索字段（如 title/abstract）。
+    pub field: Option<String>,
+}
+
+/// 多轮迭代检索输入参数。
+#[derive(Debug, Deserialize)]
+pub struct IterativeSearchInput {
+    /// 检索关键词。
+    pub query: String,
+    /// 迭代轮次（默认 3）。
+    pub rounds: Option<usize>,
+    /// 每轮返回结果数量上限。
+    #[serde(default = "crate::common::default_limit")]
+    pub limit: usize,
+}
     pub query: String,
     #[serde(default = "crate::common::default_limit")]
     pub limit: usize,

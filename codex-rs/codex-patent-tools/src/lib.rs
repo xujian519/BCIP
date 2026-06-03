@@ -1,3 +1,30 @@
+//! # codex-patent-tools
+//!
+//! 专利智能体工具集。包含检索、撰写、分析、质检、评估、法律咨询等
+//! 50+ 工具函数，按域（[`ToolDomain`]）分组成 13 个模块。
+//!
+//! 核心入口：
+//! - [`register_all_tools`] / [`register_all_tools_with_domains`] — 全局注册
+//! - [`filter_tools_by_role`] — 按角色域过滤工具
+//!
+//! ## 工具域
+//!
+//! | 模块 | 域 | 功能 |
+//! |------|-----|------|
+//! | `search_tools` | Search | 专利检索 |
+//! | `drafting_tools` | Drafting | 权利要求/说明书撰写 |
+//! | `analysis_tools` | Analysis | 新颖性/创造性/实用性分析 |
+//! | `quality_tools` | Quality | 质量检查 |
+//! | `oa_tools` | Oa | 审查意见答复 |
+//! | `legal_tools` | Legal | 法律咨询 |
+//! | `document_tools` | Document | 文档处理 |
+//! | `management_tools` | Management | 案件管理 |
+//! | `review_tools` | Review | 评审 |
+//! | `evaluation_tools` | Evaluation | 评估 |
+//! | `council_tools` | Council | 无效/复审 |
+//! | `simulator_tools` | Simulator | 审查员模拟 |
+//! | `web_search_tools` | WebSearch | 互联网搜索 |
+
 pub mod advanced_analysis;
 pub mod analysis_tools;
 pub mod common;

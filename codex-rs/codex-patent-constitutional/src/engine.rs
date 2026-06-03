@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::model::*;
 
-#[derive(Debug, Clone)]
+/// 单条规则的检查结果。
 pub struct RuleCheckResult {
     pub rule_id: String,
     pub rule_name: String,
@@ -14,6 +14,7 @@ pub struct RuleCheckResult {
     pub confidence: f64,
 }
 
+/// 宪法规则执行引擎。
 pub struct ConstitutionalEngine {
     rules: HashMap<String, ConstitutionalRules>,
 }
@@ -317,8 +318,7 @@ impl ConstitutionalEngine {
     }
 }
 
-/// 单条规则的摘要信息（用于自动扫描结果）
-#[derive(Debug, Clone)]
+/// 单条规则的摘要信息（用于自动扫描结果）。
 pub struct RuleSummary {
     pub rule_id: String,
     pub rule_name: String,
@@ -327,8 +327,7 @@ pub struct RuleSummary {
     pub legal_basis: String,
 }
 
-/// 单个工具的自动扫描结果
-#[derive(Debug, Clone)]
+/// 单个工具的自动扫描结果。
 pub struct ScannedToolResult {
     pub tool_name: String,
     pub active_rules: Vec<RuleSummary>,
