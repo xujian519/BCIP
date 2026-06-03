@@ -119,16 +119,6 @@ codex-rs/codex-patent-assets/card-index.json
 *.snap.new
 *.sqlite
 
-# 桌面应用（BCIP 不涉及）
-apps/
-
-# 业务数据产物（数据库、知识库、知识图谱、语义库）
-codex-rs/codex-patent-assets/
-codex-rs/codex-patent-knowledge/*.db
-
-# IM 模块本地配置
-scripts/config/
-
 # 临时报告
 codex-rs/reports/
 

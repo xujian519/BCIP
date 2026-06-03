@@ -1,0 +1,191 @@
+name: Desktop Release
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  # 减小 bcip 二进制体积
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
+
+jobs:
+  build-macos-dmg:
+    name: Build macOS DMG (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            host: aarch64-apple-darwin
+          - target: x86_64-apple-darwin
+            runner: macos-13
+            host: x86_64-apple-darwin
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            codex-rs -> target
+            apps/desktop/src-tauri -> target
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build bcip CLI (sidecar)
+        working-directory: codex-rs
+        run: cargo build -p codex-cli --release --target ${{ matrix.target }}
+
+      - name: Prepare bcip sidecar
+        run: bash scripts/prepare-sidecar.sh
+
+      - name: Prepare knowledge assets
+        run: bash scripts/prepare-assets.sh
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: apps/desktop/src-tauri
+          args: --target ${{ matrix.target }}
+
+      - name: Upload updater artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-updater-${{ matrix.target }}
+          path: |
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+          if-no-files-found: warn
+        continue-on-error: true
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#desktop-v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Rename DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TARGET="${{ matrix.target }}"
+          SRC="src-tauri/target/${TARGET}/release/bundle/dmg/"*.dmg
+          DST="src-tauri/target/${TARGET}/release/bundle/dmg/云熙智能体-${VERSION}-${TARGET}.dmg"
+          if [ -f ${SRC} ]; then
+            cp "${SRC}" "${DST}"
+            echo "DMG: ${DST}"
+            ls -lh "${DST}"
+          fi
+        continue-on-error: true
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-${{ matrix.target }}
+          path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: warn
+
+  release:
+    name: Create Desktop Release
+    needs: [build-macos-dmg]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh dist/
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#desktop-v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate updater manifest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          PUB_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          RELEASE_NOTES="https://github.com/xujian519/BCIP/releases/tag/desktop-v${VERSION}"
+          BASE_URL="https://github.com/xujian519/BCIP/releases/download/desktop-v${VERSION}"
+
+          cat > dist/latest.json << JSONEOF
+          {
+            "version": "${VERSION}",
+            "notes": "${RELEASE_NOTES}",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "${BASE_URL}/云熙智能体-${VERSION}-aarch64-apple-darwin.dmg"
+              },
+              "darwin-x86_64": {
+                "signature": "",
+                "url": "${BASE_URL}/云熙智能体-${VERSION}-x86_64-apple-darwin.dmg"
+              }
+            }
+          }
+          JSONEOF
+          cat dist/latest.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 云熙智能体 Desktop ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.event.inputs.version && format('desktop-v{0}', github.event.inputs.version) || github.ref_name }}
+          files: |
+            dist/*.dmg
+            dist/latest.json
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
