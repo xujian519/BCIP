@@ -92,6 +92,21 @@ export function deriveBotChannelStatus(state: Omit<BotChannelState, 'status'>): 
   return 'disconnected';
 }
 
+/** Bridge 在线且渠道已配置时视为 connected */
+export function effectiveBotChannelStatus(
+  state: BotChannelState,
+  bridgeOnline: boolean,
+): BotChannelStatus {
+  if (!state.enabled) {
+    return 'disconnected';
+  }
+  const base = deriveBotChannelStatus(state);
+  if (bridgeOnline && base === 'configured') {
+    return 'connected';
+  }
+  return base;
+}
+
 function normalizeChannelState(
   partial: Partial<BotChannelState> | undefined,
 ): BotChannelState {

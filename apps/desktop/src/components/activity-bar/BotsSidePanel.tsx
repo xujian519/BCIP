@@ -1,13 +1,26 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useAppStore } from '@/hooks/useAppStore';
 import { useBotChannels } from '@/hooks/useBotChannels';
+import { useImBridgeStatus } from '@/hooks/useImBridgeStatus';
 import { isDesktopRpcReady } from '@/lib/configAccess';
 import {
   BOT_CHANNEL_DEFINITIONS,
-  IM_BRIDGE_DEFAULT_URL,
+  effectiveBotChannelStatus,
   type BotChannelId,
 } from '@/lib/botChannels';
+
+const bridgeStatusLabel = {
+  checking: '探测中…',
+  online: 'Bridge 在线',
+  offline: 'Bridge 离线',
+} as const;
+
+const bridgeStatusColor = {
+  checking: 'var(--text-tertiary)',
+  online: 'var(--status-success)',
+  offline: 'var(--status-error)',
+} as const;
 
 const statusLabel = {
   disconnected: '未连接',
@@ -102,6 +115,11 @@ export default function BotsSidePanel() {
     rpcReady,
     state.workspaceCwd,
   );
+  const { bridgeUrl, state: bridgeState, refresh: refreshBridge } = useImBridgeStatus(
+    rpcReady,
+    state.workspaceCwd,
+  );
+  const bridgeOnline = bridgeState === 'online';
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -109,9 +127,41 @@ export default function BotsSidePanel() {
         <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
           外接渠道
         </p>
-        <p className="mt-1 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-          配置写入 <span className="font-mono">desktop.bot_channels</span>，与
-          codex-im-bridge（{IM_BRIDGE_DEFAULT_URL}）及 codex-im-feishu 对齐。
+        <div
+          className="mt-2 flex items-center justify-between gap-2 rounded-md border px-2 py-1.5"
+          style={{
+            borderColor: 'var(--border-default)',
+            backgroundColor: 'var(--bg-elevated)',
+          }}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: bridgeStatusColor[bridgeState] }}
+              />
+              <span style={{ color: bridgeStatusColor[bridgeState] }}>
+                {bridgeStatusLabel[bridgeState]}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate font-mono text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
+              {bridgeUrl}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="重新探测 Bridge"
+            disabled={bridgeState === 'checking'}
+            onClick={() => void refreshBridge()}
+            className="shrink-0 rounded p-1 transition-colors hover:bg-[var(--bg-hover)] disabled:opacity-50"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <RefreshCw size={12} className={bridgeState === 'checking' ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        <p className="mt-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+          配置写入 <span className="font-mono">desktop.bot_channels</span>，与 codex-im-bridge 及
+          codex-im-feishu 对齐。
         </p>
         {!rpcReady && (
           <p className="mt-1 text-[11px]" style={{ color: 'var(--status-warning)' }}>
@@ -134,6 +184,7 @@ export default function BotsSidePanel() {
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
         {BOT_CHANNEL_DEFINITIONS.map((channel) => {
           const channelState = channels[channel.id];
+          const displayStatus = effectiveBotChannelStatus(channelState, bridgeOnline);
           return (
             <div
               key={channel.id}
@@ -164,10 +215,10 @@ export default function BotsSidePanel() {
               <div className="mb-2 flex items-center gap-1.5 text-[10px]">
                 <span
                   className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: statusColor[channelState.status] }}
+                  style={{ backgroundColor: statusColor[displayStatus] }}
                 />
-                <span style={{ color: statusColor[channelState.status] }}>
-                  {statusLabel[channelState.status]}
+                <span style={{ color: statusColor[displayStatus] }}>
+                  {statusLabel[displayStatus]}
                 </span>
               </div>
 

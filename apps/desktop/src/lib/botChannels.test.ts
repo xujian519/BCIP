@@ -4,6 +4,7 @@ import {
   botChannelsFromConfig,
   botChannelsToConfigValue,
   deriveBotChannelStatus,
+  effectiveBotChannelStatus,
   loadBotChannelStates,
   saveBotChannelState,
 } from './botChannels';
@@ -64,6 +65,15 @@ describe('botChannels', () => {
       appSecret: 'secret',
     });
     expect(status).toBe('configured');
+  });
+
+  it('promotes configured channel to connected when bridge online', () => {
+    const state = applyBotChannelPatch(loadBotChannelStates(), 'dingtalk', {
+      enabled: true,
+      webhookUrl: 'https://example.com/hook',
+    }).dingtalk;
+    expect(effectiveBotChannelStatus(state, false)).toBe('configured');
+    expect(effectiveBotChannelStatus(state, true)).toBe('connected');
   });
 
   it('round-trips config json', () => {
