@@ -18,6 +18,8 @@ import AgentPanel from '@/components/agent/AgentPanel';
 
 const MAX_SIDEBAR_WIDTH = 520;
 const AGENT_MIN = 280;
+const SIDEBAR_MIN = 180;
+const CENTER_MIN_WIDTH = 400;
 
 export default function DesktopShell() {
   const { state, dispatch } = useAppStore();
@@ -74,7 +76,7 @@ export default function DesktopShell() {
             <ResizeHandle
               direction="horizontal"
               size={state.leftSidebarWidth}
-              minSize={280}
+              minSize={SIDEBAR_MIN}
               maxSize={MAX_SIDEBAR_WIDTH}
               onResize={handleLeftResize}
               position="left"
@@ -102,7 +104,7 @@ export default function DesktopShell() {
             <div
               ref={centerRef}
               className="flex min-w-0 flex-1 flex-col overflow-hidden"
-              style={{ minWidth: 200 }}
+              style={{ minWidth: CENTER_MIN_WIDTH }}
             >
               <DocumentWorkspace />
             </div>

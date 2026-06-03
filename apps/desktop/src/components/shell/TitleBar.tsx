@@ -2,7 +2,7 @@
  * TitleBar —— macOS 风格标题栏
  *
  * 精确设计参数（像素级对标 Codex）：
- * - 高度：40px (h-titlebar)
+ * - 高度：38px (h-titlebar)
  * - 背景：透明 + backdrop-blur-md (glass)
  * - 底部边框：border-b border-border-subtle
  * - 左侧交通灯：三个圆点，每个 w-3 h-3 (12px)

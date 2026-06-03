@@ -5,7 +5,7 @@ import { useMcpServers } from '@/hooks/useMcpServers';
 import { startMcpOauthLogin } from '@/lib/mcpOAuth';
 import type { McpAuthStatus } from '@/generated/app-server/v2/McpAuthStatus';
 import type { McpServerStartupState } from '@/generated/app-server/v2/McpServerStartupState';
-import { mcpStatusColors } from '../settingsTheme';
+import { mcpStatusColors, settingsTheme } from '../settingsTheme';
 
 const statusColors: Record<McpServerStartupState, string> = mcpStatusColors;
 
@@ -55,7 +55,7 @@ export default function McpServersSettings() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">MCP 服务器</h1>
+          <h1 className={settingsTheme.pageTitle}>MCP 服务器</h1>
           <p className="text-xs text-[var(--text-secondary)] mt-1">
             与终端共用 config.toml，修改后请重新加载
           </p>

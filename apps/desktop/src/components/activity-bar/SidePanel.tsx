@@ -1,51 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
 import { useAppStore } from '@/hooks/useAppStore';
 import ExplorerPanel from './ExplorerPanel';
-
-function SearchPanel() {
-  const [query, setQuery] = useState('');
-  return (
-    <div className="h-full overflow-auto">
-      <div className="px-3 py-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-        搜索
-      </div>
-      <div className="px-3 pb-2">
-        <input
-          type="text"
-          placeholder="搜索文件内容..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-md border px-2 py-1 text-xs outline-none"
-          style={{
-            backgroundColor: 'var(--bg-elevated)',
-            borderColor: 'var(--border-primary)',
-            color: 'var(--text-primary)',
-            height: 30,
-          }}
-        />
-      </div>
-      {!query && (
-        <div className="p-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          输入关键词搜索文件内容
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SkillsPanel() {
-  return (
-    <div className="h-full overflow-auto">
-      <div className="px-3 py-2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-        技能管理
-      </div>
-      <div className="p-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        技能列表将在此显示
-      </div>
-    </div>
-  );
-}
+import SearchPanel from './SearchPanel';
+import SkillsSidePanel from './SkillsSidePanel';
 
 function BotsPanel() {
   return (
@@ -54,16 +11,23 @@ function BotsPanel() {
         AI 助手
       </div>
       <div className="p-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        管理微信、飞书、钉钉等外接渠道
+        外接渠道（微信 / 飞书 / 钉钉）配置即将上线
       </div>
     </div>
   );
 }
 
+const SIDE_PANEL_MIN_WIDTH: Record<string, number> = {
+  files: 180,
+  search: 240,
+  skills: 240,
+  bots: 280,
+};
+
 const panelMap: Record<string, () => React.ReactElement> = {
   files: ExplorerPanel,
   search: SearchPanel,
-  skills: SkillsPanel,
+  skills: SkillsSidePanel,
   bots: BotsPanel,
 };
 
@@ -76,7 +40,8 @@ export default function SidePanel() {
   const Panel = panelMap[tab];
   if (!Panel) return null;
 
-  const panelWidth = tab === 'files' ? Math.max(state.leftSidebarWidth, 320) : state.leftSidebarWidth;
+  const minWidth = SIDE_PANEL_MIN_WIDTH[tab] ?? 240;
+  const panelWidth = Math.max(state.leftSidebarWidth, minWidth);
 
   return (
     <AnimatePresence mode="wait">

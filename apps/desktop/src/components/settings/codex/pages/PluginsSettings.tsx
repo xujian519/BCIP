@@ -11,6 +11,7 @@ import { useAppStore } from '@/hooks/useAppStore';
 import { usePlugins } from '@/hooks/usePlugins';
 import { isDesktopRpcReady } from '@/lib/configAccess';
 import { SettingsRpcBanner } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 type FilterMode = 'all' | 'installed' | 'available';
 
@@ -54,7 +55,7 @@ export default function PluginsSettings() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">插件</h1>
+        <h1 className={settingsTheme.pageTitle}>插件</h1>
         <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-[var(--status-warning)] text-[var(--text-primary)] rounded">
           Experimental
         </span>

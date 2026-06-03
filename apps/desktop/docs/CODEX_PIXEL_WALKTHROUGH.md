@@ -41,12 +41,12 @@
 
 ## 专利 mock 门控
 
-中心区 `SearchView` / `CompareView` 等 **仅**在以下情况展示：
+中心区专利 mock 视图（SearchView / CompareView 等）**仅**在以下情况通过 dev mock 数据展示：
 
 - app-server **未连接**（`!isDesktopRpcReady`），或
 - 构建时 **`VITE_DEV_MOCK=1`**（`npm run dev`）
 
-已连接且非 dev mock 时展示 `AgentWorkPane`。见 `lib/devMock.ts` 中 `shouldShowPatentMockViews`。
+主壳层中间区已统一为 `DocumentWorkspace`（多标签文档工作区）；`CenterPanel` / `AgentWorkPane` 已移除。
 
 ## DoD
 
