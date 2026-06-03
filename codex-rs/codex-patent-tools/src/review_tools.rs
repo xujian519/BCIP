@@ -1,5 +1,3 @@
-use codex_patent_core::CaseContext;
-use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -12,26 +10,6 @@ pub struct FormalCheckInput {
 pub struct QualityAssessInput {
     pub claims: Vec<String>,
     pub specification_word_count: usize,
-}
-#[derive(Debug, Deserialize)]
-pub struct SubjectMatterCheckInput {
-    pub claim_text: String,
-}
-#[derive(Debug, Deserialize)]
-pub struct UnityCheckInput {
-    pub claims: Vec<String>,
-}
-#[derive(Debug, Deserialize)]
-pub struct OaStrategyInput {
-    pub rejection_type: String,
-    pub differences: Option<Vec<String>>,
-    pub technical_effects: Option<Vec<String>>,
-    pub prior_art_different_field: Option<bool>,
-}
-#[derive(Debug, Deserialize)]
-pub struct OaResponseTemplateInput {
-    pub template_type: String,
-    pub arguments: Option<Vec<String>>,
 }
 
 pub struct ReviewTools;
@@ -100,85 +78,130 @@ impl ReviewTools {
     }
 
     pub fn quality_assess(input: QualityAssessInput) -> Result<serde_json::Value, String> {
-        let score = if input.claims.is_empty() { 0.0 } else { 70.0 };
+        let claims = &input.claims;
         let word_count = input.specification_word_count;
-        let length_score = if word_count > 1000 {
-            1.0
+
+        if claims.is_empty() {
+            return Ok(serde_json::json!({
+                "overall_score": 0.0,
+                "claim_count": 0,
+                "word_count": word_count,
+                "dimensions": {},
+                "suggestions": vec!["缺少权利要求"],
+            }));
+        }
+
+        // 维度1: 权利要求数量合理性 (0-100)
+        let claim_count_score = match claims.len() {
+            1..=3 => 70.0,
+            4..=10 => 90.0,
+            11..=20 => 80.0,
+            _ => 60.0,
+        };
+
+        // 维度2: 独立/从属比例 (0-100)
+        let independent_count = claims
+            .iter()
+            .filter(|c| !c.contains("根据权利要求"))
+            .count();
+        let dependent_count = claims.len() - independent_count;
+        let dependency_ratio_score = if independent_count == 0 {
+            30.0
+        } else if independent_count > 3 {
+            50.0
         } else {
-            word_count as f64 / 1000.0
+            let ratio = dependent_count as f64 / independent_count as f64;
+            if ratio >= 1.0 && ratio <= 5.0 {
+                95.0
+            } else if ratio > 5.0 && ratio <= 10.0 {
+                75.0
+            } else if ratio < 1.0 {
+                60.0
+            } else {
+                50.0
+            }
         };
-        Ok(
-            serde_json::json!({"overall_score": score * length_score, "claim_count": input.claims.len(), "word_count": word_count}),
-        )
-    }
 
-    pub fn subject_matter_check(
-        input: SubjectMatterCheckInput,
-    ) -> Result<serde_json::Value, String> {
-        let lower = input.claim_text.to_lowercase();
-        let excluded = ["智力活动", "医疗诊断", "原子核", "科学发现", "游戏规则"];
-        let violations: Vec<&&str> = excluded
-            .iter()
-            .filter(|kw| lower.contains(&kw.to_lowercase()))
-            .collect();
-        Ok(serde_json::json!({"is_patentable": violations.is_empty(), "violations": violations}))
-    }
-
-    pub fn unity_check(input: UnityCheckInput) -> Result<serde_json::Value, String> {
-        if input.claims.len() <= 1 {
-            return Ok(serde_json::json!({"has_unity": true}));
-        }
-        let mut common: std::collections::HashSet<&str> =
-            input.claims[0].split_whitespace().collect();
-        for c in &input.claims[1..] {
-            let terms: std::collections::HashSet<&str> = c.split_whitespace().collect();
-            common = common.intersection(&terms).cloned().collect();
-        }
-        Ok(serde_json::json!({"has_unity": common.len() >= 2, "common_terms_count": common.len()}))
-    }
-
-    pub fn oa_strategy(input: OaStrategyInput) -> Result<serde_json::Value, String> {
-        let mut engine = QualitativeRuleEngine::new();
-        let ctx = CaseContext {
-            differences: input.differences,
-            rejection_type: Some(input.rejection_type),
-            technical_effects: input.technical_effects,
-            prior_art_different_field: input.prior_art_different_field,
-            ..Default::default()
+        // 维度3: 说明书充分性 (0-100)
+        let word_count_score = if word_count >= 3000 {
+            95.0
+        } else if word_count >= 1500 {
+            80.0
+        } else if word_count >= 500 {
+            60.0
+        } else {
+            30.0
         };
-        let r = engine
-            .suggest_oa_strategy(&ctx)
-            .map_err(|e| format!("{e}"))?;
-        serde_json::to_value(r).map_err(|e| format!("{e}"))
-    }
 
-    pub fn response_template(input: OaResponseTemplateInput) -> Result<serde_json::Value, String> {
-        let templates = [
-            (
-                "新颖性争辩",
-                "申请人认为，对比文件未公开权利要求的技术特征，本申请具备新颖性，符合专利法第22条第2款。",
-            ),
-            (
-                "创造性争辩",
-                "区别技术特征具有非显而易见的技术效果，现有技术未给出技术启示，本申请具备创造性。",
-            ),
-            (
-                "修改方案",
-                "申请人将权利要求合并，形成新的独立权利要求，修改未超出原申请范围。",
-            ),
-            ("充分公开", "说明书已清楚完整公开，本领域技术人员能够实现。"),
-            (
-                "证据不足",
-                "审查员关于公知常识的认定缺乏证据支持，请提供证据。",
-            ),
-            ("延期请求", "申请人请求延长答复期限以便充分准备意见。"),
-        ];
-        let found = templates
-            .iter()
-            .find(|(n, _)| n.contains(&input.template_type))
-            .map(|(_, t)| t.to_string())
-            .unwrap_or_default();
-        Ok(serde_json::json!({"template_type": input.template_type, "content": found}))
+        // 维度4: 引用完整性 (0-100)
+        let reference_score = {
+            let mut score: f64 = 100.0;
+            use regex::Regex;
+            let re = Regex::new(r"根据权利要求(\d+)").unwrap();
+            for (i, claim) in claims.iter().enumerate() {
+                if claim.contains("根据权利要求") {
+                    for cap in re.captures_iter(claim) {
+                        let ref_num: usize = cap.get(1).unwrap().as_str().parse().unwrap_or(0);
+                        if ref_num == 0 || ref_num > claims.len() || ref_num >= i + 1 {
+                            score -= 20.0;
+                        }
+                    }
+                }
+            }
+            score.max(0.0)
+        };
+
+        // 维度5: 权利要求长度合理性 (0-100)
+        let length_score = {
+            let avg_len: f64 = claims.iter().map(|c| c.chars().count()).sum::<usize>() as f64
+                / claims.len() as f64;
+            if avg_len >= 30.0 && avg_len <= 300.0 {
+                90.0
+            } else if avg_len < 30.0 {
+                50.0
+            } else {
+                60.0
+            }
+        };
+
+        // 加权总分
+        let overall: f64 = (claim_count_score * 0.15
+            + dependency_ratio_score * 0.25
+            + word_count_score * 0.25
+            + reference_score * 0.25
+            + length_score * 0.10)
+            / 100.0;
+
+        // 生成建议
+        let mut suggestions = Vec::new();
+        if dependency_ratio_score < 70.0 {
+            suggestions.push("建议调整独立/从属权利要求比例至1:3~1:5");
+        }
+        if word_count_score < 70.0 {
+            suggestions.push("说明书内容偏短，建议补充至3000字以上");
+        }
+        if reference_score < 80.0 {
+            suggestions.push("部分从属权利要求引用编号有误，请检查引用链");
+        }
+        if length_score < 70.0 {
+            suggestions.push("权利要求长度不均匀，建议优化表述");
+        }
+
+        Ok(serde_json::json!({
+            "overall_score": (overall * 100.0).round() / 100.0,
+            "claim_count": claims.len(),
+            "word_count": word_count,
+            "independent_claims": independent_count,
+            "dependent_claims": dependent_count,
+            "dimensions": {
+                "claim_count_score": claim_count_score,
+                "dependency_ratio_score": dependency_ratio_score,
+                "word_count_score": word_count_score,
+                "reference_score": reference_score,
+                "length_score": length_score,
+            },
+            "suggestions": suggestions,
+        }))
     }
 }
 
@@ -197,34 +220,6 @@ pub fn register_review_tools() -> std::collections::HashMap<String, super::ToolH
             let parsed: QualityAssessInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             ReviewTools::quality_assess(parsed)
-        })
-    });
-    t.insert("SubjectMatterCheck".into(), |input| {
-        Box::pin(async move {
-            let parsed: SubjectMatterCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::subject_matter_check(parsed)
-        })
-    });
-    t.insert("UnityCheck".into(), |input| {
-        Box::pin(async move {
-            let parsed: UnityCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::unity_check(parsed)
-        })
-    });
-    t.insert("OaStrategy".into(), |input| {
-        Box::pin(async move {
-            let parsed: OaStrategyInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::oa_strategy(parsed)
-        })
-    });
-    t.insert("OaResponseTemplate".into(), |input| {
-        Box::pin(async move {
-            let parsed: OaResponseTemplateInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::response_template(parsed)
         })
     });
     t

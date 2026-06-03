@@ -183,19 +183,13 @@ mod stub_tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_format_converter() {
+    #[test]
+    fn test_format_converter_removed() {
         let tools = register_document_tools();
-        let handler: &ToolHandler = tools.get("FormatConverter").unwrap();
-
-        let input = serde_json::json!({
-            "content": "test",
-            "input_format": "docx",
-            "output_format": "pdf",
-        });
-        let result = handler(input).await.unwrap();
-        assert_eq!(result["input_format"], "docx");
-        assert_eq!(result["output_format"], "pdf");
+        assert!(
+            tools.get("FormatConverter").is_none(),
+            "FormatConverter should have been removed"
+        );
     }
 
     #[tokio::test]

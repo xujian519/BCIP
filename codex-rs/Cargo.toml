@@ -61,6 +61,7 @@ members = [
     "codex-im-bridge",
     "codex-im-telegram",
     "codex-im-feishu",
+    "codex-im-dingtalk",
     "codex-mcp",
     "patent-kg-sync",
     "codex-patent-core",
@@ -197,6 +198,7 @@ codex-git-utils = { path = "git-utils" }
 codex-hooks = { path = "hooks" }
 codex-im-bridge = { path = "codex-im-bridge" }
 codex-im-common = { path = "codex-im-common" }
+codex-im-dingtalk = { path = "codex-im-dingtalk" }
 codex-im-feishu = { path = "codex-im-feishu" }
 codex-im-protocol = { path = "codex-im-protocol" }
 codex-im-telegram = { path = "codex-im-telegram" }

@@ -1,7 +1,9 @@
+use codex_patent_knowledge::CardIndex;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
 use codex_patent_knowledge::UnifiedSearch;
 use serde::Deserialize;
+use std::sync::Mutex;
 
 #[derive(Debug, Deserialize)]
 pub struct LegalQAInput {
@@ -102,6 +104,40 @@ pub struct LegalTools;
 impl LegalTools {
     pub fn legal_qa(input: LegalQAInput) -> Result<serde_json::Value, String> {
         let domain = input.domain.as_deref().unwrap_or("patent");
+        let question = &input.question;
+
+        // 第一步: 尝试从知识库检索
+        let kb_answer = Self::try_knowledge_search(question);
+
+        // 第二步: 尝试从知识卡片检索
+        let card_answer = Self::try_card_search(question);
+
+        // 第三步: 如果知识源有结果，优先返回
+        if let Some(ref answer) = kb_answer {
+            if !answer.is_empty() {
+                return Ok(serde_json::json!({
+                    "question": question,
+                    "domain": domain,
+                    "answer": answer,
+                    "source": "knowledge_graph",
+                    "fallback": false,
+                }));
+            }
+        }
+
+        if let Some(ref answer) = card_answer {
+            if !answer.is_empty() {
+                return Ok(serde_json::json!({
+                    "question": question,
+                    "domain": domain,
+                    "answer": answer,
+                    "source": "knowledge_card",
+                    "fallback": false,
+                }));
+            }
+        }
+
+        // Fallback: 硬编码模板匹配
         let templates = [
             (
                 "新颖性",
@@ -135,17 +171,72 @@ impl LegalTools {
         ];
         let answer = templates
             .iter()
-            .find(|(k, _)| input.question.contains(k))
+            .find(|(k, _)| question.contains(k))
             .map(|(_, v)| *v)
             .unwrap_or("该问题涉及专利法领域，建议查阅《专利法》及《专利法实施细则》相关规定。");
         let related = templates
             .iter()
-            .filter(|(k, _)| input.question.contains(k) || answer.contains(k))
+            .filter(|(k, _)| question.contains(k) || answer.contains(k))
             .map(|(k, _)| *k)
             .collect::<Vec<_>>();
-        Ok(
-            serde_json::json!({"question": input.question, "domain": domain, "answer": answer, "related_articles": related}),
-        )
+
+        Ok(serde_json::json!({
+            "question": question,
+            "domain": domain,
+            "answer": answer,
+            "source": "template",
+            "fallback": true,
+            "related_articles": related,
+        }))
+    }
+
+    fn try_knowledge_search(query: &str) -> Option<String> {
+        let search = UnifiedSearch::global();
+        let config = SearchConfig {
+            query: query.to_string(),
+            limit: 3,
+            mode: SearchMode::KeywordEnhanced,
+            ..Default::default()
+        };
+        let results = search.search(&config);
+        if results.is_empty() {
+            return None;
+        }
+        let top = &results[0];
+        let title = &top.title;
+        let content = &top.content;
+        let preview: String = content.chars().take(500).collect();
+        if preview.is_empty() {
+            return None;
+        }
+        Some(format!("{}：{}", title, preview))
+    }
+
+    fn try_card_search(query: &str) -> Option<String> {
+        let card_mutex: &Mutex<CardIndex> = UnifiedSearch::global().card_index()?;
+        let index = card_mutex.lock().ok()?;
+        let cards = index.search_by_concept(query, 3);
+        if cards.is_empty() {
+            // Try keyword search
+            let kw_cards = index.search_by_keyword(query, 3);
+            if kw_cards.is_empty() {
+                return None;
+            }
+            let card = &kw_cards[0];
+            let content = index.load_content(card).ok()?;
+            let preview: String = content.chars().take(500).collect();
+            if preview.is_empty() {
+                return None;
+            }
+            return Some(format!("[{}] {}", card.title, preview));
+        }
+        let card = &cards[0];
+        let content = index.load_content(card).ok()?;
+        let preview: String = content.chars().take(500).collect();
+        if preview.is_empty() {
+            return None;
+        }
+        Some(format!("[{}] {}", card.title, preview))
     }
 
     pub fn legal_knowledge_search(input: LegalKnowledgeInput) -> Result<serde_json::Value, String> {
@@ -741,9 +832,12 @@ mod tests {
         let result = LegalTools::legal_qa(input).unwrap();
         assert_eq!(result["domain"], "patent");
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第22条第2款"));
-        let related = result["related_articles"].as_array().unwrap();
-        assert!(related.contains(&serde_json::json!("新颖性")));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第22条第2款"));
+            let related = result["related_articles"].as_array().unwrap();
+            assert!(related.contains(&serde_json::json!("新颖性")));
+        }
     }
 
     #[test]
@@ -754,8 +848,11 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第22条第3款"));
-        assert!(answer.contains("三步法"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第22条第3款"));
+            assert!(answer.contains("三步法"));
+        }
     }
 
     #[test]
@@ -766,7 +863,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第22条第4款"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第22条第4款"));
+        }
     }
 
     #[test]
@@ -777,7 +877,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第26条第3款"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第26条第3款"));
+        }
     }
 
     #[test]
@@ -788,7 +891,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第33条"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第33条"));
+        }
     }
 
     #[test]
@@ -799,8 +905,11 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第29条"));
-        assert!(answer.contains("12个月"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第29条"));
+            assert!(answer.contains("12个月"));
+        }
     }
 
     #[test]
@@ -811,7 +920,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第31条"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第31条"));
+        }
     }
 
     #[test]
@@ -822,7 +934,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("第59条"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("第59条"));
+        }
     }
 
     #[test]
@@ -833,7 +948,10 @@ mod tests {
         };
         let result = LegalTools::legal_qa(input).unwrap();
         let answer = result["answer"].as_str().unwrap();
-        assert!(answer.contains("查阅《专利法》"));
+        assert!(!answer.is_empty());
+        if result["fallback"].as_bool().unwrap_or(false) {
+            assert!(answer.contains("查阅《专利法》"));
+        }
     }
 
     #[test]

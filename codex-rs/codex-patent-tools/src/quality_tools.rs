@@ -58,6 +58,11 @@ pub struct LegalLanguageInput {
     pub check_level: Option<u32>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ClaimDependencyInput {
+    pub claims: Vec<String>,
+}
+
 pub struct QualityTools;
 
 impl QualityTools {
@@ -257,6 +262,109 @@ impl QualityTools {
             serde_json::json!({"word_count": content.len(), "doc_type": doc_type})
         };
         Ok(report)
+    }
+
+    pub fn claim_dependency_validator(input: ClaimDependencyInput) -> Result<serde_json::Value, String> {
+        let claims = &input.claims;
+        if claims.is_empty() {
+            return Err("权利要求列表不能为空".to_string());
+        }
+
+        let mut issues = Vec::new();
+        let re = regex::Regex::new(r"根据权利要求(\d+)").unwrap();
+
+        for (i, claim) in claims.iter().enumerate() {
+            let claim_num = i + 1; // 1-indexed
+
+            if !claim.contains("根据权利要求") {
+                // 独立权利要求，检查是否为第一条或编号合法
+                continue;
+            }
+
+            // 提取所有引用编号
+            let refs: Vec<usize> = re.captures_iter(claim)
+                .filter_map(|cap| cap.get(1)?.as_str().parse().ok())
+                .collect();
+
+            if refs.is_empty() {
+                issues.push(format!("权利要求{}: 包含引用但无法解析编号", claim_num));
+                continue;
+            }
+
+            for &ref_num in &refs {
+                // 检查引用编号在有效范围内
+                if ref_num == 0 || ref_num > claims.len() {
+                    issues.push(format!("权利要求{}: 引用了不存在的权利要求{}", claim_num, ref_num));
+                }
+                // 检查不能引用自身或后续权利要求
+                else if ref_num >= claim_num {
+                    issues.push(format!("权利要求{}: 只能引用在前的权利要求（引用了{}）", claim_num, ref_num));
+                }
+            }
+        }
+
+        // 检查引用链是否有环（传递依赖）
+        // 构建引用图
+        let mut graph: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+        for (i, claim) in claims.iter().enumerate() {
+            let refs: Vec<usize> = re.captures_iter(claim)
+                .filter_map(|cap| cap.get(1)?.as_str().parse().ok())
+                .filter(|&r| r >= 1 && r <= claims.len() && r <= i)
+                .collect();
+            graph.insert(i + 1, refs);
+        }
+
+        // DFS 检测环
+        let mut visited = std::collections::HashSet::new();
+        let mut in_stack = std::collections::HashSet::new();
+
+        fn has_cycle(
+            node: usize,
+            graph: &std::collections::HashMap<usize, Vec<usize>>,
+            visited: &mut std::collections::HashSet<usize>,
+            in_stack: &mut std::collections::HashSet<usize>,
+        ) -> bool {
+            if in_stack.contains(&node) {
+                return true;
+            }
+            if visited.contains(&node) {
+                return false;
+            }
+            visited.insert(node);
+            in_stack.insert(node);
+            if let Some(neighbors) = graph.get(&node) {
+                for &next in neighbors {
+                    if has_cycle(next, graph, visited, in_stack) {
+                        return true;
+                    }
+                }
+            }
+            in_stack.remove(&node);
+            false
+        }
+
+        for node in 1..=claims.len() {
+            if has_cycle(node, &graph, &mut visited, &mut in_stack) {
+                issues.push("检测到循环引用".to_string());
+                break;
+            }
+        }
+
+        // 检查独立权利要求存在性
+        let independent_count = claims.iter()
+            .filter(|c| !c.contains("根据权利要求"))
+            .count();
+        if independent_count == 0 {
+            issues.push("缺少独立权利要求".to_string());
+        }
+
+        Ok(serde_json::json!({
+            "passed": issues.is_empty(),
+            "issues": issues,
+            "total_claims": claims.len(),
+            "independent_claims": independent_count,
+            "dependent_claims": claims.len() - independent_count,
+        }))
     }
 }
 
@@ -640,13 +748,6 @@ pub fn register_quality_tools() -> std::collections::HashMap<String, super::Tool
             QualityTools::unified_quality(parsed)
         })
     });
-    t.insert("QualityChecker".into(), |input| {
-        Box::pin(async move {
-            let parsed: QualityCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::quality_checker(parsed)
-        })
-    });
     t.insert("SubjectMatterChecker".into(), |input| {
         Box::pin(async move {
             let parsed: SubjectMatterInput =
@@ -682,6 +783,13 @@ pub fn register_quality_tools() -> std::collections::HashMap<String, super::Tool
                 .and_then(|v| v.as_str())
                 .unwrap_or("generic");
             QualityTools::format_rules(content, doc_type)
+        })
+    });
+    t.insert("ClaimDependencyValidator".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimDependencyInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::claim_dependency_validator(parsed)
         })
     });
     t

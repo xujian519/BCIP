@@ -28,10 +28,6 @@ pub struct AbstractDraftInput {
 pub struct ClaimsStructureInput {
     pub claims_text: String,
 }
-#[derive(Debug, Deserialize)]
-pub struct WriterToolInput {
-    pub topic: String,
-}
 
 pub struct DraftingTools;
 
@@ -149,13 +145,6 @@ pub fn register_drafting_tools() -> std::collections::HashMap<String, super::Too
                 .filter(|l| !l.contains("根据权利要求"))
                 .count();
             Ok(serde_json::json!({"total_claims": lines.len(), "independent": ind_count, "dependent": lines.len() - ind_count}))
-        })
-    });
-    t.insert("WriterTool".into(), |input| {
-        Box::pin(async move {
-            let parsed: WriterToolInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            Ok(serde_json::json!({"content": format!("专利撰写内容:\n{}", parsed.topic), "note": "请将详细的技术交底书输入到 ClaimGenerator 或 SpecificationDrafter"}))
         })
     });
     t

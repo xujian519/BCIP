@@ -86,6 +86,11 @@ pub struct InventionUnderstandingInput {
 pub struct TechUnitInput {
     pub claim_text: String,
 }
+#[derive(Debug, Deserialize)]
+pub struct ClaimScopeInput {
+    pub claim_text: String,
+    pub description: Option<String>,
+}
 fn default_researcher_depth() -> u64 {
     2
 }
@@ -581,7 +586,46 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: ResearcherInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            Ok(serde_json::json!({"query": parsed.query, "depth": parsed.depth, "note": "技术调研结果将基于知识库和网络搜索综合生成"}))
+
+            let query = &parsed.query;
+            let limit = match parsed.depth {
+                0..=1 => 3,
+                2 => 5,
+                _ => 10,
+            };
+
+            // 聚合多个知识源
+            let mut results = serde_json::Map::new();
+
+            // 1. 知识图谱搜索
+            let kg_result = super::legal_tools::LegalTools::knowledge_search(query, limit, false);
+            if let Ok(v) = kg_result {
+                results.insert("knowledge_graph".into(), v);
+            }
+
+            // 2. 知识卡片搜索
+            let card_result = super::legal_tools::LegalTools::card_search(query, limit);
+            if let Ok(v) = card_result {
+                results.insert("knowledge_cards".into(), v);
+            }
+
+            // 3. IPC 分类搜索
+            let ipc_result =
+                super::legal_tools::LegalTools::ipc_search(super::legal_tools::IpcSearchInput {
+                    query: query.clone(),
+                    limit: Some(3),
+                });
+            if let Ok(v) = ipc_result {
+                results.insert("ipc_classification".into(), v);
+            }
+
+            let sources_count = results.len();
+            Ok(serde_json::json!({
+                "query": query,
+                "depth": parsed.depth,
+                "sources_used": sources_count,
+                "results": results,
+            }))
         })
     });
     t.insert("SynergyAnalysis".into(), |input| {
@@ -595,7 +639,35 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: super::advanced_analysis::HighCitationInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            super::advanced_analysis::AdvancedAnalysisTools::high_citation_patents(parsed)
+            let limit = parsed.limit.unwrap_or(20);
+            let patent_number = parsed.patent_number.clone();
+
+            // 使用 Google Patents 的 citedby 查询语法执行前向引用检索
+            let query = format!("citedby:{}", patent_number);
+            let google_input = crate::google_patents::GooglePatentsInput {
+                query,
+                limit,
+                patent_number: None,
+            };
+            let citing_patents = crate::google_patents::fetch_google_patents(google_input).await?;
+
+            let results: Vec<serde_json::Value> = citing_patents
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "patent_number": p.patent_number,
+                        "title": p.title,
+                        "assignee": p.assignee,
+                        "publication_date": p.publication_date,
+                    })
+                })
+                .collect();
+
+            Ok(serde_json::json!({
+                "patent_number": patent_number,
+                "citing_patents": results,
+                "total": results.len(),
+            }))
         })
     });
     t.insert("SuccessPredictor".into(), |input| {
@@ -603,6 +675,86 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
             let parsed: super::advanced_analysis::SuccessPredictorInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             super::advanced_analysis::AdvancedAnalysisTools::success_predictor(parsed)
+        })
+    });
+    t.insert("ClaimScopeAnalyzer".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimScopeInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+
+            if parsed.claim_text.trim().is_empty() {
+                return Err("权利要求文本不能为空".to_string());
+            }
+
+            let claim = &parsed.claim_text;
+
+            // 1. 功能性特征识别（"用于..."、"配置为..."、"适于..."、"配置成..."）
+            let functional_re = regex::Regex::new(
+                r"(?:用于|配置为|配置成|适于|适用于|被配置为|被配置成)[^，。；]+",
+            )
+            .unwrap();
+            let functional_features: Vec<String> = functional_re
+                .captures_iter(claim)
+                .map(|cap| cap.get(0).unwrap().as_str().to_string())
+                .collect();
+
+            // 2. 最宽合理解释分析
+            let broad_terms = [
+                "装置", "设备", "系统", "方法", "模块", "单元", "组件", "部件", "机构",
+            ];
+            let identified_broad_terms: Vec<&str> = broad_terms
+                .iter()
+                .filter(|t| claim.contains(**t))
+                .copied()
+                .collect();
+
+            // 3. 等同原则适用性判断
+            let has_means_plus_function = claim.contains("用于") || claim.contains("装置用于");
+            let has_parameter_range = regex::Regex::new(
+                r"\d+[\.\d]*\s*(?:%|度|mm|cm|m|kg|Hz|MHz|GHz|V|A|W|Pa)",
+            )
+            .unwrap()
+            .is_match(claim);
+            let has_method_steps = claim.contains("步骤") || claim.contains("包括以下步骤");
+
+            let equivalence_applicable = has_means_plus_function || !identified_broad_terms.is_empty();
+
+            // 4. 保护范围宽度评估
+            let scope_width = if !functional_features.is_empty() && identified_broad_terms.len() >= 2 {
+                "宽" // 功能性限定+上位概念 = 宽范围
+            } else if identified_broad_terms.len() >= 2 {
+                "较宽" // 多个上位概念
+            } else if !functional_features.is_empty() {
+                "中等" // 有功能性限定
+            } else if has_parameter_range {
+                "窄" // 有具体参数范围
+            } else {
+                "适中"
+            };
+
+            // 5. 风险提示
+            let mut warnings = Vec::new();
+            if !functional_features.is_empty() {
+                warnings.push("含功能性限定，可能面临112(f)/第26条第4款问题，建议补充结构特征");
+            }
+            if identified_broad_terms.len() >= 3 {
+                warnings.push("上位概念较多，保护范围较宽但可能面临新颖性挑战");
+            }
+            if has_parameter_range {
+                warnings.push("含具体参数范围，保护范围受限，等同原则适用空间小");
+            }
+
+            Ok(serde_json::json!({
+                "claim_text": claim.chars().take(200).collect::<String>(),
+                "scope_width": scope_width,
+                "functional_features": functional_features,
+                "functional_feature_count": functional_features.len(),
+                "broad_terms": identified_broad_terms,
+                "equivalence_applicable": equivalence_applicable,
+                "has_parameter_range": has_parameter_range,
+                "has_method_steps": has_method_steps,
+                "warnings": warnings,
+            }))
         })
     });
     t

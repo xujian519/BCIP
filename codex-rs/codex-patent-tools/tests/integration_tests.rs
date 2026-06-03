@@ -16,11 +16,12 @@ use codex_patent_tools::management_tools::ManagementTools;
 use codex_patent_tools::patent_document::DocumentParseInput;
 use codex_patent_tools::patent_document::OaParseInput;
 use codex_patent_tools::patent_document::PatentDocumentTools;
+use codex_patent_tools::quality_tools::QualityTools;
+use codex_patent_tools::quality_tools::SubjectMatterInput;
+use codex_patent_tools::quality_tools::UnityInput;
 use codex_patent_tools::review_tools::FormalCheckInput;
 use codex_patent_tools::review_tools::QualityAssessInput;
 use codex_patent_tools::review_tools::ReviewTools;
-use codex_patent_tools::review_tools::SubjectMatterCheckInput;
-use codex_patent_tools::review_tools::UnityCheckInput;
 
 #[test]
 fn test_all_tool_registry_entries_exist() {
@@ -153,27 +154,31 @@ fn test_quality_assess_execution() {
 
 #[test]
 fn test_subject_matter_check_execution() {
-    let input = SubjectMatterCheckInput {
-        claim_text: "一种新型动力系统，包括发动机和传动装置。".into(),
+    let input = SubjectMatterInput {
+        invention_title: "动力系统".into(),
+        claims: vec!["一种新型动力系统，包括发动机和传动装置。".into()],
+        patent_type: Some("invention".into()),
     };
-    let result = ReviewTools::subject_matter_check(input);
-    assert!(result.is_ok(), "SubjectMatterCheck 应成功");
+    let result = QualityTools::subject_matter_checker(input);
+    assert!(result.is_ok(), "SubjectMatterChecker 应成功");
     let v = result.unwrap();
-    println!("SubjectMatterCheck 结果: {}", v);
+    println!("SubjectMatterChecker 结果: {}", v);
 }
 
 #[test]
 fn test_unity_check_execution() {
-    let input = UnityCheckInput {
+    let input = UnityInput {
         claims: vec![
             "一种动力系统，包括发动机。".into(),
             "根据权利要求1所述的系统，还包括传动装置。".into(),
         ],
+        patent_type: None,
+        invention_title: None,
     };
-    let result = ReviewTools::unity_check(input);
-    assert!(result.is_ok(), "UnityCheck 应成功");
+    let result = QualityTools::unity_checker(input);
+    assert!(result.is_ok(), "UnityChecker 应成功");
     let v = result.unwrap();
-    println!("UnityCheck 结果: {}", v);
+    println!("UnityChecker 结果: {}", v);
 }
 
 #[test]

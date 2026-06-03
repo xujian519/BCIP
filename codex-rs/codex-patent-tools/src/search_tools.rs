@@ -2,14 +2,8 @@ use crate::google_patents::*;
 use crate::patent_search::*;
 use std::collections::HashMap;
 
-pub type ToolHandler = fn(
-    serde_json::Value,
-) -> std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<serde_json::Value, String>> + Send>,
->;
-
-pub fn register_search_tools() -> HashMap<String, ToolHandler> {
-    let mut tools: HashMap<String, ToolHandler> = HashMap::new();
+pub fn register_search_tools() -> HashMap<String, crate::ToolHandler> {
+    let mut tools: HashMap<String, crate::ToolHandler> = HashMap::new();
 
     tools.insert("PatentSearch".to_string(), |input| {
         Box::pin(async {
@@ -50,6 +44,45 @@ pub fn register_search_tools() -> HashMap<String, ToolHandler> {
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             let filename = download_patent(parsed).await?;
             Ok(serde_json::json!({"downloaded_file": filename}))
+        })
+    });
+
+    tools.insert("PatentFamilyTracker".to_string(), |input| {
+        Box::pin(async move {
+            let patent_number = input
+                .get("patent_number")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| "缺少必填字段: patent_number".to_string())?;
+            let limit = input
+                .get("limit")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(20) as usize;
+
+            let query = format!("priority:{}", patent_number);
+            let google_input = GooglePatentsInput {
+                query,
+                limit,
+                patent_number: None,
+            };
+            let family = fetch_google_patents(google_input).await?;
+
+            let results: Vec<serde_json::Value> = family
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "patent_number": p.patent_number,
+                        "title": p.title,
+                        "assignee": p.assignee,
+                        "publication_date": p.publication_date,
+                    })
+                })
+                .collect();
+
+            Ok(serde_json::json!({
+                "patent_number": patent_number,
+                "family_members": results,
+                "total": results.len(),
+            }))
         })
     });
 

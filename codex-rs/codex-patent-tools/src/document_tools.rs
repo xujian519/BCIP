@@ -1,15 +1,6 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct ConvertInput {
-    pub content: serde_json::Value,
-    pub input_format: String,
-    pub output_format: String,
-    pub patent_office_format: Option<String>,
-    pub output_path: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct DocxInput {
     pub markdown: String,
     pub output_path: Option<String>,
@@ -58,6 +49,13 @@ pub struct ScreenshotInput {
     pub dpi: Option<u32>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ExportInput {
+    pub content: serde_json::Value,
+    pub export_type: String, // "claims" / "oa_response" / "specification" / "analysis_report"
+    pub output_path: Option<String>,
+}
+
 // ── LiteParse singleton (feature-gated) ────────────────────────────────
 
 #[cfg(feature = "document-pdf")]
@@ -91,31 +89,83 @@ fn shared_liteparse() -> &'static liteparse::LiteParse {
 pub struct DocumentTools;
 
 impl DocumentTools {
-    pub fn format_converter(input: ConvertInput) -> Result<serde_json::Value, String> {
-        let content_str = match &input.content {
-            serde_json::Value::String(s) => s.clone(),
-            other => other.to_string(),
-        };
-        let format = input.patent_office_format.as_deref().unwrap_or("CNIPA");
-        Ok(serde_json::json!({
-            "input_format": input.input_format,
-            "output_format": input.output_format,
-            "patent_office_format": format,
-            "content_length": content_str.len(),
-            "output_path": input.output_path,
-            "status": "ready",
-        }))
-    }
-
     pub fn docx_tools(input: DocxInput) -> Result<serde_json::Value, String> {
-        let word_count: usize = input.markdown.chars().count();
+        let markdown = &input.markdown;
+        if markdown.is_empty() {
+            return Err("markdown 内容不能为空".to_string());
+        }
+
+        // 将 Markdown 段落转为简单文本段落
+        let paragraphs: Vec<&str> = markdown.lines().filter(|l| !l.trim().is_empty()).collect();
+
+        if paragraphs.is_empty() {
+            return Err("解析后无有效段落".to_string());
+        }
+
+        let output_path = input
+            .output_path
+            .clone()
+            .unwrap_or_else(|| "output.docx".into());
+
+        // 生成简化的 DOCX XML 内容
+        let mut body_xml = String::new();
+        for para in &paragraphs {
+            let is_heading = para.starts_with("# ");
+            let text = if is_heading { &para[2..] } else { para };
+            let text_escaped = text
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
+
+            let ppr = if is_heading {
+                r#"<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>"#
+            } else {
+                r#"<w:pPr><w:pStyle w:val="Normal"/></w:pPr>"#
+            };
+
+            let font_size = if is_heading { "28" } else { "21" };
+            body_xml.push_str(&format!(
+                r#"<w:p>{}<w:r><w:rPr><w:sz w:val="{}"/><w:szCs w:val="{}"/></w:rPr><w:t xml:space="preserve">{}</w:t></w:r></w:p>"#,
+                ppr, font_size, font_size, text_escaped
+            ));
+        }
+
+        let content_types = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>"#;
+
+        let rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>"#;
+
+        let document_xml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>{}</w:body>
+</w:document>"#,
+            body_xml
+        );
+
+        let docx_bytes = build_minimal_docx(content_types, rels, &document_xml)
+            .map_err(|e| format!("DOCX 生成失败: {e}"))?;
+
+        // 写入文件
+        let dir = std::path::Path::new(&output_path)
+            .parent()
+            .unwrap_or(std::path::Path::new("."));
+        std::fs::create_dir_all(dir).ok();
+        std::fs::write(&output_path, &docx_bytes).map_err(|e| format!("写入文件失败: {e}"))?;
+
+        let word_count = markdown.chars().count();
         Ok(serde_json::json!({
+            "output_path": output_path,
             "word_count": word_count,
-            "page_estimate": (word_count as f64 / 800.0).ceil() as u32,
+            "paragraph_count": paragraphs.len(),
             "template": input.template.unwrap_or_else(|| "default".into()),
-            "output_path": input.output_path.unwrap_or_else(|| "output.docx".into()),
-            "market_available": false,
-            "markdown_to_docx": "需安装 pandoc 或 python-docx: pip install python-docx",
         }))
     }
 
@@ -177,6 +227,143 @@ impl DocumentTools {
         };
         Ok(serde_json::json!({"template_name": name, "structure": rendered}))
     }
+
+    pub fn export_tool(input: ExportInput) -> Result<serde_json::Value, String> {
+        let content_str = match &input.content {
+            serde_json::Value::String(s) => s.clone(),
+            other => other.to_string(),
+        };
+        if content_str.trim().is_empty() {
+            return Err("导出内容不能为空".to_string());
+        }
+
+        let rendered = match input.export_type.as_str() {
+            "claims" => format_claims_document(&input.content),
+            "oa_response" => format_oa_response(&input.content),
+            "specification" => format_specification(&input.content),
+            "analysis_report" => format_analysis_report(&input.content),
+            _ => {
+                return Err(format!(
+                    "未知导出类型: {}，支持 claims/oa_response/specification/analysis_report",
+                    input.export_type
+                ))
+            }
+        };
+
+        // 如果指定了 output_path，写入文件
+        if let Some(ref path) = input.output_path {
+            let dir = std::path::Path::new(path)
+                .parent()
+                .unwrap_or(std::path::Path::new("."));
+            std::fs::create_dir_all(dir).ok();
+            std::fs::write(path, &rendered).map_err(|e| format!("写入文件失败: {e}"))?;
+        }
+
+        Ok(serde_json::json!({
+            "export_type": input.export_type,
+            "output_path": input.output_path,
+            "content_length": rendered.len(),
+            "content": rendered.chars().take(2000).collect::<String>(),
+        }))
+    }
+}
+
+// ── Export format helpers ──────────────────────────────────────────────
+
+fn format_claims_document(content: &serde_json::Value) -> String {
+    let claims = content
+        .get("claims")
+        .and_then(|c| c.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut doc = String::from("权 利 要 求 书\n\n");
+    for (i, claim) in claims.iter().enumerate() {
+        let text: String = claim.as_str().map(|s| s.to_string()).unwrap_or_else(|| claim.to_string());
+        doc.push_str(&format!("{}. {}\n\n", i + 1, text));
+    }
+    if claims.is_empty() {
+        doc.push_str(&content.to_string());
+    }
+    doc
+}
+
+fn format_oa_response(content: &serde_json::Value) -> String {
+    let strategy = content
+        .get("strategy")
+        .and_then(|s| s.as_str())
+        .unwrap_or("argue");
+    let oa_type = content
+        .get("oa_type")
+        .and_then(|s| s.as_str())
+        .unwrap_or("");
+
+    format!(
+        "意 见 陈 述 书\n\n\
+         申请人：\n\
+         申请号：\n\
+         发明名称：\n\n\
+         尊敬的审查员：\n\n\
+         申请人仔细研究了贵局发出的审查意见通知书，现针对通知书中指出的{}问题，陈述意见如下：\n\n\
+         {}\n\n\
+         综上所述，申请人认为修改后的权利要求书已克服审查意见中指出的缺陷，\
+         符合专利法及实施细则的相关规定，恳请审查员予以审查并早日授权。\n\n\
+         申请人：\n\
+         日期：{}",
+        oa_type,
+        match strategy {
+            "amend" => "申请人根据审查意见对权利要求书进行了修改。修改未超出原说明书和权利要求书记载的范围。",
+            "argue" => "申请人经仔细对比分析后认为，本申请与对比文件存在区别技术特征。",
+            _ => "申请人结合审查意见进行了认真分析。",
+        },
+        chrono::Local::now().format("%Y年%m月%d日"),
+    )
+}
+
+fn format_specification(content: &serde_json::Value) -> String {
+    let title = content
+        .get("title")
+        .and_then(|t| t.as_str())
+        .unwrap_or("");
+    let field = content
+        .get("technical_field")
+        .and_then(|f| f.as_str())
+        .unwrap_or("");
+    let background = content
+        .get("background")
+        .and_then(|b| b.as_str())
+        .unwrap_or("");
+    let invention = content
+        .get("invention_content")
+        .and_then(|i| i.as_str())
+        .unwrap_or("");
+    let embodiment = content
+        .get("embodiments")
+        .and_then(|e| e.as_str())
+        .unwrap_or("");
+
+    format!(
+        "说 明 书\n\n\
+         {}\n\n\
+         技术领域\n{}\n\n\
+         背景技术\n{}\n\n\
+         发明内容\n{}\n\n\
+         具体实施方式\n{}",
+        title, field, background, invention, embodiment,
+    )
+}
+
+fn format_analysis_report(content: &serde_json::Value) -> String {
+    let mut report = String::from("专 利 分 析 报 告\n");
+    report.push_str(&format!(
+        "生成时间: {}\n\n",
+        chrono::Local::now().format("%Y-%m-%d %H:%M")
+    ));
+    report.push_str(&format!(
+        "{}\n",
+        serde_json::to_string_pretty(content).unwrap_or_default()
+    ));
+    report
 }
 
 // ── PDF tools: LiteParse implementation (feature-gated) ───────────────
@@ -398,13 +585,6 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
 
-    t.insert("FormatConverter".into(), |input| {
-        Box::pin(async move {
-            let parsed: ConvertInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::format_converter(parsed)
-        })
-    });
-
     t.insert("DocxTools".into(), |input| {
         Box::pin(async move {
             let parsed: DocxInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
@@ -442,6 +622,14 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
         })
     });
 
+    t.insert("ExportTool".into(), |input| {
+        Box::pin(async move {
+            let parsed: ExportInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::export_tool(parsed)
+        })
+    });
+
     #[cfg(feature = "document-pdf")]
     t.insert("PdfScreenshot".into(), |input| {
         Box::pin(async move {
@@ -452,4 +640,94 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
     });
 
     t
+}
+
+// ── Minimal DOCX ZIP builder (no external deps) ────────────────────────
+
+fn build_minimal_docx(
+    content_types: &str,
+    rels: &str,
+    document_xml: &str,
+) -> Result<Vec<u8>, String> {
+    let files: [(&[u8], &[u8]); 3] = [
+        (b"[Content_Types].xml", content_types.as_bytes()),
+        (b"_rels/.rels", rels.as_bytes()),
+        (b"word/document.xml", document_xml.as_bytes()),
+    ];
+
+    let mut result = Vec::new();
+    let mut central_dir = Vec::new();
+    let mut offset: u32 = 0;
+
+    for (name, data) in &files {
+        let crc = crc32(data);
+
+        // Local file header (30 + name_len + data_len bytes)
+        result.extend_from_slice(&[0x50, 0x4B, 0x03, 0x04]); // PK signature
+        result.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        result.extend_from_slice(&0u16.to_le_bytes()); // flags
+        result.extend_from_slice(&0u16.to_le_bytes()); // compression (stored)
+        result.extend_from_slice(&0u16.to_le_bytes()); // mod time
+        result.extend_from_slice(&0u16.to_le_bytes()); // mod date
+        result.extend_from_slice(&crc.to_le_bytes()); // crc32
+        result.extend_from_slice(&(data.len() as u32).to_le_bytes()); // compressed size
+        result.extend_from_slice(&(data.len() as u32).to_le_bytes()); // uncompressed size
+        result.extend_from_slice(&(name.len() as u16).to_le_bytes()); // name length
+        result.extend_from_slice(&0u16.to_le_bytes()); // extra length
+        result.extend_from_slice(name); // file name
+        result.extend_from_slice(data); // file data
+
+        // Central directory entry
+        central_dir.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]); // PK signature
+        central_dir.extend_from_slice(&20u16.to_le_bytes()); // version made by
+        central_dir.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // flags
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // compression
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // mod time
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // mod date
+        central_dir.extend_from_slice(&crc.to_le_bytes()); // crc32
+        central_dir.extend_from_slice(&(data.len() as u32).to_le_bytes()); // compressed
+        central_dir.extend_from_slice(&(data.len() as u32).to_le_bytes()); // uncompressed
+        central_dir.extend_from_slice(&(name.len() as u16).to_le_bytes()); // name length
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // extra length
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // comment length
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // disk number
+        central_dir.extend_from_slice(&0u16.to_le_bytes()); // internal attrs
+        central_dir.extend_from_slice(&0u32.to_le_bytes()); // external attrs
+        central_dir.extend_from_slice(&offset.to_le_bytes()); // local header offset
+        central_dir.extend_from_slice(name);
+
+        offset += 30 + name.len() as u32 + data.len() as u32;
+    }
+
+    let cd_start = result.len() as u32;
+    result.extend_from_slice(&central_dir);
+    let cd_size = central_dir.len() as u32;
+
+    // End of central directory record
+    result.extend_from_slice(&[0x50, 0x4B, 0x05, 0x06]); // PK signature
+    result.extend_from_slice(&0u16.to_le_bytes()); // disk number
+    result.extend_from_slice(&0u16.to_le_bytes()); // disk with cd
+    result.extend_from_slice(&(files.len() as u16).to_le_bytes()); // entries on disk
+    result.extend_from_slice(&(files.len() as u16).to_le_bytes()); // total entries
+    result.extend_from_slice(&cd_size.to_le_bytes()); // cd size
+    result.extend_from_slice(&cd_start.to_le_bytes()); // cd offset
+    result.extend_from_slice(&0u16.to_le_bytes()); // comment length
+
+    Ok(result)
+}
+
+fn crc32(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFFFFFF;
+    for &byte in data {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            if crc & 1 == 1 {
+                crc = (crc >> 1) ^ 0xEDB88320;
+            } else {
+                crc >>= 1;
+            }
+        }
+    }
+    !crc
 }

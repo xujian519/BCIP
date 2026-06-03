@@ -119,13 +119,13 @@ impl AdvancedAnalysisTools {
     }
 
     pub fn high_citation_patents(input: HighCitationInput) -> Result<serde_json::Value, String> {
-        let limit = input.limit.unwrap_or(20);
-        Ok(serde_json::json!({
-            "patent_number": input.patent_number,
-            "query": format!("https://patents.google.com/?q={}&num={}", input.patent_number, limit),
-            "message": "请使用 GooglePatentsFetch 工具检索引用该专利的后续专利",
-            "estimated_citations": "需要通过外部检索获取",
-        }))
+        // 实际前向引用检索逻辑已移至 register_analysis_tools 的 HighCitationSearch handler，
+        // 通过 crate::google_patents::fetch_google_patents 异步执行。
+        // 此同步方法仅作为备用入口。
+        Err(format!(
+            "请通过 HighCitationSearch 工具调用，该工具会使用 Google Patents 执行 citedby:{} 查询",
+            input.patent_number
+        ))
     }
 
     pub fn success_predictor(input: SuccessPredictorInput) -> Result<serde_json::Value, String> {
