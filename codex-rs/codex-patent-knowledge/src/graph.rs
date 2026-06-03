@@ -447,3 +447,227 @@ impl SqliteKnowledgeGraph {
         Ok(nodes)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Create an in-memory SQLite database with the required schema.
+    fn create_test_db() -> SqliteKnowledgeGraph {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS nodes (
+                id TEXT PRIMARY KEY,
+                node_type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                content TEXT,
+                law_refs_count INTEGER,
+                source TEXT,
+                full_ref TEXT,
+                chapter TEXT,
+                article_number TEXT
+            );
+            CREATE TABLE IF NOT EXISTS edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                target TEXT NOT NULL,
+                relation TEXT NOT NULL
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+                id, node_type, name, title, content,
+                content='nodes', content_rowid='rowid'
+            );
+            CREATE VIRTUAL TABLE IF NOT EXISTS ipc_fts USING fts5(
+                code, description, level, parent_code
+            );",
+        )
+        .unwrap();
+        SqliteKnowledgeGraph::from_connection(conn)
+    }
+
+    fn insert_test_node(graph: &SqliteKnowledgeGraph, id: &str, node_type: &str, name: &str) {
+        graph
+            .conn
+            .execute(
+                "INSERT OR IGNORE INTO nodes (id, node_type, name, title, content)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![id, node_type, name, name, format!("content of {name}")],
+            )
+            .unwrap();
+        // Insert into FTS as well
+        graph
+            .conn
+            .execute(
+                "INSERT INTO nodes_fts (rowid, id, node_type, name, title, content)
+                 SELECT rowid, id, node_type, name, title, content FROM nodes WHERE id = ?1",
+                params![id],
+            )
+            .unwrap();
+    }
+
+    fn insert_test_edge(graph: &SqliteKnowledgeGraph, source: &str, target: &str, relation: &str) {
+        graph
+            .conn
+            .execute(
+                "INSERT INTO edges (source, target, relation) VALUES (?1, ?2, ?3)",
+                params![source, target, relation],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn test_stats_empty() {
+        let graph = create_test_db();
+        let stats = graph.stats().unwrap();
+        assert_eq!(stats.node_count, 0);
+        assert_eq!(stats.edge_count, 0);
+    }
+
+    #[test]
+    fn test_stats_with_data() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "TestNode");
+        insert_test_node(&graph, "n2", "Clause", "AnotherNode");
+        insert_test_edge(&graph, "n1", "n2", "REFERENCES");
+
+        let stats = graph.stats().unwrap();
+        assert_eq!(stats.node_count, 2);
+        assert_eq!(stats.edge_count, 1);
+    }
+
+    #[test]
+    fn test_get_node_by_id() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "MyNode");
+
+        let node = graph.get_node_by_id("n1").unwrap();
+        assert_eq!(node.id, "n1");
+        assert_eq!(node.node_type, "Concept");
+        assert_eq!(node.name, "MyNode");
+    }
+
+    #[test]
+    fn test_get_node_by_id_not_found() {
+        let graph = create_test_db();
+        assert!(graph.get_node_by_id("missing").is_err());
+    }
+
+    #[test]
+    fn test_get_nodes_by_type() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "A");
+        insert_test_node(&graph, "n2", "Clause", "B");
+        insert_test_node(&graph, "n3", "Concept", "C");
+
+        let concepts = graph.get_nodes_by_type("Concept", 10).unwrap();
+        assert_eq!(concepts.len(), 2);
+        assert!(concepts.iter().all(|n| n.node_type == "Concept"));
+    }
+
+    #[test]
+    fn test_get_edges() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "A");
+        insert_test_node(&graph, "n2", "Clause", "B");
+        insert_test_edge(&graph, "n1", "n2", "REFERENCES");
+
+        let edges = graph.get_edges("n1").unwrap();
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].relation, "REFERENCES");
+
+        let edges_n2 = graph.get_edges("n2").unwrap();
+        assert_eq!(edges_n2.len(), 1);
+    }
+
+    #[test]
+    fn test_traverse() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "A");
+        insert_test_node(&graph, "n2", "Clause", "B");
+        insert_test_node(&graph, "n3", "Decision", "C");
+        insert_test_edge(&graph, "n1", "n2", "REFERENCES");
+        insert_test_edge(&graph, "n2", "n3", "APPLIES");
+
+        // No filter: both edges visible across hops
+        let results = graph.traverse("n1", None, 3).unwrap();
+        assert!(
+            results.len() >= 2,
+            "expected at least 2 edges, got {}",
+            results.len()
+        );
+
+        // Filter by relation type: only APPLIES edges
+        let filtered = graph.traverse("n1", Some(&["APPLIES"]), 3).unwrap();
+        assert!(
+            filtered.iter().all(|(e, _)| e.relation == "APPLIES"),
+            "all filtered edges should be APPLIES, got {filtered:?}"
+        );
+    }
+
+    #[test]
+    fn test_find_path_direct() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "A");
+        insert_test_node(&graph, "n2", "Clause", "B");
+        insert_test_edge(&graph, "n1", "n2", "REFERENCES");
+
+        let paths = graph.find_path("n1", "n2", 3).unwrap();
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].len(), 1);
+        assert_eq!(paths[0][0].relation, "REFERENCES");
+    }
+
+    #[test]
+    fn test_find_path_same_node() {
+        let graph = create_test_db();
+        let paths = graph.find_path("x", "x", 3).unwrap();
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].is_empty());
+    }
+
+    #[test]
+    fn test_node_type_distribution() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "A");
+        insert_test_node(&graph, "n2", "Concept", "B");
+        insert_test_node(&graph, "n3", "Clause", "C");
+
+        let dist = graph.node_type_distribution().unwrap();
+        assert_eq!(dist.len(), 2);
+        assert_eq!(dist[0].node_type, "Concept");
+        assert_eq!(dist[0].count, 2);
+        assert_eq!(dist[1].node_type, "Clause");
+        assert_eq!(dist[1].count, 1);
+    }
+
+    #[test]
+    fn test_clear_cache() {
+        let graph = create_test_db();
+        insert_test_node(&graph, "n1", "Concept", "cache test");
+
+        // Perform a search to populate cache
+        let _ = graph.search_nodes("cache", None, 10);
+        // Clear cache should not panic
+        graph.clear_cache();
+        // Search again should still work
+        let results = graph.search_nodes("cache", None, 10);
+        assert!(results.is_ok());
+    }
+
+    #[test]
+    fn test_search_ipc() {
+        let graph = create_test_db();
+        graph
+            .conn
+            .execute(
+                "INSERT INTO ipc_fts (code, description, level, parent_code) VALUES (?1, ?2, ?3, ?4)",
+                params!["G06F", "Computing", 3, "G06"],
+            )
+            .unwrap();
+
+        let results = graph.search_ipc("Computing", 5).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].code, "G06F");
+    }
+}

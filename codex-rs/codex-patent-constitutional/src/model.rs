@@ -438,3 +438,259 @@ impl RuleAction {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── RuleSeverity::parse ──
+
+    #[test]
+    fn severity_critical() {
+        assert!(matches!(
+            RuleSeverity::parse("critical"),
+            RuleSeverity::Critical
+        ));
+    }
+
+    #[test]
+    fn severity_major() {
+        assert!(matches!(RuleSeverity::parse("major"), RuleSeverity::Major));
+    }
+
+    #[test]
+    fn severity_fallback_minor() {
+        assert!(matches!(RuleSeverity::parse("info"), RuleSeverity::Minor));
+        assert!(matches!(RuleSeverity::parse(""), RuleSeverity::Minor));
+    }
+
+    // ── RuleAction::parse ──
+
+    #[test]
+    fn action_block() {
+        assert!(matches!(RuleAction::parse("block"), RuleAction::Block));
+    }
+
+    #[test]
+    fn action_warn() {
+        assert!(matches!(RuleAction::parse("warn"), RuleAction::Warn));
+    }
+
+    #[test]
+    fn action_review() {
+        assert!(matches!(RuleAction::parse("review"), RuleAction::Review));
+    }
+
+    #[test]
+    fn action_enforce() {
+        assert!(matches!(RuleAction::parse("enforce"), RuleAction::Enforce));
+    }
+
+    #[test]
+    fn action_log() {
+        assert!(matches!(RuleAction::parse("log"), RuleAction::Log));
+    }
+
+    #[test]
+    fn action_fallback_warn() {
+        assert!(matches!(RuleAction::parse("unknown"), RuleAction::Warn));
+    }
+
+    // ── RuleCheck 反序列化 ──
+
+    #[test]
+    fn deserialize_keyword_blocklist() {
+        let json = r#"{
+            "type": "keyword_blocklist",
+            "keywords": ["算法", "商业方法"],
+            "absolute_ban": ["赌博"],
+            "context_ban": ["区块链"],
+            "negation_context": false,
+            "severity_if_found": "critical"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::KeywordBlocklist {
+                keywords,
+                absolute_ban,
+                context_ban,
+                ..
+            } => {
+                assert_eq!(keywords, vec!["算法", "商业方法"]);
+                assert_eq!(absolute_ban, vec!["赌博"]);
+                assert_eq!(context_ban, vec!["区块链"]);
+            }
+            other => panic!("expected KeywordBlocklist, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_pattern_analysis() {
+        let json = r#"{
+            "type": "pattern_analysis",
+            "hardware_integration_markers": ["传感器", "处理器"],
+            "pure_software_markers": ["APP", "SaaS"],
+            "guidance": "需结合硬件"
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::PatternAnalysis {
+                hardware_integration_markers,
+                pure_software_markers,
+                guidance,
+            } => {
+                assert_eq!(hardware_integration_markers, vec!["传感器", "处理器"]);
+                assert_eq!(pure_software_markers, vec!["APP", "SaaS"]);
+                assert_eq!(guidance, "需结合硬件");
+            }
+            other => panic!("expected PatternAnalysis, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn deserialize_structural_analysis() {
+        let json = r#"{
+            "type": "structural_analysis",
+            "requires_all": [
+                {"element": "技术问题", "description": "要解决的技术问题", "patterns": ["技术问题", "解决"]},
+                {"element": "技术方案", "description": "技术方案描述", "patterns": ["技术方案", "实现"]}
+            ],
+            "min_confidence": 0.7
+        }"#;
+        let check: RuleCheck = serde_json::from_str(json).unwrap();
+        match check {
+            RuleCheck::StructuralAnalysis {
+                requires_all,
+                min_confidence,
+            } => {
+                assert_eq!(requires_all.len(), 2);
+                assert_eq!(requires_all[0].element, "技术问题");
+                assert_eq!(requires_all[1].patterns, vec!["技术方案", "实现"]);
+                assert!((min_confidence - 0.7).abs() < f64::EPSILON);
+            }
+            other => panic!("expected StructuralAnalysis, got {:?}", other),
+        }
+    }
+
+    // ── ConstitutionalRule 完整反序列化 ──
+
+    #[test]
+    fn deserialize_full_constitutional_rule() {
+        let json = r#"{
+            "id": "R001",
+            "name": "禁用词检查",
+            "description": "检查禁用关键词",
+            "phase": "drafting",
+            "severity": "critical",
+            "action": "block",
+            "legal_basis": "专利法第25条",
+            "check": {
+                "type": "keyword_blocklist",
+                "keywords": ["算法"],
+                "absolute_ban": [],
+                "context_ban": [],
+                "negation_context": false,
+                "severity_if_found": "critical"
+            }
+        }"#;
+        let rule: ConstitutionalRule = serde_json::from_str(json).unwrap();
+        assert_eq!(rule.id, "R001");
+        assert_eq!(rule.name, "禁用词检查");
+        assert_eq!(rule.phase, "drafting");
+        assert_eq!(rule.severity, "critical");
+        assert_eq!(rule.action, "block");
+        assert_eq!(rule.legal_basis, "专利法第25条");
+        assert!(matches!(rule.check, RuleCheck::KeywordBlocklist { .. }));
+    }
+
+    #[test]
+    fn deserialize_rule_with_defaults() {
+        let json = r#"{
+            "id": "R002",
+            "name": "测试规则",
+            "description": "desc",
+            "severity": "major",
+            "action": "warn",
+            "check": {
+                "type": "keyword_blocklist"
+            }
+        }"#;
+        let rule: ConstitutionalRule = serde_json::from_str(json).unwrap();
+        assert_eq!(rule.phase, ""); // serde(default)
+        assert_eq!(rule.legal_basis, ""); // serde(default)
+        if let RuleCheck::KeywordBlocklist {
+            keywords,
+            patterns,
+            absolute_ban,
+            context_ban,
+            negation_context,
+            ..
+        } = &rule.check
+        {
+            assert!(keywords.is_empty());
+            assert!(patterns.is_empty());
+            assert!(absolute_ban.is_empty());
+            assert!(context_ban.is_empty());
+            assert!(!negation_context);
+        } else {
+            panic!("expected KeywordBlocklist");
+        }
+    }
+
+    // ── 数据类型 serde round-trip ──
+
+    #[test]
+    fn structural_element_roundtrip() {
+        let elem = StructuralElement {
+            element: "技术问题".into(),
+            description: "要解决的技术问题".into(),
+            patterns: vec!["问题".into(), "解决".into()],
+        };
+        let json = serde_json::to_string(&elem).unwrap();
+        let back: StructuralElement = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.element, "技术问题");
+        assert_eq!(back.patterns, vec!["问题", "解决"]);
+    }
+
+    #[test]
+    fn category_def_roundtrip() {
+        let cat = CategoryDef {
+            description: "智力活动".into(),
+            patterns: vec!["博弈".into()],
+            guidance: "注意排除".into(),
+        };
+        let json = serde_json::to_string(&cat).unwrap();
+        let back: CategoryDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.description, "智力活动");
+        assert_eq!(back.guidance, "注意排除");
+    }
+
+    #[test]
+    fn spec_dimension_roundtrip() {
+        let dim = SpecDimension {
+            dimension: "充分公开".into(),
+            description: "说明书应充分公开".into(),
+            checks: vec!["实施方式".into(), "具体实施例".into()],
+        };
+        let json = serde_json::to_string(&dim).unwrap();
+        let back: SpecDimension = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.dimension, "充分公开");
+        assert_eq!(back.checks.len(), 2);
+    }
+
+    #[test]
+    fn section_def_roundtrip() {
+        let sec = SectionDef {
+            name: "技术领域".into(),
+            patterns: vec!["技术领域".into()],
+            max_length: "500字".into(),
+            description: "技术领域章节".into(),
+            subsections: vec![],
+            condition: Some("必须包含".into()),
+        };
+        let json = serde_json::to_string(&sec).unwrap();
+        let back: SectionDef = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "技术领域");
+        assert_eq!(back.condition, Some("必须包含".into()));
+    }
+}

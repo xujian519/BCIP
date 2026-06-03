@@ -373,3 +373,98 @@ impl AgentRegistry {
         Some(role.system_prompt(config))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_from_str_all_roles() {
+        let role_ids = [
+            "retriever",
+            "analyzer",
+            "writer",
+            "novelty_checker",
+            "creativity_checker",
+            "infringement_checker",
+            "invalidity_checker",
+            "reviewer",
+            "quality_checker",
+        ];
+        for &id in &role_ids {
+            let role = PatentAgentRole::from_str(id)
+                .unwrap_or_else(|| panic!("from_str should parse '{id}'"));
+            assert_eq!(role.role_id(), id, "round-trip failed for '{id}'");
+        }
+        assert_eq!(role_ids.len(), PatentAgentRole::all().len());
+    }
+
+    #[test]
+    fn test_from_str_nonexistent_returns_none() {
+        assert!(PatentAgentRole::from_str("nonexistent").is_none());
+        assert!(PatentAgentRole::from_str("").is_none());
+        assert!(PatentAgentRole::from_str("WRITER").is_none());
+    }
+
+    #[test]
+    fn test_resolve_text_includes_no_markers() {
+        let text = "Hello world, no includes here.";
+        let dir = tempfile::tempdir().unwrap();
+        let result = resolve_text_includes(text, dir.path());
+        assert_eq!(result, text);
+    }
+
+    #[test]
+    fn test_resolve_text_includes_with_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let shared_dir = dir.path().join("_shared");
+        fs::create_dir(&shared_dir).unwrap();
+
+        let toml_content = r#"instructions = "shared module content""#;
+        fs::write(shared_dir.join("helper.toml"), toml_content).unwrap();
+
+        let text = "before {{include:_shared/helper}} after";
+        let result = resolve_text_includes(text, &shared_dir);
+        assert!(result.contains("shared module content"));
+        assert!(result.contains("<!-- include: _shared/helper -->"));
+        assert!(result.contains("<!-- /include: _shared/helper -->"));
+        assert!(result.contains("before"));
+        assert!(result.contains("after"));
+    }
+
+    #[test]
+    fn test_resolve_text_includes_cycle_detection() {
+        let dir = tempfile::tempdir().unwrap();
+        let shared_dir = dir.path().join("_shared");
+        fs::create_dir(&shared_dir).unwrap();
+
+        // a includes b, b includes a => cycle
+        let a_content = r#"instructions = "A-content {{include:_shared/b}}""#;
+        let b_content = r#"instructions = "B-content {{include:_shared/a}}""#;
+        fs::write(shared_dir.join("a.toml"), a_content).unwrap();
+        fs::write(shared_dir.join("b.toml"), b_content).unwrap();
+
+        let text = "{{include:_shared/a}}";
+        let result = resolve_text_includes(text, &shared_dir);
+        assert!(result.contains("A-content"));
+        assert!(result.contains("B-content"));
+        assert!(result.contains("循环引用跳过"));
+    }
+
+    #[test]
+    fn test_resolve_text_includes_max_depth() {
+        // When called at MAX_INCLUDE_DEPTH, returns depth-exceeded comment
+        let dir = tempfile::tempdir().unwrap();
+        let shared_dir = dir.path().join("_shared");
+        fs::create_dir(&shared_dir).unwrap();
+
+        // Manually test the inner function at max depth
+        let text = "some content here";
+        let mut visited = std::collections::HashSet::new();
+        let result =
+            resolve_text_includes_inner(text, &shared_dir, MAX_INCLUDE_DEPTH, &mut visited);
+        assert!(result.contains("include 超出最大深度"));
+        assert!(result.contains(text));
+    }
+}
