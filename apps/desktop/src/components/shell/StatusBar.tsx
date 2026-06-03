@@ -2,7 +2,7 @@
  * StatusBar —— 底部状态栏
  *
  * 精确设计参数：
- * - 高度：40px (h-statusbar)
+ * - 高度：32px (h-statusbar)
  * - 背景：bg-surface/80 backdrop-blur-md
  * - 顶部边框：border-t border-border-subtle
  * - 左侧 ConnectionChip：状态圆点 6px + 状态文字
@@ -96,10 +96,10 @@ function ConnectionChip({
         'transition-colors duration-normal cursor-pointer'
       )}
     >
-      {/* 状态圆点 8px */}
+      {/* 状态圆点 6px */}
       <span
         className={cn(
-          'h-2 w-2 rounded-full shrink-0',
+          'h-1.5 w-1.5 rounded-full shrink-0',
           config.dotColor,
           isConnecting && 'animate-pulse'
         )}

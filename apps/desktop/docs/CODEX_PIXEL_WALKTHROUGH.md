@@ -41,16 +41,26 @@
 
 ## 专利 mock 门控
 
-中心区 `SearchView` / `CompareView` 等 **仅**在以下情况展示：
+中心区专利 mock 视图（SearchView / CompareView 等）**仅**在以下情况通过 dev mock 数据展示：
 
 - app-server **未连接**（`!isDesktopRpcReady`），或
 - 构建时 **`VITE_DEV_MOCK=1`**（`npm run dev`）
 
-已连接且非 dev mock 时展示 `AgentWorkPane`。见 `lib/devMock.ts` 中 `shouldShowPatentMockViews`。
+主壳层中间区已统一为 `DocumentWorkspace`（多标签文档工作区）；`CenterPanel` / `AgentWorkPane` 已移除。
 
 ## DoD
 
 - [x] 工程侧：`npm run walkthrough:capture` → `docs/walkthrough-screenshots/C01–C12.png`
-- [ ] 设计侧：与 Codex 参考并排 diff 评审
+- [ ] 设计侧：与 Codex 参考并排 diff 评审（流程见 [DESIGN_ACCEPTANCE.md](./DESIGN_ACCEPTANCE.md)）
 - [x] 工程侧：上表组件已实现并对齐 spec 注释
 - [x] CI：主 `.github/workflows/ci.yml` 路径门控 desktop 任务 + `scripts/check-generated-app-server.sh`
+
+## 设计验收（并排 diff）
+
+完整流程、签收模板与 HTML 评审页：
+
+1. `npm run walkthrough:acceptance` — 截图 + 检查 + 生成 `review.html`
+2. 可选：将 Codex 参考放入 `walkthrough-screenshots/codex-ref/C01.png` … `C12.png`
+3. 打开 `docs/walkthrough-screenshots/review.html`，勾选清单并导出 Markdown 签收单
+
+详见 **[DESIGN_ACCEPTANCE.md](./DESIGN_ACCEPTANCE.md)**。

@@ -17,6 +17,7 @@ import {
   SettingsCard,
   SettingsRpcBanner,
 } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 const reasoningLabels: Record<ReasoningEffort, string> = {
   none: '无',
@@ -70,7 +71,7 @@ export default function ModelSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">模型与推理</h1>
+      <h1 className={`${settingsTheme.pageTitle} mb-2`}>模型与推理</h1>
       <SettingsRpcBanner
         rpcReady={rpcReady}
         loading={loading || modelsLoading}

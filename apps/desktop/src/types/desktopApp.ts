@@ -69,7 +69,7 @@ export interface Thread {
 // ========================================
 export type SidebarTab = 'project' | 'files';
 
-export type ActivityBarTab = 'files' | 'search' | 'skills' | 'bots';
+export type ActivityBarTab = 'files' | 'new-task' | 'search' | 'skills' | 'bots';
 
 export type LayoutMode = 'three-column' | 'document' | 'horizontal-split';
 

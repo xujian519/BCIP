@@ -45,11 +45,10 @@ test.describe('walkthrough capture @walkthrough', () => {
 
   test('C04 工具调用', async ({ page }) => {
     const card = page.getByRole('button', { name: /search_patents/ }).first();
+    await card.waitFor({ state: 'visible' });
     await card.click();
     await page.waitForTimeout(300);
-    await card.locator('xpath=ancestor::div[contains(@class,"rounded-md")]').first().screenshot({
-      path: path.join(OUT_DIR, 'C04.png'),
-    });
+    await card.screenshot({ path: path.join(OUT_DIR, 'C04.png') });
   });
 
   test('C05 命令审批', async ({ page }) => {

@@ -82,7 +82,7 @@
     --chat-bubble-px: 14px;
     --chat-tool-py: 6px;
     --chat-tool-px: 8px;
-    --chat-composer-min-h: 36px;
+    --chat-composer-min-h: 56px;
     --chat-header-h: 48px;
 
     /* 状态 — 规范 §2.3 */
@@ -346,7 +346,32 @@
   }
 
   [data-platform='windows'] {
-    font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, sans-serif;
+    font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  [data-platform='windows'] ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  [data-platform='windows'] ::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .dark [data-platform='windows'] ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.22);
+  }
+
+  [data-platform='windows'] button.rounded-md,
+  [data-platform='windows'] input.rounded-md {
+    border-radius: 4px;
+  }
+
+  [data-platform='windows'] .rounded-lg {
+    border-radius: 8px;
   }
 
   /* macOS-style glass utilities */

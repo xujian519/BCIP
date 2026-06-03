@@ -6,6 +6,7 @@ import { isDesktopRpcReady } from '@/lib/configAccess';
 import {
   SettingsRpcBanner,
 } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 export default function SkillsSettings() {
   const { state } = useAppStore();
@@ -24,7 +25,7 @@ export default function SkillsSettings() {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">技能</h1>
+        <h1 className={settingsTheme.pageTitle}>技能</h1>
         <button
           type="button"
           onClick={() => void refresh(true)}

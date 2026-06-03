@@ -10,6 +10,7 @@ import {
   type DesktopShortcut,
 } from '@/lib/desktopShortcuts';
 import { SettingsRpcBanner } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 export default function ShortcutsSettings() {
   const { state } = useAppStore();
@@ -114,7 +115,7 @@ export default function ShortcutsSettings() {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">快捷键</h1>
+        <h1 className={settingsTheme.pageTitle}>快捷键</h1>
         <button
           type="button"
           onClick={handleReset}

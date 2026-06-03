@@ -1,0 +1,174 @@
+{
+  "version": "1.0",
+  "specRef": "docs/codex-desktop-pixel-perfect-design-spec.md §28",
+  "viewport": { "width": 1440, "height": 900 },
+  "theme": "dark",
+  "items": [
+    {
+      "id": "C01",
+      "title": "线程列表 ThreadListDrawer",
+      "component": "components/agent/ThreadListDrawer.tsx",
+      "captureHint": "选中一行线程，含预览文本与相对时间",
+      "criteria": [
+        { "id": "C01-1", "text": "行高 32–36px（实现 h-9 / 36px）" },
+        { "id": "C01-2", "text": "预览文本单行 truncate，约 30–40 字符后省略" },
+        { "id": "C01-3", "text": "时间为相对格式（刚刚 / Nm / Nh / Nd）" },
+        { "id": "C01-4", "text": "选中态左侧蓝色竖线 3px（#0066FF 或 accent）" },
+        { "id": "C01-5", "text": "Hover 背景 subtle，分组标题 11px 大写" }
+      ]
+    },
+    {
+      "id": "C02",
+      "title": "用户消息 UserBubble",
+      "component": "components/agent/UserBubble.tsx",
+      "captureHint": "含用户文本的气泡，右对齐",
+      "criteria": [
+        { "id": "C02-1", "text": "max-width 85%，右对齐" },
+        { "id": "C02-2", "text": "非对称圆角（右上/右下大圆角，左上小圆角）" },
+        { "id": "C02-3", "text": "内边距约 12–16px，与页面背景区分度适中" }
+      ]
+    },
+    {
+      "id": "C03",
+      "title": "助手消息 AgentBlock",
+      "component": "components/agent/AgentBlock.tsx",
+      "captureHint": "助手回复块，含左边框",
+      "criteria": [
+        { "id": "C03-1", "text": "左侧 border-l-2 竖线" },
+        { "id": "C03-2", "text": "流式时 cyan/accent 左边框 + 可选脉动" },
+        { "id": "C03-3", "text": "左对齐，流式结束后边框回归 subtle" }
+      ]
+    },
+    {
+      "id": "C04",
+      "title": "工具调用 ToolCallCard",
+      "component": "components/agent/ToolCallCard.tsx",
+      "captureHint": "展开状态的 search_patents 等工具卡片",
+      "criteria": [
+        { "id": "C04-1", "text": "标题行整行可点击展开/收起" },
+        { "id": "C04-2", "text": "Chevron 旋转 180°，展开动画约 250ms" },
+        { "id": "C04-3", "text": "状态图标：spinner / check / fail 色标正确" },
+        { "id": "C04-4", "text": "展开内容区淡入，等宽字体输出可读" }
+      ]
+    },
+    {
+      "id": "C05",
+      "title": "命令审批 ApprovalDialog",
+      "component": "components/overlays/ApprovalDialog.tsx",
+      "captureHint": "「允许执行命令？」三按钮弹窗",
+      "criteria": [
+        { "id": "C05-1", "text": "三按钮层级：拒绝（次要）/ 允许一次（主色）/ 始终允许（文字）" },
+        { "id": "C05-2", "text": "命令预览区等宽 11px，surface 背景" },
+        { "id": "C05-3", "text": "弹窗 max-width ≈520px，遮罩 + 缩放淡入" },
+        { "id": "C05-4", "text": "危险命令时 error 警告条（如有 mock）" }
+      ]
+    },
+    {
+      "id": "C06",
+      "title": "MCP 设置 McpServersSettings",
+      "component": "components/settings/codex/pages/McpServersSettings.tsx",
+      "captureHint": "设置 → MCP 服务器整页",
+      "criteria": [
+        { "id": "C06-1", "text": "starting：warning + spinner" },
+        { "id": "C06-2", "text": "ready：success 绿色圆点" },
+        { "id": "C06-3", "text": "failed：error 红色 + 可展开错误文案" },
+        { "id": "C06-4", "text": "行高约 48px，状态色与图标一致" }
+      ]
+    },
+    {
+      "id": "C07",
+      "title": "设置导航 SettingsNav",
+      "component": "components/settings/codex/SettingsNav.tsx",
+      "captureHint": "设置对话框左侧 nav 区域",
+      "criteria": [
+        { "id": "C07-1", "text": "宽度 200–220px 固定" },
+        { "id": "C07-2", "text": "图标 16px + 文字 13px，行高 36px" },
+        { "id": "C07-3", "text": "选中/Hover 背景与 Codex 参考一致" },
+        { "id": "C07-4", "text": "分组顺序与 Codex 可 diff（General → … → About）" }
+      ]
+    },
+    {
+      "id": "C08",
+      "title": "模型设置 ModelSettings",
+      "component": "components/settings/codex/pages/ModelSettings.tsx",
+      "captureHint": "设置 → 模型与推理",
+      "criteria": [
+        { "id": "C08-1", "text": "Pill 胶囊模型选择器" },
+        { "id": "C08-2", "text": "推理强度选择器可见" },
+        { "id": "C08-3", "text": "无写死品牌列表；加载 Skeleton" },
+        { "id": "C08-4", "text": "不可用模型置灰" }
+      ]
+    },
+    {
+      "id": "C09",
+      "title": "用量条 UsageStrip",
+      "component": "components/agent/AgentHeader.tsx",
+      "captureHint": "Agent 顶栏含会话标题与用量",
+      "criteria": [
+        { "id": "C09-1", "text": "位于 AgentHeader 右侧" },
+        { "id": "C09-2", "text": "格式 ~0.xx / 1.0 分数" },
+        { "id": "C09-3", "text": "接近上限时 orange/red 变色（如有数据）" }
+      ]
+    },
+    {
+      "id": "C10",
+      "title": "输入区 Composer",
+      "component": "components/agent/Composer.tsx",
+      "captureHint": "输入 / 触发 slash palette",
+      "criteria": [
+        { "id": "C10-1", "text": "Slash palette（/help 等）150ms 出现" },
+        { "id": "C10-2", "text": "附件 + 发送按钮；空内容时发送 disabled" },
+        { "id": "C10-3", "text": "textarea min ≈48–56px，max ≈200px 自适应" },
+        { "id": "C10-4", "text": "Enter 发送 / Shift+Enter 换行（Codex 行为）" }
+      ]
+    },
+    {
+      "id": "C11",
+      "title": "推理块 ReasoningBlock",
+      "component": "components/agent/ReasoningBlock.tsx",
+      "captureHint": "Thinking… 折叠摘要行",
+      "criteria": [
+        { "id": "C11-1", "text": "默认折叠 collapsed" },
+        { "id": "C11-2", "text": "摘要 Thinking… secondary + italic" },
+        { "id": "C11-3", "text": "展开 200ms 高度动画，内容 tertiary 13px" }
+      ]
+    },
+    {
+      "id": "C12",
+      "title": "断线页脚 AgentFooter",
+      "component": "components/agent/AgentFooter.tsx",
+      "captureHint": "「已断开」+ 重试 footer",
+      "criteria": [
+        { "id": "C12-1", "text": "连接状态文案 + 图标（已连接/连接中/已断开）" },
+        { "id": "C12-2", "text": "断开时显示重试入口" },
+        { "id": "C12-3", "text": "模型 Badge 可点击跳转设置（如有）" }
+      ]
+    }
+  ],
+  "bcipOnly": [
+    {
+      "id": "P01",
+      "title": "StageIndicator",
+      "component": "components/stage/StageIndicator.tsx",
+      "note": "不要求与 Codex 一致，专利四阶段条"
+    },
+    {
+      "id": "P02",
+      "title": "TodoDock",
+      "component": "components/todo/TodoList.tsx",
+      "note": "底部待办面板，BCIP 扩展"
+    },
+    {
+      "id": "P03",
+      "title": "PdfAnnotation",
+      "component": "components/preview/PdfPreview.tsx",
+      "note": "PDF 标注工具栏"
+    },
+    {
+      "id": "P04",
+      "title": "ProjectTree",
+      "component": "components/sidebar/LeftSidebar.tsx",
+      "note": "专利项目树 + .BCIP"
+    }
+  ]
+}

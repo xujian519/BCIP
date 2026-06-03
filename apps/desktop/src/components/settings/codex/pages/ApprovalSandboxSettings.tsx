@@ -16,6 +16,7 @@ import {
   SettingsCard,
   SettingsRpcBanner,
 } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 type SimpleApproval = Extract<
   AskForApproval,
@@ -66,7 +67,7 @@ export default function ApprovalSandboxSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">审批与沙箱</h1>
+      <h1 className={`${settingsTheme.pageTitle} mb-2`}>审批与沙箱</h1>
       <SettingsRpcBanner
         rpcReady={rpcReady}
         loading={loading}

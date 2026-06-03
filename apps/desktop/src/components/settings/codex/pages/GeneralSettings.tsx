@@ -7,6 +7,7 @@ import {
   SettingsCard,
   SettingsRpcBanner,
 } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 function readBool(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
@@ -26,7 +27,7 @@ export default function GeneralSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">通用</h1>
+      <h1 className={`${settingsTheme.pageTitle} mb-2`}>通用</h1>
       <SettingsRpcBanner
         rpcReady={rpcReady}
         loading={loading}

@@ -58,7 +58,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'TOGGLE_LEFT_SIDEBAR':
-      return { ...state, leftSidebarOpen: !state.leftSidebarOpen };
+      if (state.activityBarTab !== null) {
+        return {
+          ...state,
+          activityBarTab: null,
+          leftSidebarOpen: false,
+        };
+      }
+      return {
+        ...state,
+        activityBarTab: 'files',
+        leftSidebarOpen: true,
+      };
     case 'SET_LEFT_SIDEBAR_OPEN':
       return { ...state, leftSidebarOpen: action.payload };
     case 'SET_LEFT_SIDEBAR_WIDTH':

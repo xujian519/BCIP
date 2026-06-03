@@ -1,8 +1,21 @@
 # 设计走查截图（C01–C12）
 
-将 Codex 参考图与 BCIP 当前 UI 并排截图存于此目录：
+| 文件 | 说明 |
+|------|------|
+| `C01.png` … `C12.png` | BCIP 当前 UI，由 `npm run walkthrough:capture` 生成 |
+| `codex-ref/C01.png` … | 可选 Codex 参考（见 [codex-ref/README.md](./codex-ref/README.md)） |
+| `review.html` | 并排评审页，由 `npm run walkthrough:report` 生成（可 gitignore） |
+| `DESIGN_SIGNOFF.md` | 设计签收单（评审后手工提交或从 review.html 导出） |
 
-- `C01.png` … `C12.png` — 由 `npm run walkthrough:capture` 自动生成（可覆盖更新）
-- 可选：`P01.png` … `P04.png`（BCIP-only 组件，需手动画）
+**快速开始**
 
-拍摄说明见 [CODEX_PIXEL_WALKTHROUGH.md](../CODEX_PIXEL_WALKTHROUGH.md)。
+```bash
+cd apps/desktop
+npm run walkthrough:acceptance
+open docs/walkthrough-screenshots/review.html
+```
+
+拍摄与验收说明：
+
+- 组件对照表：[CODEX_PIXEL_WALKTHROUGH.md](../CODEX_PIXEL_WALKTHROUGH.md)
+- 验收流程：[DESIGN_ACCEPTANCE.md](../DESIGN_ACCEPTANCE.md)

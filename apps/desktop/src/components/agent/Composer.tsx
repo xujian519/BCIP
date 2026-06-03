@@ -30,6 +30,17 @@ import { patentSlashAction } from '@/lib/patentSlashCommands';
 import { dispatchActivateWorkStage } from '@/lib/patentWorkflow';
 import { useAppStore } from '@/hooks/useAppStore';
 
+const COMPOSER_MIN_PX = 56;
+
+function mentionLabel(path: string, workspaceCwd: string | null): string {
+  if (workspaceCwd && path.startsWith(workspaceCwd)) {
+    const rel = path.slice(workspaceCwd.length).replace(/^\//, '');
+    const name = rel || path.split('/').pop() || path;
+    return `@${name}`;
+  }
+  return `@${path.split('/').pop() ?? path}`;
+}
+
 // ========================================
 // Slash Command Palette 数据
 // ========================================
@@ -220,7 +231,7 @@ export default function Composer({
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
-      const newHeight = Math.min(Math.max(el.scrollHeight, 36), 200);
+      const newHeight = Math.min(Math.max(el.scrollHeight, COMPOSER_MIN_PX), 200);
       el.style.height = `${newHeight}px`;
     }
   }, [text]);
@@ -231,6 +242,21 @@ export default function Composer({
     return () => window.removeEventListener(BCIP_FOCUS_COMPOSER, onFocus);
   }, []);
 
+  useEffect(() => {
+    if (state.chatMentions.length === 0) {
+      return;
+    }
+    const last = state.chatMentions[state.chatMentions.length - 1];
+    const label = mentionLabel(last.path, state.workspaceCwd);
+    setText((prev) => {
+      if (prev.includes(label)) {
+        return prev;
+      }
+      return prev.trim() ? `${prev.trimEnd()} ${label} ` : `${label} `;
+    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [state.chatMentions, state.workspaceCwd]);
+
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
@@ -240,7 +266,7 @@ export default function Composer({
     setSlashClosedFor('');
     // Reset textarea height
     if (textareaRef.current) {
-      textareaRef.current.style.height = '36px';
+      textareaRef.current.style.height = `${COMPOSER_MIN_PX}px`;
     }
   }, [text, disabled, onSend, dispatch]);
 

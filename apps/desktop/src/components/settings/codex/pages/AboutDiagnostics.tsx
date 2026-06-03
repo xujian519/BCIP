@@ -4,6 +4,7 @@ import { api } from '@/api';
 import { useAppStore } from '@/hooks/useAppStore';
 import { getAppServerClient } from '@/lib/appServerClient';
 import { isDesktopRpcReady } from '@/lib/configAccess';
+import { settingsTheme } from '../settingsTheme';
 
 export default function AboutDiagnostics() {
   const { state, dispatch } = useAppStore();
@@ -85,7 +86,7 @@ export default function AboutDiagnostics() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">关于与诊断</h1>
+        <h1 className={settingsTheme.pageTitle}>关于与诊断</h1>
         <button
           type="button"
           onClick={() => void refreshDiagnostics()}

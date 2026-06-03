@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import { FolderOpen, Plus, Search, Zap, Bot, Settings } from 'lucide-react';
+import { FolderOpen, Plus, Search, Zap, Bot, Settings, ListPlus } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useAppStore } from '@/hooks/useAppStore';
 import { useProjects } from '@/hooks/useProjects';
@@ -14,6 +14,7 @@ interface ActivityBarItem {
 
 const topItems: ActivityBarItem[] = [
   { id: 'files', icon: FolderOpen, label: '资源管理器' },
+  { id: 'new-task', icon: ListPlus, label: '新建任务' },
 ];
 
 const bottomItems: ActivityBarItem[] = [

@@ -17,6 +17,7 @@ import {
   SettingsCard,
   SettingsRpcBanner,
 } from '../SettingPrimitives';
+import { settingsTheme } from '../settingsTheme';
 
 type ThemeOption = ThemeMode;
 
@@ -90,7 +91,7 @@ export default function AppearanceSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">编辑器与外观</h1>
+      <h1 className={`${settingsTheme.pageTitle} mb-2`}>编辑器与外观</h1>
       <SettingsRpcBanner
         rpcReady={rpcReady}
         loading={loading}
