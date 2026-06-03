@@ -12,6 +12,16 @@ const MAX_SPLIT_RATIO = 0.85;
 /** 允许的最大 pane 嵌套深度（根 pane 为 1） */
 export const MAX_WORKSPACE_SPLIT_DEPTH = 3;
 
+function visitLeaves(
+  root: WorkspaceNode | null,
+  callback: (leaf: WorkspaceLeafNode) => void,
+): void {
+  if (!root) return;
+  if (root.type === 'leaf') { callback(root); return; }
+  visitLeaves(root.first, callback);
+  visitLeaves(root.second, callback);
+}
+
 function newId(prefix: string): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -96,13 +106,9 @@ export function getPaneDepth(root: WorkspaceNode | null, paneId: string): number
 }
 
 export function countWorkspacePanes(root: WorkspaceNode | null): number {
-  if (!root) {
-    return 0;
-  }
-  if (root.type === 'leaf') {
-    return 1;
-  }
-  return countWorkspacePanes(root.first) + countWorkspacePanes(root.second);
+  let count = 0;
+  visitLeaves(root, () => count++);
+  return count;
 }
 
 export function getPaneOrdinal(root: WorkspaceNode | null, paneId: string): number {
@@ -179,10 +185,9 @@ export function canMergePane(
 }
 
 function collectLeafIds(node: WorkspaceNode): string[] {
-  if (node.type === 'leaf') {
-    return [node.id];
-  }
-  return [...collectLeafIds(node.first), ...collectLeafIds(node.second)];
+  const ids: string[] = [];
+  visitLeaves(node, (leaf) => ids.push(leaf.id));
+  return ids;
 }
 
 /** 反复合并 pane，直到只剩一个编辑区（关闭全部分屏） */

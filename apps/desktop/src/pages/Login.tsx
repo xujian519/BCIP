@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { Key, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import MeshGradient from '../components/MeshGradient';
+import { easePageOut } from '@/lib/animations';
 
 type LoginMode = 'select' | 'apikey' | 'local';
 
@@ -14,8 +15,6 @@ interface LoginFormData {
   isLoading: boolean;
   error: string;
 }
-
-const easeOut = [0.16, 1, 0.3, 1] as [number, number, number, number];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,7 +29,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.2, ease: 'easeOut' as const },
+    transition: { duration: 0.2, ease: easePageOut },
   },
 };
 
@@ -109,7 +108,7 @@ const Login: FC = () => {
         style={{ zIndex: 10 }}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: easeOut, delay: 0.2 }}
+        transition={{ duration: 0.5, ease: easePageOut, delay: 0.2 }}
       >
         {/* Ambient glow behind card */}
         <div
@@ -144,10 +143,10 @@ const Login: FC = () => {
             className="flex justify-center"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: easeOut, delay: 0.3 }}
+            transition={{ duration: 0.6, ease: easePageOut, delay: 0.3 }}
           >
             <motion.img
-              src="./mascot.png"
+              src="./app-icon.png"
               alt="云熙智能体 Logo"
               className="animate-float"
               style={{

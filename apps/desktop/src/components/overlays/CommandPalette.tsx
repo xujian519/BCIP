@@ -19,8 +19,7 @@ import {
   Merge,
   Rows2,
 } from 'lucide-react';
-
-const easePanel = [0.4, 0, 0.2, 1] as [number, number, number, number];
+import { easePanel } from '@/lib/animations';
 
 interface PaletteItem {
   id: string;

@@ -88,6 +88,7 @@ mod extensions;
 mod filters;
 mod fs_watch;
 mod fuzzy_file_search;
+mod im_service;
 pub mod in_process;
 mod mcp_refresh;
 mod message_processor;
@@ -653,6 +654,11 @@ pub async fn run_main_with_transport_options(
         }
     }
     let installation_id = resolve_installation_id(&config.codex_home).await?;
+
+    if let Some(ref im_config) = config.im {
+        let _im_handle = im_service::init_im_services(im_config).await;
+    }
+
     let transport_shutdown_token = CancellationToken::new();
     let mut transport_accept_handles = Vec::<JoinHandle<()>>::new();
 

@@ -1,7 +1,10 @@
 use std::pin::Pin;
 
-use super::{OcrEngine, OcrOptions, OcrResult};
-use tesseract_rs::{TessPageIteratorLevel, TesseractAPI};
+use super::OcrEngine;
+use super::OcrOptions;
+use super::OcrResult;
+use tesseract_rs::TessPageIteratorLevel;
+use tesseract_rs::TesseractAPI;
 
 pub struct TesseractOcrEngine {
     tessdata_path: Option<String>,

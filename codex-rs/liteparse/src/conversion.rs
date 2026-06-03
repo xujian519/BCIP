@@ -1,10 +1,9 @@
 use tempfile::TempDir;
 
 use crate::error::LiteParseError;
-use std::{
-    fmt::{self, Display},
-    path::Path,
-};
+use std::fmt::Display;
+use std::fmt::{self};
+use std::path::Path;
 
 /// Supported file extensions for conversion (non-PDF formats).
 const OFFICE_EXTENSIONS: &[&str] = &[

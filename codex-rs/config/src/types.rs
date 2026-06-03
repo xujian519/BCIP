@@ -943,6 +943,108 @@ impl From<ShellEnvironmentPolicyToml> for ShellEnvironmentPolicy {
     }
 }
 
+// ---------------------------------------------------------------------------
+// IM (Instant Messaging) integration configuration
+// ---------------------------------------------------------------------------
+
+/// Top-level IM configuration.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ImConfigToml {
+    /// Enable or disable IM integration entirely.
+    #[serde(default)]
+    pub enabled: Option<bool>,
+
+    /// Telegram bot configuration.
+    #[serde(default)]
+    pub telegram: Option<TelegramConfigToml>,
+
+    /// Feishu (Lark) bot configuration.
+    #[serde(default)]
+    pub feishu: Option<FeishuConfigToml>,
+
+    /// DingTalk bot configuration (future).
+    #[serde(default)]
+    pub dingtalk: Option<DingtalkConfigToml>,
+
+    /// Bridge server configuration.
+    #[serde(default)]
+    pub bridge: Option<BridgeConfigToml>,
+}
+
+/// Telegram bot configuration.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct TelegramConfigToml {
+    /// Bot token obtained from @BotFather.
+    pub bot_token: Option<String>,
+
+    /// Allowed Telegram user IDs that can interact with the bot.
+    #[serde(default)]
+    pub allowed_users: Vec<i64>,
+
+    /// Enable webhook mode (default: polling).
+    #[serde(default)]
+    pub webhook_enabled: Option<bool>,
+
+    /// Webhook URL (required if webhook_enabled is true).
+    pub webhook_url: Option<String>,
+}
+
+/// Feishu (Lark) bot configuration.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct FeishuConfigToml {
+    /// Feishu app ID.
+    pub app_id: Option<String>,
+
+    /// Feishu app secret.
+    pub app_secret: Option<String>,
+
+    /// Allowed Feishu user IDs.
+    #[serde(default)]
+    pub allowed_users: Vec<String>,
+
+    /// Enable webhook mode (default: polling).
+    #[serde(default)]
+    pub webhook_enabled: Option<bool>,
+
+    /// Webhook URL (required if webhook_enabled is true).
+    pub webhook_url: Option<String>,
+}
+
+/// DingTalk bot configuration (placeholder for future implementation).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct DingtalkConfigToml {
+    /// DingTalk app key.
+    pub app_key: Option<String>,
+
+    /// DingTalk app secret.
+    pub app_secret: Option<String>,
+
+    /// Allowed DingTalk user IDs.
+    #[serde(default)]
+    pub allowed_users: Vec<String>,
+}
+
+/// Bridge server configuration for IM ↔ Core communication.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BridgeConfigToml {
+    /// Bridge server URL (default: ws://127.0.0.1:3456).
+    pub server_url: Option<String>,
+
+    /// Maximum reconnection attempts (default: 10).
+    pub max_reconnect: Option<u32>,
+
+    /// Heartbeat interval in seconds (default: 30).
+    pub heartbeat_interval_secs: Option<u64>,
+
+    /// Path to session database (default: in-memory).
+    pub session_db_path: Option<String>,
+}
+
 #[cfg(test)]
 #[path = "types_tests.rs"]
 mod tests;

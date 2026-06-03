@@ -10,8 +10,8 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import urlopen
 
+from ._utils import default_cache_root, download_file
 from .targets import TargetSpec
 
 
@@ -111,10 +111,6 @@ def load_manifest(manifest_path: Path) -> dict:
     return json.loads(text)
 
 
-def default_cache_root() -> Path:
-    return Path(tempfile.gettempdir()) / "codex-package"
-
-
 def archive_filename(url: str) -> str:
     filename = Path(urlparse(url).path).name
     if not filename:
@@ -163,16 +159,7 @@ def verify_archive(
 
 
 def download_archive(url: str, archive_path: Path) -> None:
-    archive_path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = archive_path.with_suffix(f"{archive_path.suffix}.tmp")
-    temp_path.unlink(missing_ok=True)
-    try:
-        with urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECS) as response:
-            with open(temp_path, "wb") as out:
-                shutil.copyfileobj(response, out)
-        temp_path.replace(archive_path)
-    finally:
-        temp_path.unlink(missing_ok=True)
+    download_file(url, archive_path, timeout=DOWNLOAD_TIMEOUT_SECS)
 
 
 def extract_archive_member(

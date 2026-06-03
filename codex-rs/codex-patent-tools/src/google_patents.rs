@@ -82,27 +82,32 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
     let mut results = Vec::new();
     let pn_re = regex::Regex::new(r#"(CN|US|EP|WO|JP|KR|DE|GB|FR)\d{6,12}[A-Z]?\d?"#).unwrap();
     let mut seen = std::collections::HashSet::new();
+    let block_re = regex::Regex::new(r"(?is)<search-result[^>]*>(.*?)</search-result>").unwrap();
 
-    // Google Patents search results wrap each hit in a <search-result> or <article>.
-    // Split the HTML into segments around patent numbers and extract surrounding context.
-    let segments = split_by_patent_numbers(html, &pn_re);
-
-    for seg in &segments {
+    for cap in pn_re.captures_iter(html) {
         if results.len() >= limit {
             break;
         }
-        let pn = match pn_re.find(seg) {
-            Some(m) => m.as_str().to_string(),
-            None => continue,
-        };
+        let m = cap.get(0).unwrap();
+        let pn = m.as_str().to_string();
         if !seen.insert(pn.clone()) {
             continue;
         }
 
-        let title = extract_title(seg);
-        let abstract_text = extract_abstract(seg);
-        let assignee = extract_assignee(seg);
-        let publication_date = extract_date(seg);
+        // Find the search-result block containing this patent number
+        let block = block_re
+            .captures_iter(html)
+            .find(|b| {
+                let full = b.get(0).unwrap();
+                full.start() <= m.start() && m.end() <= full.end()
+            })
+            .map(|b| b.get(1).unwrap().as_str())
+            .unwrap_or(html);
+
+        let title = extract_title(block);
+        let abstract_text = extract_abstract(block);
+        let assignee = extract_assignee(block);
+        let publication_date = extract_date(block);
 
         results.push(PatentResult {
             patent_number: pn,
@@ -116,46 +121,24 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
     Ok(results)
 }
 
-/// Split HTML into segments, each starting from a patent number occurrence.
-fn split_by_patent_numbers<'a>(html: &'a str, re: &regex::Regex) -> Vec<&'a str> {
-    let positions: Vec<usize> = re.find_iter(html).map(|m| m.start()).collect();
-    if positions.is_empty() {
-        return Vec::new();
-    }
-    let mut segments = Vec::with_capacity(positions.len());
-    for (i, &start) in positions.iter().enumerate() {
-        let end = positions
-            .get(i + 1)
-            .copied()
-            .unwrap_or(html.len())
-            .min(start + 4000); // cap segment size to avoid spanning entire page
-        segments.push(&html[start..end]);
-    }
-    segments
-}
-
-fn extract_title(segment: &str) -> String {
-    // <h3> ... <a ...>Title</a> ... </h3>
-    let re = regex::Regex::new(r"(?is)<h3[^>]*>.*?<a[^>]*>(.*?)</a>.*?</h3>").unwrap();
-    if let Some(cap) = re.captures(segment) {
-        let raw = cap.get(1).unwrap().as_str();
-        return clean_html_text(raw);
+fn extract_title(block: &str) -> String {
+    let h3_re = regex::Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").unwrap();
+    if let Some(cap) = h3_re.captures(block) {
+        return clean_html_text(cap.get(1).unwrap().as_str());
     }
     // Fallback: class containing "title"
-    let re2 = regex::Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#).unwrap();
-    if let Some(cap) = re2.captures(segment) {
+    let re = regex::Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#).unwrap();
+    if let Some(cap) = re.captures(block) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
     String::new()
 }
 
 fn extract_abstract(segment: &str) -> String {
-    // class containing "abstract"
     let re = regex::Regex::new(r#"(?is)class="[^"]*abstract[^"]*"[^>]*>(.*?)<"#).unwrap();
     if let Some(cap) = re.captures(segment) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
-    // Fallback: class containing "snippet"
     let re2 = regex::Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#).unwrap();
     if let Some(cap) = re2.captures(segment) {
         return clean_html_text(cap.get(1).unwrap().as_str());
@@ -183,7 +166,6 @@ fn extract_date(segment: &str) -> Option<String> {
 }
 
 fn clean_html_text(raw: &str) -> String {
-    // Strip tags, decode entities, trim whitespace
     let stripped = regex::Regex::new(r"<[^>]*>")
         .unwrap()
         .replace_all(raw, "")

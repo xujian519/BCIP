@@ -68,7 +68,8 @@ pub fn format_json(pages: &[ParsedPage]) -> Result<String, serde_json::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ParsedPage, TextItem};
+    use crate::types::ParsedPage;
+    use crate::types::TextItem;
 
     fn item(text: &str, conf: Option<f32>) -> TextItem {
         TextItem {

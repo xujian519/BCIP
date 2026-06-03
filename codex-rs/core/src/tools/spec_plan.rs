@@ -798,6 +798,8 @@ fn add_patent_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Plann
         for adapter in constitutional_adapters {
             planned_tools.add_arc(adapter);
         }
+
+        planned_tools.add(crate::tools::handlers::patent_tools::agent_bridge::Handler);
     }
 }
 

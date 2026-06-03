@@ -1,6 +1,6 @@
 <p align="center"><strong>YunPat Agent</strong> 云熙智能体 — 专利智能体
 <p align="center">
-  <img src="https://github.com/xujian519/BCIP/blob/main/.github/codex-cli-splash.png" alt="BCIP Agent splash" width="80%" />
+  <img src="https://github.com/xujian519/BCIP/blob/main/.github/yunxi-desktop-splash.png" alt="云熙智能体桌面端" width="80%" />
 </p>
 
 

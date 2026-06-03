@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/hooks/useAppStore';
 import { openOAuthAuthorizationUrl } from '@/lib/mcpOAuth';
 import { Lock, Loader2 } from 'lucide-react';
-
-const easePanel = [0.4, 0, 0.2, 1] as [number, number, number, number];
+import { easePanel } from '@/lib/animations';
 
 export default function OAuthWaitingSheet() {
   const { state, dispatch } = useAppStore();

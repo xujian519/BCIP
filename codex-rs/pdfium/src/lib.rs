@@ -10,10 +10,15 @@ mod types;
 pub use bitmap::Bitmap;
 pub use document::Document;
 pub use error::PdfiumError;
-pub use font::{Font, FontType};
+pub use font::Font;
+pub use font::FontType;
 pub use library::Library;
-pub use page::{ImageBounds, Page, ViewportTransform};
-pub use text_page::{TextChar, TextCharIter, TextPage};
+pub use page::ImageBounds;
+pub use page::Page;
+pub use page::ViewportTransform;
+pub use text_page::TextChar;
+pub use text_page::TextCharIter;
+pub use text_page::TextPage;
 pub use types::*;
 
 /// Unified FFI call macro. On wasm, calls pdfium_sys extern functions directly.

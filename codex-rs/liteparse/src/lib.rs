@@ -5,11 +5,16 @@
 //!
 
 // ── Public API re-exports ──────────────────────────────────────────────
-pub use config::{LiteParseConfig, OutputFormat};
+pub use config::LiteParseConfig;
+pub use config::OutputFormat;
 pub use error::LiteParseError;
-pub use parser::{LiteParse, ParseResult, ScreenshotResult};
-pub use search::{SearchOptions, search_items};
-pub use types::{ParsedPage, TextItem};
+pub use parser::LiteParse;
+pub use parser::ParseResult;
+pub use parser::ScreenshotResult;
+pub use search::SearchOptions;
+pub use search::search_items;
+pub use types::ParsedPage;
+pub use types::TextItem;
 
 // ── Modules with user-facing types (visible in docs) ───────────────────
 pub mod config;

@@ -992,6 +992,9 @@ pub struct Config {
 
     /// OTEL configuration (exporter type, endpoint, headers, etc.).
     pub otel: codex_config::types::OtelConfig,
+
+    /// IM (Instant Messaging) integration configuration.
+    pub im: Option<codex_config::types::ImConfigToml>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -3575,6 +3578,7 @@ impl Config {
                 .map(|t| t.keymap.clone())
                 .unwrap_or_default(),
             otel,
+            im: cfg.im,
         };
         Ok(config)
         })

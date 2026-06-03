@@ -5,6 +5,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from ._utils import resolve_output_path
 from .targets import REPO_ROOT
 from .targets import PackageVariant
 from .targets import TargetSpec
@@ -136,13 +137,6 @@ def validate_prebuilt_resource_inputs(
         raise RuntimeError(
             "--codex-windows-sandbox-setup-bin is only supported for Windows targets."
         )
-
-
-def resolve_output_path(explicit_path: Path | None, default_path: Path | None) -> Path | None:
-    if explicit_path is not None:
-        return explicit_path.resolve()
-
-    return default_path
 
 
 def cargo_profile_output_dir(spec: TargetSpec, profile: str) -> Path:

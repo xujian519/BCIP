@@ -1,3 +1,5 @@
+pub(crate) mod agent_bridge;
+
 use crate::function_tool::FunctionCallError;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolInvocation;

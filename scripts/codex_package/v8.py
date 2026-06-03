@@ -9,7 +9,7 @@ import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.request import urlopen
+from ._utils import default_cache_root, download_file
 
 from .targets import REPO_ROOT
 from .targets import TargetSpec
@@ -102,10 +102,6 @@ def resolved_v8_crate_version() -> str:
     return versions[0]
 
 
-def default_cache_root() -> Path:
-    return Path(tempfile.gettempdir()) / "codex-package"
-
-
 def load_checksums(checksums_path: Path, artifact_names: set[str]) -> dict[str, str]:
     checksums: dict[str, str] = {}
     lines = checksums_path.read_text(encoding="utf-8").splitlines()
@@ -160,14 +156,5 @@ def has_checksum(path: Path, expected: str) -> bool:
     return digest.hexdigest() == expected
 
 
-def download_file(url: str, dest: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = dest.with_suffix(f"{dest.suffix}.tmp")
-    temp_path.unlink(missing_ok=True)
-    try:
-        with urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECS) as response:
-            with temp_path.open("wb") as output:
-                shutil.copyfileobj(response, output)
-        temp_path.replace(dest)
-    finally:
-        temp_path.unlink(missing_ok=True)
+def download_v8_artifact(url: str, dest: Path) -> None:
+    download_file(url, dest, timeout=DOWNLOAD_TIMEOUT_SECS)

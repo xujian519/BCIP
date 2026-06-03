@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 #[derive(Debug, Deserialize)]
 pub struct PatentSearchInput {
     pub query: String,
-    #[serde(default = "super::google_patents::default_limit")]
+    #[serde(default = "crate::common::default_limit")]
     pub limit: usize,
     pub patent_number: Option<String>,
     pub use_synonyms: Option<bool>,
@@ -25,12 +25,8 @@ pub struct SearchQueryBuilderInput {
 pub struct IterativeSearchInput {
     pub query: String,
     pub rounds: Option<usize>,
-    #[serde(default = "super::google_patents::default_limit")]
+    #[serde(default = "crate::common::default_limit")]
     pub limit: usize,
-}
-
-pub fn default_limit() -> usize {
-    10
 }
 
 /// 单例 SynonymDict，避免每次查询重建字典。

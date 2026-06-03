@@ -8,6 +8,7 @@ import {
   Sparkles, Cpu, Moon, Monitor,
 } from 'lucide-react'
 import MeshGradient from '../components/MeshGradient'
+import { easePageOut } from '@/lib/animations'
 
 type WizardStep = 'welcome' | 'apikey' | 'done'
 
@@ -54,8 +55,6 @@ const providers: ProviderInfo[] = [
     description: '无需 API Key，部分 AI 功能受限',
   },
 ]
-
-const easeOut = [0.16, 1, 0.3, 1] as [number, number, number, number]
 
 const stepLabels = ['选择提供商', '配置 API Key', '完成']
 
@@ -214,7 +213,7 @@ const OnboardingWizard: FC = () => {
         style={{ zIndex: 10 }}
         initial={{ opacity: 0, y: 24, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: easeOut, delay: 0.2 }}
+        transition={{ duration: 0.5, ease: easePageOut, delay: 0.2 }}
       >
         {/* Ambient glow */}
         <div
@@ -312,7 +311,7 @@ const OnboardingWizard: FC = () => {
                 {/* Mascot */}
                 <div className="flex justify-center" style={{ marginBottom: 16 }}>
                   <img
-                    src="./mascot.png"
+                    src="./app-icon.png"
                     alt="云熙智能体 Logo"
                     style={{
                       width: 72, height: 72, borderRadius: 'var(--radius-full)',

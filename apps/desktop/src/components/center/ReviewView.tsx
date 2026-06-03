@@ -4,6 +4,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { reviewData } from '@/data/mockData';
 import { ChevronDown, AlertTriangle, Lightbulb, FileText, CheckCircle } from 'lucide-react';
 
+const REVIEW_TYPE_CONFIG = {
+  novelty: {
+    icon: <AlertTriangle size={14} style={{ color: 'var(--status-error)' }} />,
+    label: '新颖性',
+    color: 'var(--status-error)',
+  },
+  inventive: {
+    icon: <Lightbulb size={14} style={{ color: 'var(--status-warning)' }} />,
+    label: '创造性',
+    color: 'var(--status-warning)',
+  },
+  support: {
+    icon: <FileText size={14} style={{ color: 'var(--status-info)' }} />,
+    label: '支持问题',
+    color: 'var(--status-info)',
+  },
+} as const;
+
+type ReviewType = keyof typeof REVIEW_TYPE_CONFIG;
+
 const ReviewView: FC = () => {
   const [expandedObjections, setExpandedObjections] = useState<Set<string>>(new Set(['obj-1']));
 
@@ -14,45 +34,6 @@ const ReviewView: FC = () => {
       else next.add(id);
       return next;
     });
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'novelty':
-        return <AlertTriangle size={14} style={{ color: 'var(--status-error)' }} />;
-      case 'inventive':
-        return <Lightbulb size={14} style={{ color: 'var(--status-warning)' }} />;
-      case 'support':
-        return <FileText size={14} style={{ color: 'var(--status-info)' }} />;
-      default:
-        return <AlertTriangle size={14} style={{ color: 'var(--status-error)' }} />;
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'novelty':
-        return '新颖性';
-      case 'inventive':
-        return '创造性';
-      case 'support':
-        return '支持问题';
-      default:
-        return type;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'novelty':
-        return 'var(--status-error)';
-      case 'inventive':
-        return 'var(--status-warning)';
-      case 'support':
-        return 'var(--status-info)';
-      default:
-        return 'var(--text-tertiary)';
-    }
   };
 
   return (
@@ -113,17 +94,17 @@ const ReviewView: FC = () => {
                 }}
                 type="button"
               >
-                {getTypeIcon(obj.type)}
+                {REVIEW_TYPE_CONFIG[obj.type as ReviewType]?.icon ?? <AlertTriangle size={14} style={{ color: 'var(--status-error)' }} />}
                 <div className="flex flex-1 flex-col items-start">
                   <div className="flex items-center" style={{ gap: 8 }}>
                     <span
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: getTypeColor(obj.type),
+                        color: REVIEW_TYPE_CONFIG[obj.type as ReviewType]?.color ?? 'var(--text-tertiary)',
                       }}
                     >
-                      {getTypeLabel(obj.type)}
+                      {REVIEW_TYPE_CONFIG[obj.type as ReviewType]?.label ?? obj.type}
                     </span>
                     <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
                       {obj.claim}

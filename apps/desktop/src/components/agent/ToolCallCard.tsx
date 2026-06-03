@@ -55,6 +55,28 @@ function displayTitle(toolCall: ToolCall): string {
   return toolCall.name;
 }
 
+function DetailPre({
+  children,
+  className,
+  error,
+}: {
+  children: ReactNode;
+  className?: string;
+  error?: boolean;
+}) {
+  return (
+    <pre
+      className={cn(
+        'font-mono text-2xs',
+        error ? 'text-[var(--status-error)]' : 'text-[var(--text-secondary)]',
+        className,
+      )}
+    >
+      {children}
+    </pre>
+  );
+}
+
 function StatusIcon({ status }: { status: ToolCall['status'] }) {
   switch (status) {
     case 'running':
@@ -100,16 +122,16 @@ function ToolCallDetails({
           }}
         >
           {toolCall.kind === 'patch' && toolCall.detail && (
-            <pre className="font-mono text-2xs text-[var(--text-secondary)] whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+            <DetailPre className="whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
               {toolCall.detail}
-            </pre>
+            </DetailPre>
           )}
           {toolCall.args && (
             <div>
               <span className="text-2xs text-[var(--text-tertiary)]">参数</span>
-              <pre className="mt-0.5 font-mono text-2xs text-[var(--text-secondary)] whitespace-pre-wrap break-all max-h-32 overflow-y-auto bg-black/20 rounded p-1.5">
+              <DetailPre className="mt-0.5 whitespace-pre-wrap break-all max-h-32 overflow-y-auto bg-black/20 rounded p-1.5">
                 {toolCall.args}
-              </pre>
+              </DetailPre>
             </div>
           )}
           {(toolCall.output || toolCall.error) && (
@@ -117,16 +139,12 @@ function ToolCallDetails({
               <span className="text-2xs text-[var(--text-tertiary)]">
                 {toolCall.error ? '错误' : '输出'}
               </span>
-              <pre
-                className={cn(
-                  'mt-0.5 font-mono text-2xs max-h-40 overflow-y-auto rounded p-1.5 bg-black/30 whitespace-pre-wrap break-all',
-                  toolCall.error
-                    ? 'text-[var(--status-error)]'
-                    : 'text-[var(--text-secondary)]',
-                )}
+              <DetailPre
+                className="mt-0.5 whitespace-pre-wrap break-all max-h-40 overflow-y-auto bg-black/30 rounded p-1.5"
+                error={!!toolCall.error}
               >
                 {toolCall.error ?? toolCall.output}
-              </pre>
+              </DetailPre>
             </div>
           )}
         </div>
@@ -138,11 +156,13 @@ function ToolCallDetails({
           style={{ padding: `0 var(--chat-tool-px) var(--chat-tool-py)` }}
         >
           {toolCall.kind === 'patch' && toolCall.detail && (
-            <pre className="font-mono text-2xs">{toolCall.detail}</pre>
+            <DetailPre>{toolCall.detail}</DetailPre>
           )}
-          {toolCall.args && <pre className="font-mono text-2xs">{toolCall.args}</pre>}
+          {toolCall.args && <DetailPre>{toolCall.args}</DetailPre>}
           {(toolCall.output || toolCall.error) && (
-            <pre className="font-mono text-2xs">{toolCall.error ?? toolCall.output}</pre>
+            <DetailPre error={!!toolCall.error}>
+              {toolCall.error ?? toolCall.output}
+            </DetailPre>
           )}
         </div>
       </div>
@@ -210,26 +230,19 @@ export default function ToolCallCard({
         {hasBody && isExpanded && (
           <div className="ml-4 border-l border-[var(--border-default)] py-1 pl-2">
             {toolCall.kind === 'patch' && toolCall.detail && (
-              <pre className="font-mono text-2xs text-[var(--text-secondary)] whitespace-pre-wrap break-all">
+              <DetailPre className="whitespace-pre-wrap break-all">
                 {toolCall.detail}
-              </pre>
+              </DetailPre>
             )}
             {toolCall.args && (
-              <pre className="font-mono text-2xs text-[var(--text-secondary)] whitespace-pre-wrap break-all">
+              <DetailPre className="whitespace-pre-wrap break-all">
                 {toolCall.args}
-              </pre>
+              </DetailPre>
             )}
             {(toolCall.output || toolCall.error) && (
-              <pre
-                className={cn(
-                  'font-mono text-2xs whitespace-pre-wrap break-all',
-                  toolCall.error
-                    ? 'text-[var(--status-error)]'
-                    : 'text-[var(--text-secondary)]',
-                )}
-              >
+              <DetailPre className="whitespace-pre-wrap break-all" error={!!toolCall.error}>
                 {toolCall.error ?? toolCall.output}
-              </pre>
+              </DetailPre>
             )}
           </div>
         )}

@@ -112,6 +112,7 @@ pub fn all_quality_terms() -> Vec<String> {
     terms.extend(config.keyword_lists.uncertain_terms.items);
     terms.extend(config.keyword_lists.vague_range_terms.items);
     terms.extend(config.keyword_lists.fuzzy_action_terms.items);
+    terms.extend(vague_words().into_iter().map(|s| s.to_string()));
     terms
 }
 

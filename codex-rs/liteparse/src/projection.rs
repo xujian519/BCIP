@@ -1,5 +1,7 @@
 use crate::types::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 const FLOATING_SPACES: usize = 2;
 const COLUMN_SPACES: usize = 4;

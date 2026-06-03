@@ -1,4 +1,5 @@
-use crate::config::{LiteParseConfig, parse_target_pages};
+use crate::config::LiteParseConfig;
+use crate::config::parse_target_pages;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::conversion;
 use crate::error::LiteParseError;
@@ -12,7 +13,8 @@ use crate::ocr_merge;
 use crate::projection;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::render;
-use crate::types::{ParsedPage, PdfInput};
+use crate::types::ParsedPage;
+use crate::types::PdfInput;
 
 /// Result of parsing a document.
 pub struct ParseResult {

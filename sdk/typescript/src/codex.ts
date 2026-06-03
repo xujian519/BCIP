@@ -38,5 +38,3 @@ export class Codex {
   }
 }
 
-/** @deprecated Use BCIPAgent instead. Alias for backward compatibility. */
-export const BCIPAgent = Codex;

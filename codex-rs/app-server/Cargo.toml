@@ -46,6 +46,9 @@ codex-features = { workspace = true }
 codex-guardian = { workspace = true }
 codex-git-utils = { workspace = true }
 codex-file-watcher = { workspace = true }
+codex-im-bridge = { workspace = true }
+codex-im-telegram = { workspace = true }
+codex-im-feishu = { workspace = true }
 codex-hooks = { workspace = true }
 codex-otel = { workspace = true }
 codex-plugin = { workspace = true }

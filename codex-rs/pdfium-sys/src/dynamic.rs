@@ -4,7 +4,8 @@
 //! at compile time. This avoids rpath issues when `liteparse` is used as a
 //! library dependency in other Rust projects.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use libloading::Library;

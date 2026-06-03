@@ -26,7 +26,7 @@ export type {
 export { Thread } from "./thread";
 export type { RunResult, RunStreamedResult, Input, UserInput } from "./thread";
 
-export { Codex, BCIPAgent } from "./codex";
+export { Codex } from "./codex";
 
 export type { CodexOptions } from "./codexOptions";
 

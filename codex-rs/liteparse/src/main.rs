@@ -1,8 +1,12 @@
-use clap::{Args, Parser, Subcommand};
-use liteparse::config::{LiteParseConfig, OutputFormat};
+use clap::Args;
+use clap::Parser;
+use clap::Subcommand;
+use liteparse::config::LiteParseConfig;
+use liteparse::config::OutputFormat;
 use liteparse::conversion;
 use liteparse::extract;
-use liteparse::output::{json, text};
+use liteparse::output::json;
+use liteparse::output::text;
 use liteparse::parser::LiteParse;
 use liteparse::render;
 

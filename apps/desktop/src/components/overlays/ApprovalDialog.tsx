@@ -7,8 +7,7 @@ import type { FileChangeApprovalDecision } from '@/generated/app-server/v2/FileC
 import type { ReviewDecision } from '@/generated/app-server/ReviewDecision';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Loader2 } from 'lucide-react';
-
-const easePanel = [0.4, 0, 0.2, 1] as [number, number, number, number];
+import { easePanel } from '@/lib/animations';
 
 export default function ApprovalDialog() {
   const { state, dispatch } = useAppStore();

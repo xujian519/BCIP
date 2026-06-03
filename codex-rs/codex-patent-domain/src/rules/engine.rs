@@ -1,37 +1,13 @@
 //! 规则求值引擎 — 加载 YAML 规则并执行检查。
 
-use regex::Regex;
-
 use super::checks;
+use super::regex_cache::get_or_compile_regex;
 use super::schema::Check;
 use super::schema::PatentDocument;
 use super::schema::Rule;
 use super::schema::RuleFile;
 use super::schema::RuleViolation;
 use super::schema::Target;
-
-/// 全局正则缓存。
-static REGEX_CACHE: std::sync::OnceLock<
-    std::sync::Mutex<std::collections::HashMap<String, Regex>>,
-> = std::sync::OnceLock::new();
-
-/// 获取或编译正则。
-fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
-    let cache = REGEX_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let mut guard = cache
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(re) = guard.get(pattern) {
-        return Some(re.clone());
-    }
-    match Regex::new(pattern) {
-        Ok(re) => {
-            guard.insert(pattern.to_string(), re.clone());
-            Some(re)
-        }
-        Err(_e) => None,
-    }
-}
 
 /// 从 YAML 字符串加载规则列表。
 pub fn load_rules(yaml_str: &str) -> Result<Vec<Rule>, String> {

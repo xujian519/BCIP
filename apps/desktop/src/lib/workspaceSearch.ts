@@ -71,10 +71,6 @@ function snippetAround(content: string, index: number, queryLength: number): str
   return start > 0 ? `…${raw}` : raw;
 }
 
-export function rankFilenameMatch(name: string, query: string): boolean {
-  return name.toLowerCase().includes(query);
-}
-
 export async function searchWorkspace(
   root: string,
   rawQuery: string,
@@ -115,7 +111,7 @@ export async function searchWorkspace(
         continue;
       }
 
-      if (rankFilenameMatch(entry.name, query)) {
+      if (entry.name.toLowerCase().includes(query)) {
         hits.push({
           path: entry.path,
           name: entry.name,

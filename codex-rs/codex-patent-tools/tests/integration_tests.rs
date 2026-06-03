@@ -122,6 +122,7 @@ fn test_formal_check_execution() {
             "技术领域".into(),
             "背景技术".into(),
             "发明内容".into(),
+            "附图说明".into(),
             "具体实施方式".into(),
         ]),
         invention_title: None,

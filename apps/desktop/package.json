@@ -13,6 +13,7 @@
     "tauri:build": "tauri build",
     "prepare-sidecar": "bash scripts/prepare-sidecar.sh",
     "icons:macos": "python3 scripts/generate-macos-icons.py",
+    "readme:splash": "python3 scripts/generate-readme-splash.py",
     "tauri:build:bundle": "npm run prepare-sidecar && npm run tauri build",
     "smoke": "bash scripts/smoke-desktop.sh",
     "check:generate-ts": "bash scripts/check-generated-app-server.sh",

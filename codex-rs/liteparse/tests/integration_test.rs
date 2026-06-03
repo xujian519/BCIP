@@ -1,8 +1,9 @@
 use std::path::Path;
 
+use liteparse::LiteParse;
+use liteparse::LiteParseConfig;
 use liteparse::conversion::convert_data_to_pdf;
 use liteparse::types::PdfInput;
-use liteparse::{LiteParse, LiteParseConfig};
 use serial_test::serial;
 
 #[tokio::test]

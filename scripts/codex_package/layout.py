@@ -2,9 +2,9 @@
 
 import json
 import shutil
-import stat
 from pathlib import Path
 
+from ._utils import is_executable
 from .targets import PackageInputs
 from .targets import PackageVariant
 from .targets import TargetSpec
@@ -204,5 +204,4 @@ def write_json(path: Path, value: object) -> None:
         out.write("\n")
 
 
-def is_executable(path: Path) -> bool:
-    return bool(path.stat().st_mode & stat.S_IXUSR)
+

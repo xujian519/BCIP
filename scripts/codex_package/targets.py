@@ -1,9 +1,10 @@
 """Supported package targets and default binary discovery."""
 
 import platform
-import stat
 from dataclasses import dataclass
 from pathlib import Path
+
+from ._utils import is_executable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parents[1]
@@ -150,10 +151,6 @@ def resolve_input_path(
         return path
 
     raise RuntimeError(f"Must specify {flag_name} for {description}.")
-
-
-def is_executable(path: Path) -> bool:
-    return bool(path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
 
 
 def normalize_machine(machine: str) -> str:

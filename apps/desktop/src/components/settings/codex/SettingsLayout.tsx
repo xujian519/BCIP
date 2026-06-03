@@ -13,20 +13,7 @@ import ShortcutsSettings from './pages/ShortcutsSettings';
 import AboutDiagnostics from './pages/AboutDiagnostics';
 import type { SettingsPage } from '@/types';
 import { settingsTheme } from './settingsTheme';
-
-const pageComponents: Record<SettingsPage, ComponentType> = {
-  general: GeneralSettings,
-  model: ModelSettings,
-  approval: ApprovalSandboxSettings,
-  mcp: McpServersSettings,
-  skills: SkillsSettings,
-  plugins: PluginsSettings,
-  appearance: AppearanceSettings,
-  shortcuts: ShortcutsSettings,
-  about: AboutDiagnostics,
-};
-
-const easePanel = [0.4, 0, 0.2, 1] as [number, number, number, number];
+import { easePanel } from '@/lib/animations';
 
 export default function SettingsLayout() {
   const { state, dispatch } = useAppStore();

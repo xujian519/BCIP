@@ -63,6 +63,28 @@ function threadFromApi(t: ApiThread): UiThread {
   };
 }
 
+/** 通知方法 → params 类型映射 */
+type NotificationParamsByMethod = {
+  'item/started': ItemStartedNotification;
+  'item/agentMessage/delta': AgentMessageDeltaNotification;
+  'turn/planUpdated': TurnPlanUpdatedNotification;
+  'item/completed': ItemCompletedNotification;
+  'thread/tokenUsage/updated': ThreadTokenUsageUpdatedNotification;
+  'account/rateLimits/updated': AccountRateLimitsUpdatedNotification;
+  'item/fileChange/patchUpdated': FileChangePatchUpdatedNotification;
+  'turn/completed': TurnCompletedNotification;
+  'error': ErrorNotification;
+  'mcpServer/oauthLogin/completed': McpServerOauthLoginCompletedNotification;
+};
+
+/** 类型守卫：用 method 串区分 params 类型 */
+function isNotificationParams<T extends keyof NotificationParamsByMethod>(
+  _method: T,
+  params: unknown,
+): params is NotificationParamsByMethod[T] {
+  return typeof params === 'object' && params !== null;
+}
+
 function handleAppServerNotification(
   notification: JsonRpcNotification,
   dispatch: React.Dispatch<AppAction>,
@@ -77,7 +99,8 @@ function handleAppServerNotification(
 
   switch (method) {
     case 'item/started': {
-      const p = params as ItemStartedNotification;
+      if (!isNotificationParams('item/started', params)) break;
+      const p = params;
       if (p.item.type === 'plan') {
         const todos = todosFromPlanText(p.item.text);
         if (todos.length > 0) {
@@ -113,7 +136,8 @@ function handleAppServerNotification(
       break;
     }
     case 'item/agentMessage/delta': {
-      const p = params as AgentMessageDeltaNotification;
+      if (!isNotificationParams('item/agentMessage/delta', params)) break;
+      const p = params;
       const messageId = itemToMessageId.get(p.itemId) ?? p.itemId;
       itemToMessageId.set(p.itemId, messageId);
       dispatch({
@@ -123,7 +147,8 @@ function handleAppServerNotification(
       break;
     }
     case 'turn/planUpdated': {
-      const p = params as TurnPlanUpdatedNotification;
+      if (!isNotificationParams('turn/planUpdated', params)) break;
+      const p = params;
       if (p.plan.length > 0) {
         dispatch({ type: 'SET_TODOS', payload: todosFromPlanSteps(p.plan) });
         const stage = inferWorkStageFromPlanSteps(p.plan.map((s) => s.step));
@@ -134,7 +159,8 @@ function handleAppServerNotification(
       break;
     }
     case 'item/completed': {
-      const p = params as ItemCompletedNotification;
+      if (!isNotificationParams('item/completed', params)) break;
+      const p = params;
       if (p.item.type === 'plan') {
         const todos = todosFromPlanText(p.item.text);
         if (todos.length > 0) {
@@ -157,7 +183,8 @@ function handleAppServerNotification(
       break;
     }
     case 'thread/tokenUsage/updated': {
-      const p = params as ThreadTokenUsageUpdatedNotification;
+      if (!isNotificationParams('thread/tokenUsage/updated', params)) break;
+      const p = params;
       dispatch({
         type: 'SET_USAGE_METER',
         payload: usageMeterFromTokenUsage(p.tokenUsage),
@@ -165,7 +192,8 @@ function handleAppServerNotification(
       break;
     }
     case 'account/rateLimits/updated': {
-      const p = params as AccountRateLimitsUpdatedNotification;
+      if (!isNotificationParams('account/rateLimits/updated', params)) break;
+      const p = params;
       const meter = usageMeterFromRateLimits(p.rateLimits);
       if (meter) {
         dispatch({ type: 'SET_USAGE_METER', payload: meter });
@@ -173,7 +201,8 @@ function handleAppServerNotification(
       break;
     }
     case 'item/fileChange/patchUpdated': {
-      const p = params as FileChangePatchUpdatedNotification;
+      if (!isNotificationParams('item/fileChange/patchUpdated', params)) break;
+      const p = params;
       const paths = pathsFromFileChanges(p.changes, workspaceCwd);
       refreshFileTree();
       reloadPreview(paths);
@@ -186,7 +215,8 @@ function handleAppServerNotification(
       break;
     }
     case 'turn/completed': {
-      const p = params as TurnCompletedNotification;
+      if (!isNotificationParams('turn/completed', params)) break;
+      const p = params;
       dispatch({ type: 'SET_STREAMING', payload: false });
       if (p.turn.status === 'failed' && p.turn.error) {
         const detail = p.turn.error.message;
@@ -208,7 +238,8 @@ function handleAppServerNotification(
       break;
     }
     case 'error': {
-      const p = params as ErrorNotification;
+      if (!isNotificationParams('error', params)) break;
+      const p = params;
       const detail = p.error.additionalDetails
         ? `${p.error.message} — ${p.error.additionalDetails}`
         : p.error.message;
@@ -217,7 +248,8 @@ function handleAppServerNotification(
       break;
     }
     case 'mcpServer/oauthLogin/completed': {
-      const p = params as McpServerOauthLoginCompletedNotification;
+      if (!isNotificationParams('mcpServer/oauthLogin/completed', params)) break;
+      const p = params;
       if (p.success) {
         dispatch({
           type: 'SET_OAUTH_WAITING',

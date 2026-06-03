@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """按 macOS App Icon 规范从源图生成 Tauri 图标资源。
 
-- 将主体缩放到 1024 画布内约 824px 安全区并居中
-- 四角保持透明，便于系统在 Dock 上套用圆角（squircle）遮罩
-- 对最终 alpha 套用近似 squircle，避免 dev/未套系统遮罩时显示为正矩形
+- 去除 logo 源图黑边/白底，仅保留品牌图形
+- 1024 画布铺满 macOS 风格渐变背景（Big Sur 全出血图标）
+- 图形主体缩放到约 824px 安全区并居中
+- 不预烘焙圆角；由系统在 Dock/Finder 套用 squircle 遮罩
 """
 
 from __future__ import annotations
@@ -18,15 +19,16 @@ from PIL import Image, ImageDraw
 # Apple macOS 图标：1024 画布上约 824×824 内容区
 CANVAS = 1024
 SAFE = 824
-# Big Sur 起 Dock 圆角半径约为边长的 ~22.37%
-SQUIRCLE_RADIUS = int(CANVAS * 0.2237)
 
 DESKTOP_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = DESKTOP_ROOT / "public" / "logo.png"
 ICONS_DIR = DESKTOP_ROOT / "src-tauri" / "icons"
 ICONSET_DIR = ICONS_DIR / "icon.iconset"
 
-# iconutil 要求的文件名
+# 与 YunPat 品牌色一致的深色渐变背景
+BG_TOP = (34, 34, 48)
+BG_BOTTOM = (8, 8, 12)
+
 ICONSET_SIZES: list[tuple[str, int]] = [
     ("icon_16x16.png", 16),
     ("icon_16x16@2x.png", 32),
@@ -41,8 +43,18 @@ ICONSET_SIZES: list[tuple[str, int]] = [
 ]
 
 
-def content_bbox(image: Image.Image) -> tuple[int, int, int, int]:
-    """取非近白、或有可见 alpha 的内容区域。"""
+def is_logo_pixel(r: int, g: int, b: int, a: int) -> bool:
+    """识别品牌图形像素，排除透明、黑边与白底。"""
+    if a < 16:
+        return False
+    if r < 40 and g < 40 and b < 40:
+        return False
+    if r > 245 and g > 245 and b > 245:
+        return False
+    return True
+
+
+def logo_bbox(image: Image.Image) -> tuple[int, int, int, int]:
     rgba = image.convert("RGBA")
     w, h = rgba.size
     pixels = rgba.load()
@@ -51,46 +63,52 @@ def content_bbox(image: Image.Image) -> tuple[int, int, int, int]:
     for y in range(h):
         for x in range(w):
             r, g, b, a = pixels[x, y]
-            if a < 16:
-                continue
-            if r > 250 and g > 250 and b > 250:
-                continue
-            xs.append(x)
-            ys.append(y)
+            if is_logo_pixel(r, g, b, a):
+                xs.append(x)
+                ys.append(y)
     if not xs:
-        alpha = rgba.split()[3]
-        box = alpha.getbbox()
-        if box is None:
-            return 0, 0, w, h
-        return box
+        raise SystemExit("源图中未检测到品牌图形，请检查 logo.png")
     return min(xs), min(ys), max(xs) + 1, max(ys) + 1
 
 
-def squircle_mask(size: int, radius: int) -> Image.Image:
-    mask = Image.new("L", (size, size), 0)
-    draw = ImageDraw.Draw(mask)
-    draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
-    return mask
+def make_background(size: int) -> Image.Image:
+    bg = Image.new("RGBA", (size, size))
+    draw = ImageDraw.Draw(bg)
+    for y in range(size):
+        t = y / max(size - 1, 1)
+        r = int(BG_TOP[0] + (BG_BOTTOM[0] - BG_TOP[0]) * t)
+        g = int(BG_TOP[1] + (BG_BOTTOM[1] - BG_TOP[1]) * t)
+        b = int(BG_TOP[2] + (BG_BOTTOM[2] - BG_TOP[2]) * t)
+        draw.line([(0, y), (size, y)], fill=(r, g, b, 255))
+    return bg
+
+
+def extract_logo_mark(source: Image.Image) -> Image.Image:
+    left, top, right, bottom = logo_bbox(source)
+    mark = source.convert("RGBA").crop((left, top, right, bottom))
+    pixels = mark.load()
+    w, h = mark.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = pixels[x, y]
+            if not is_logo_pixel(r, g, b, a):
+                pixels[x, y] = (0, 0, 0, 0)
+    return mark
 
 
 def compose_macos_icon(source: Path) -> Image.Image:
-    src = Image.open(source).convert("RGBA")
-    left, top, right, bottom = content_bbox(src)
-    cropped = src.crop((left, top, right, bottom))
-    cw, ch = cropped.size
-    scale = min(SAFE / cw, SAFE / ch)
+    src = Image.open(source)
+    mark = extract_logo_mark(src)
+    cw, ch = mark.size
+    scale = min(SAFE / cw, SAFE / ch) * 0.92
     nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
-    resized = cropped.resize((nw, nh), Image.Resampling.LANCZOS)
+    resized = mark.resize((nw, nh), Image.Resampling.LANCZOS)
 
-    canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
+    canvas = make_background(CANVAS)
     ox = (CANVAS - nw) // 2
     oy = (CANVAS - nh) // 2
     canvas.paste(resized, (ox, oy), resized)
-
-    mask = squircle_mask(CANVAS, SQUIRCLE_RADIUS)
-    r, g, b, a = canvas.split()
-    a = Image.composite(a, Image.new("L", (CANVAS, CANVAS), 0), mask)
-    return Image.merge("RGBA", (r, g, b, a))
+    return canvas
 
 
 def write_iconset(master: Image.Image, iconset_dir: Path) -> None:
@@ -133,20 +151,12 @@ def copy_bundle_pngs(master: Image.Image, icons_dir: Path) -> None:
         )
 
 
-def verify_corners(image: Image.Image) -> None:
-    w, h = image.size
-    for label, xy in [("TL", (0, 0)), ("TR", (w - 1, 0)), ("BR", (w - 1, h - 1))]:
-        if image.getpixel(xy)[3] != 0:
-            raise SystemExit(f"角点 {label} 仍不透明: {image.getpixel(xy)}")
-
-
 def main() -> None:
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SOURCE
     if not source.is_file():
         raise SystemExit(f"源图不存在: {source}")
 
     master = compose_macos_icon(source)
-    verify_corners(master)
 
     ICONS_DIR.mkdir(parents=True, exist_ok=True)
     copy_bundle_pngs(master, ICONS_DIR)
@@ -154,7 +164,6 @@ def main() -> None:
     run_iconutil(ICONSET_DIR, ICONS_DIR / "icon.icns")
     write_ico(master, ICONS_DIR / "icon.ico")
 
-    # 关于页与 Vite 静态资源
     app_icon = DESKTOP_ROOT / "public" / "app-icon.png"
     shutil.copy2(ICONS_DIR / "icon.png", app_icon)
 

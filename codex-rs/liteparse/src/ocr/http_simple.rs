@@ -1,13 +1,17 @@
-use std::{io::Cursor, pin::Pin, time::Duration};
+use std::io::Cursor;
+use std::pin::Pin;
+use std::time::Duration;
 
 use image::ImageFormat;
-use reqwest::{
-    Client,
-    multipart::{Form, Part},
-};
-use serde::{Deserialize, Serialize};
+use reqwest::Client;
+use reqwest::multipart::Form;
+use reqwest::multipart::Part;
+use serde::Deserialize;
+use serde::Serialize;
 
-use crate::ocr::{OcrEngine, OcrOptions, OcrResult};
+use crate::ocr::OcrEngine;
+use crate::ocr::OcrOptions;
+use crate::ocr::OcrResult;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HttpOcrResponseItem {

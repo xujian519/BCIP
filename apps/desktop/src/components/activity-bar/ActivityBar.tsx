@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import type { FC, MouseEvent } from 'react';
 import { FolderOpen, Plus, Search, Zap, Bot, Settings, ListPlus } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useAppStore } from '@/hooks/useAppStore';
@@ -23,6 +23,33 @@ const bottomItems: ActivityBarItem[] = [
   { id: 'bots', icon: Bot, label: 'AI 助手' },
 ];
 
+const BUTTON_SIZE = 40;
+const TRANSITION_CURVE = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+const buttonBaseStyle: React.CSSProperties = {
+  width: BUTTON_SIZE,
+  height: BUTTON_SIZE,
+  borderRadius: 10,
+  transitionTimingFunction: TRANSITION_CURVE,
+};
+
+function hoverHandlers(isActive: boolean) {
+  return {
+    onMouseEnter: (e: MouseEvent<HTMLButtonElement>) => {
+      if (!isActive) {
+        e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+        e.currentTarget.style.color = 'var(--text-secondary)';
+      }
+    },
+    onMouseLeave: (e: MouseEvent<HTMLButtonElement>) => {
+      if (!isActive) {
+        e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.color = 'var(--text-tertiary)';
+      }
+    },
+  };
+}
+
 function ActivityBarButton({
   item,
   isActive,
@@ -38,25 +65,11 @@ function ActivityBarButton({
       onClick={onClick}
       className="relative flex items-center justify-center transition-all duration-200"
       style={{
-        width: 40,
-        height: 40,
-        borderRadius: 10,
+        ...buttonBaseStyle,
         color: isActive ? 'var(--accent-primary)' : 'var(--text-tertiary)',
         backgroundColor: isActive ? 'var(--bg-sidebar-active)' : 'transparent',
-        transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       }}
-      onMouseEnter={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-          e.currentTarget.style.color = 'var(--text-secondary)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.color = 'var(--text-tertiary)';
-        }
-      }}
+      {...hoverHandlers(isActive)}
       title={item.label}
       aria-label={item.label}
       type="button"
@@ -69,10 +82,34 @@ function ActivityBarButton({
             width: 2.5,
             height: 20,
             backgroundColor: 'var(--accent-primary)',
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transitionTimingFunction: TRANSITION_CURVE,
           }}
         />
       )}
+    </button>
+  );
+}
+
+function IconButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: FC<{ size?: number }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center justify-center transition-all duration-200"
+      style={{ ...buttonBaseStyle, color: 'var(--text-tertiary)' }}
+      {...hoverHandlers(false)}
+      title={label}
+      aria-label={label}
+    >
+      <Icon size={20} />
     </button>
   );
 }
@@ -82,11 +119,10 @@ export default function ActivityBar() {
   const { createProject } = useProjects();
 
   const handleTabClick = (id: ActivityBarTab) => {
-    if (state.activityBarTab === id) {
-      dispatch({ type: 'SET_ACTIVITY_BAR_TAB', payload: null });
-    } else {
-      dispatch({ type: 'SET_ACTIVITY_BAR_TAB', payload: id });
-    }
+    dispatch({
+      type: 'SET_ACTIVITY_BAR_TAB',
+      payload: state.activityBarTab === id ? null : id,
+    });
   };
 
   const handleAddProject = async () => {
@@ -119,30 +155,7 @@ export default function ActivityBar() {
       }}
     >
       <div className="flex flex-col items-center gap-1">
-        <button
-          type="button"
-          onClick={() => void handleAddProject()}
-          className="flex items-center justify-center transition-all duration-200"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            color: 'var(--text-tertiary)',
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--text-tertiary)';
-          }}
-          title="添加项目"
-          aria-label="添加项目"
-        >
-          <Plus size={20} />
-        </button>
+        <IconButton icon={Plus} label="添加项目" onClick={() => void handleAddProject()} />
         {topItems.map((item) => (
           <ActivityBarButton
             key={item.id}
@@ -162,30 +175,11 @@ export default function ActivityBar() {
             onClick={() => handleTabClick(item.id)}
           />
         ))}
-        <button
+        <IconButton
+          icon={Settings}
+          label="设置"
           onClick={() => dispatch({ type: 'OPEN_SETTINGS', payload: 'general' })}
-          className="flex items-center justify-center transition-all duration-200"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            color: 'var(--text-tertiary)',
-            transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--text-tertiary)';
-          }}
-          title="设置"
-          aria-label="设置"
-          type="button"
-        >
-          <Settings size={20} />
-        </button>
+        />
       </div>
     </div>
   );

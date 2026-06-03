@@ -1,6 +1,14 @@
 use crate::error::LiteParseError;
-use crate::types::{Page as LitePage, PdfInput, TextItem};
-use pdfium::{Document, Font, FontType, Library, Page, RectF, TextPage};
+use crate::types::Page as LitePage;
+use crate::types::PdfInput;
+use crate::types::TextItem;
+use pdfium::Document;
+use pdfium::Font;
+use pdfium::FontType;
+use pdfium::Library;
+use pdfium::Page;
+use pdfium::RectF;
+use pdfium::TextPage;
 
 /// Open a PDF from path or bytes with an optional password.
 pub(crate) fn load_document_from_input(

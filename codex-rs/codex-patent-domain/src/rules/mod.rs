@@ -4,6 +4,7 @@
 
 pub mod checks;
 pub mod engine;
+pub mod regex_cache;
 pub mod schema;
 
 pub use engine::evaluate;

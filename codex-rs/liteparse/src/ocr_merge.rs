@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
 use crate::error::LiteParseError;
-use crate::ocr::{OcrEngine, OcrOptions, OcrResult};
-use crate::types::{Page, TextItem};
-use image::{ImageBuffer, Rgba};
+use crate::ocr::OcrEngine;
+use crate::ocr::OcrOptions;
+use crate::ocr::OcrResult;
+use crate::types::Page;
+use crate::types::TextItem;
+use image::ImageBuffer;
+use image::Rgba;
 use pdfium::Document;
 
 /// Owned page bitmap prepared for OCR. Indices refer to positions in the `pages` slice.

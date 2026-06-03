@@ -1,12 +1,7 @@
-import type { FC, CSSProperties } from 'react';
+import type { FC } from 'react';
 import { useState } from 'react';
 import { Sun, Moon, Zap } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-
-// Extend CSSProperties to allow WebkitAppRegion
-interface ExtendedCSSProperties extends CSSProperties {
-  WebkitAppRegion?: string;
-}
 
 interface TrafficLightProps {
   color: string;
@@ -72,33 +67,30 @@ const TitleBar: FC<TitleBarProps> = ({ title = 'BCIP Agent', showTrafficLights =
     setTheme(isDark ? 'light' : 'dark');
   };
 
-  const headerStyle: ExtendedCSSProperties = {
-    height: 38,
-    backgroundColor: 'var(--bg-surface)',
-    borderBottom: '1px solid var(--border-primary)',
-    userSelect: 'none',
-    WebkitAppRegion: 'drag',
-    backdropFilter: 'blur(20px) saturate(1.15)',
-    WebkitBackdropFilter: 'blur(20px) saturate(1.15)',
-  };
-
-  const noDragStyle: ExtendedCSSProperties = {
-    WebkitAppRegion: 'no-drag',
-  };
-
-  const dragStyle: ExtendedCSSProperties = {
-    WebkitAppRegion: 'drag',
-  };
-
   return (
     <header
       className="flex items-center justify-between select-none shrink-0"
-      style={headerStyle}
+      style={{
+        height: 38,
+        backgroundColor: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-primary)',
+        userSelect: 'none',
+        WebkitAppRegion: 'drag',
+        backdropFilter: 'blur(20px) saturate(1.15)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.15)',
+      } as React.CSSProperties}
     >
       {/* Traffic lights + app branding */}
       <div className="flex items-center" style={{ gap: 0, paddingLeft: 12 }}>
         {showTrafficLights && (
-          <div className="flex items-center" style={{ gap: 8, width: 52, ...noDragStyle }}>
+          <div
+            className="flex items-center"
+            style={{
+              gap: 8,
+              width: 52,
+              WebkitAppRegion: 'no-drag',
+            } as React.CSSProperties}
+          >
             <TrafficLight
               color="#FF5F57"
               hoverColor="#FF453A"
@@ -120,8 +112,8 @@ const TitleBar: FC<TitleBarProps> = ({ title = 'BCIP Agent', showTrafficLights =
         {/* App icon + title */}
         <div className="flex items-center" style={{ gap: 8, marginLeft: showTrafficLights ? 8 : 0 }}>
           <img
-            src="./mascot.png"
-            alt="BCIP Agent"
+            src="./app-icon.png"
+            alt="云熙智能体"
             style={{ width: 20, height: 20, borderRadius: 5, objectFit: 'cover' }}
           />
           <div className="flex flex-col">
@@ -151,12 +143,21 @@ const TitleBar: FC<TitleBarProps> = ({ title = 'BCIP Agent', showTrafficLights =
       </div>
 
       {/* Center - empty for drag area */}
-      <div className="flex-1" style={dragStyle} />
+      <div
+        className="flex-1"
+        style={{
+          WebkitAppRegion: 'drag',
+        } as React.CSSProperties}
+      />
 
       {/* Right side - theme toggle + version */}
       <div
         className="flex items-center"
-        style={{ gap: 8, paddingRight: 12, ...noDragStyle }}
+        style={{
+          gap: 8,
+          paddingRight: 12,
+          WebkitAppRegion: 'no-drag',
+        } as React.CSSProperties}
       >
         <div
           className="flex items-center gap-1 px-2 py-0.5 rounded-full"

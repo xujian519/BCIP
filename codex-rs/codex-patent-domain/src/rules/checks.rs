@@ -1,32 +1,8 @@
 //! 具体检查函数 — 每个函数返回 `true` 表示检查通过。
 
-use regex::Regex;
-
+use super::regex_cache::get_or_compile_regex;
 use super::schema::PatentDocument;
 use super::schema::Target;
-
-/// 全局正则缓存(避免热路径重复编译)。
-static REGEX_CACHE: std::sync::OnceLock<
-    std::sync::Mutex<std::collections::HashMap<String, Regex>>,
-> = std::sync::OnceLock::new();
-
-/// 获取或编译正则,编译失败返回 None。
-fn get_or_compile_regex(pattern: &str) -> Option<Regex> {
-    let cache = REGEX_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let mut guard = cache
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(re) = guard.get(pattern) {
-        return Some(re.clone());
-    }
-    match Regex::new(pattern) {
-        Ok(re) => {
-            guard.insert(pattern.to_string(), re.clone());
-            Some(re)
-        }
-        Err(_e) => None,
-    }
-}
 
 /// 从文档中提取指定 target + field 对应的文本值。
 pub(crate) fn resolve_field<'a>(

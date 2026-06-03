@@ -2,7 +2,11 @@ use std::marker::PhantomData;
 
 use crate::ffi;
 use crate::page::Page;
-use crate::types::{CharBox, Color, Matrix, RectF, TextRect};
+use crate::types::CharBox;
+use crate::types::Color;
+use crate::types::Matrix;
+use crate::types::RectF;
+use crate::types::TextRect;
 
 pub struct TextPage<'page> {
     pub(crate) handle: pdfium_sys::FPDF_TEXTPAGE,
