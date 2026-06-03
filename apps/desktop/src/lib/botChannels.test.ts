@@ -1,5 +1,12 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { loadBotChannelStates, saveBotChannelState } from './botChannels';
+import {
+  applyBotChannelPatch,
+  botChannelsFromConfig,
+  botChannelsToConfigValue,
+  deriveBotChannelStatus,
+  loadBotChannelStates,
+  saveBotChannelState,
+} from './botChannels';
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
@@ -31,22 +38,43 @@ class MemoryStorage implements Storage {
 
 describe('botChannels', () => {
   beforeEach(() => {
-    const storage = new MemoryStorage();
     Object.defineProperty(globalThis, 'window', {
-      value: { localStorage: storage },
+      value: { localStorage: new MemoryStorage() },
       configurable: true,
     });
   });
 
-  it('persists enabled flag and webhook url', () => {
-    const all = saveBotChannelState('feishu', {
+  it('persists webhook url to localStorage', () => {
+    const all = saveBotChannelState('dingtalk', {
       enabled: true,
       webhookUrl: 'https://example.com/hook',
     });
-    expect(all.feishu.enabled).toBe(true);
-    expect(all.feishu.status).toBe('configured');
+    expect(all.dingtalk.enabled).toBe(true);
+    expect(all.dingtalk.status).toBe('configured');
 
     const reloaded = loadBotChannelStates();
-    expect(reloaded.feishu.webhookUrl).toBe('https://example.com/hook');
+    expect(reloaded.dingtalk.webhookUrl).toBe('https://example.com/hook');
+  });
+
+  it('marks feishu configured when app credentials present', () => {
+    const status = deriveBotChannelStatus({
+      enabled: true,
+      webhookUrl: '',
+      appId: 'cli_abc',
+      appSecret: 'secret',
+    });
+    expect(status).toBe('configured');
+  });
+
+  it('round-trips config json', () => {
+    const states = applyBotChannelPatch(loadBotChannelStates(), 'feishu', {
+      enabled: true,
+      appId: 'id',
+      appSecret: 'sec',
+    });
+    const json = botChannelsToConfigValue(states);
+    const parsed = botChannelsFromConfig(json);
+    expect(parsed?.feishu.appId).toBe('id');
+    expect(parsed?.feishu.status).toBe('configured');
   });
 });

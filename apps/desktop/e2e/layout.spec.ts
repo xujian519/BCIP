@@ -42,10 +42,13 @@ test.describe('布局 shell', () => {
     await expect(page.getByText('企业微信')).toBeVisible();
   });
 
-  test('新建任务面板可打开', async ({ page }) => {
+  test('新建任务面板可打开并展示演示线程', async ({ page }) => {
     await page.getByRole('button', { name: '新建任务' }).click();
     await expect(page.getByText('会话列表')).toBeVisible();
     await expect(page.getByRole('button', { name: '新建会话' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /专利检索会话/ }).first(),
+    ).toBeVisible();
   });
 
   test('⌘B 可切换侧栏展开/收起', async ({ page }) => {

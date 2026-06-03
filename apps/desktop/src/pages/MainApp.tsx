@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useEffect } from 'react';
 import { useAppStore } from '@/hooks/useAppStore';
 import { useDesktopBoot } from '@/hooks/useDesktopBoot';
+import { useDevMockBootstrap } from '@/hooks/useDevMockBootstrap';
 import { useE2eWalkthroughBridge } from '@/lib/e2eWalkthroughBridge';
 import { BCIP_TOGGLE_TERMINAL } from '@/lib/desktopEvents';
 
@@ -16,6 +17,7 @@ function MainAppInner() {
   const { retryBoot, continueFileMode } = useDesktopBoot();
   const { state, dispatch } = useAppStore();
   useE2eWalkthroughBridge();
+  useDevMockBootstrap();
 
   useEffect(() => {
     const onToggleTerminal = () => {
