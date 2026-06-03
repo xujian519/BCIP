@@ -438,6 +438,7 @@ pub struct QualityAssessment {
     pub clarity_score: f32,
     pub support_score: f32,
     pub scope_score: f32,
+    pub enablement_score: f32,
     pub overall_score: f32,
     pub issues: Vec<QualityIssue>,
 }

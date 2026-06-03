@@ -35,5 +35,5 @@ instructions = """
 """
 activates_agents = ["retriever", "novelty_checker"]
 related_concepts = ["现有技术", "出版物公开", "抵触申请", "优先权", "新颖性"]
-required_tools = ["PatentSearch", "KnowledgeSearch"]
-includes = ["_shared/patent_glossary", "_shared/output_standards"]
+required_tools = ["PatentSearch", "KnowledgeSearch", "WebSearch"]
+includes = ["_shared/patent_glossary", "_shared/output_standards", "_shared/hitl_protocol"]

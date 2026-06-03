@@ -46,4 +46,4 @@ instructions = """
 activates_agents = ["writer"]
 related_concepts = ["充分公开", "权利要求", "说明书", "独立权利要求", "从属权利要求", "必要技术特征"]
 required_tools = ["ClaimGenerator", "SpecificationDrafter", "AbstractDrafter", "InnovationEvaluator"]
-includes = ["_shared/quality_checklist", "_shared/output_standards"]
+includes = ["_shared/hitl_protocol", "_shared/quality_checklist", "_shared/output_standards"]

@@ -253,7 +253,7 @@ fn tool_parameters(name: &str) -> serde_json::Value {
             json!({"type":"object","properties":{"oa_content":{"type":"string"},"strategy":{"type":"string"}},"required":["oa_content"]})
         }
         "UnifiedQuality" => {
-            json!({"type":"object","properties":{"claims":{"type":"array","items":{"type":"object","properties":{"claim_type":{"type":"string"},"preamble":{"type":"string"},"elements":{"type":"array","items":{"type":"string"}}}}}},"required":["claims"]})
+            json!({"type":"object","properties":{"claims":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","description":"权利要求编号"},"claim_type":{"type":"string","description":"independent 或 dependent"},"preamble":{"type":"string","description":"前序部分"},"transitional_phrase":{"type":"string","description":"过渡用语（如包括/其特征在于）"},"elements":{"type":"array","items":{"type":"string"},"description":"技术特征列表"},"dependent_on":{"type":"string","description":"引用的权利要求编号"}}}},"patent_type":{"type":"string","default":"invention","description":"专利类型"}},"required":["claims"]})
         }
         "SubjectMatterChecker" => {
             json!({"type":"object","properties":{"invention_title":{"type":"string"},"claims":{"type":"array","items":{"type":"string"}},"patent_type":{"type":"string","default":"invention"}},"required":["invention_title","claims"]})
@@ -394,7 +394,7 @@ fn tool_parameters(name: &str) -> serde_json::Value {
             json!({"type":"object","properties":{"process_type":{"type":"string","description":"流程类型(application/examination/invalidation)","default":"application"}},"required":[]})
         }
         "QualityChecker" => {
-            json!({"type":"object","properties":{"claims":{"type":"array","items":{"type":"object","properties":{"claim_type":{"type":"string"},"preamble":{"type":"string"},"elements":{"type":"array","items":{"type":"string"}}}}},"patent_type":{"type":"string","default":"invention"}},"required":["claims"]})
+            json!({"type":"object","properties":{"claims":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string","description":"权利要求编号"},"claim_type":{"type":"string","description":"independent 或 dependent"},"preamble":{"type":"string","description":"前序部分"},"transitional_phrase":{"type":"string","description":"过渡用语"},"elements":{"type":"array","items":{"type":"string"},"description":"技术特征列表"},"dependent_on":{"type":"string","description":"引用的权利要求编号"}}}},"patent_type":{"type":"string","default":"invention","description":"专利类型"}},"required":["claims"]})
         }
         "Researcher" => {
             json!({"type":"object","properties":{"query":{"type":"string","description":"调研查询"},"depth":{"type":"integer","description":"调研深度(1-5)","default":2}},"required":["query"]})

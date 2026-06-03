@@ -1,3 +1,6 @@
+# Clippy 配置 - BCIP 项目
+# 所有警告必须修复，禁止使用 #[allow(...)] 压制
+
 allow-expect-in-tests = true
 allow-unwrap-in-tests = true
 await-holding-invalid-types = [
@@ -5,6 +8,8 @@ await-holding-invalid-types = [
     "tokio::sync::RwLockReadGuard",
     "tokio::sync::RwLockWriteGuard",
 ]
+
+# 禁止的方法（TUI 颜色规范）
 disallowed-methods = [
     { path = "ratatui::style::Color::Rgb", reason = "Use ANSI colors, which work better in various terminal themes." },
     { path = "ratatui::style::Color::Indexed", reason = "Use ANSI colors, which work better in various terminal themes." },
@@ -13,6 +18,8 @@ disallowed-methods = [
     { path = "ratatui::style::Stylize::yellow", reason = "Avoid yellow; prefer other colors in `tui/styles.md`." },
 ]
 
-# Increase the size threshold for result_large_err to accommodate
-# richer error variants.
+# 错误大小阈值
 large-error-threshold = 256
+
+# 强制执行的 Lint（零容忍）
+warn-on-all-wildcard-imports = true

@@ -238,7 +238,7 @@ impl PatentAgentRole {
         match self {
             Self::Retriever => &[ToolDomain::Legal, ToolDomain::Analysis],
             Self::Analyzer => &[ToolDomain::Search],
-            Self::Writer => &[ToolDomain::Quality],
+            Self::Writer => &[ToolDomain::Quality, ToolDomain::Search, ToolDomain::Legal],
             Self::NoveltyChecker => &[ToolDomain::Legal],
             Self::CreativityChecker => &[ToolDomain::Legal, ToolDomain::Search],
             Self::InfringementChecker => &[ToolDomain::Search],
@@ -254,6 +254,19 @@ impl PatentAgentRole {
             Self::Retriever | Self::Analyzer | Self::InvalidityChecker => 8_000,
             Self::Writer | Self::Reviewer | Self::QualityChecker => 6_000,
             _ => 4_000,
+        }
+    }
+
+    /// 此角色推荐的 LLM temperature。
+    pub fn temperature(&self) -> f32 {
+        match self {
+            Self::Writer | Self::Reviewer | Self::QualityChecker => 0.3,
+            Self::Retriever => 0.5,
+            Self::Analyzer
+            | Self::NoveltyChecker
+            | Self::CreativityChecker
+            | Self::InfringementChecker
+            | Self::InvalidityChecker => 0.4,
         }
     }
 

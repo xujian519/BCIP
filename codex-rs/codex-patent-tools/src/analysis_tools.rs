@@ -91,16 +91,14 @@ impl AnalysisTools {
         let lexical_result = FeatureMatcher::compare(&features_a, &features_b);
 
         // 第二层: 语义层 (整段文本相似度)
-        let semantic_score =
-            codex_patent_text::text_similarity(&input.claim_a, &input.claim_b);
+        let semantic_score = codex_patent_text::text_similarity(&input.claim_a, &input.claim_b);
 
         // 第三层 & 第四层: 功能层/效果层 (基于特征类型统计)
         let (functional_score, effect_score) =
             compute_functional_effect_scores(&parsed_a.features, &parsed_b.features);
 
         // 特征矩阵
-        let matrix =
-            codex_patent_domain::compare::build_feature_matrix(&features_a, &features_b);
+        let matrix = codex_patent_domain::compare::build_feature_matrix(&features_a, &features_b);
 
         // 综合判定
         let overall = compute_overall_correspondence(
@@ -180,15 +178,29 @@ impl AnalysisTools {
                 (Some(claim), Some(prior)) if !claim.is_empty() && !prior.is_empty() => {
                     let claim_parsed = parser.parse(1, claim);
                     let prior_parsed = parser.parse(1, prior);
-                    let target: Vec<CompareFeature> = claim_parsed.features.iter()
-                        .map(|f| CompareFeature { id: f.id.clone(), description: f.description.clone() })
+                    let target: Vec<CompareFeature> = claim_parsed
+                        .features
+                        .iter()
+                        .map(|f| CompareFeature {
+                            id: f.id.clone(),
+                            description: f.description.clone(),
+                        })
                         .collect();
-                    let prior_target: Vec<CompareFeature> = prior_parsed.features.iter()
-                        .map(|f| CompareFeature { id: f.id.clone(), description: f.description.clone() })
+                    let prior_target: Vec<CompareFeature> = prior_parsed
+                        .features
+                        .iter()
+                        .map(|f| CompareFeature {
+                            id: f.id.clone(),
+                            description: f.description.clone(),
+                        })
                         .collect();
                     let result = FeatureMatcher::compare(&target, &prior_target);
-                    let dists: Vec<String> = result.different_features.iter()
-                        .chain(result.missing_features.iter()).cloned().collect();
+                    let dists: Vec<String> = result
+                        .different_features
+                        .iter()
+                        .chain(result.missing_features.iter())
+                        .cloned()
+                        .collect();
                     let cov = result.coverage_ratio;
                     (
                         Some(claim_parsed.features),
@@ -226,6 +238,12 @@ impl AnalysisTools {
             }
             if coverage > 0.0 {
                 obj.insert("coverage_ratio".into(), serde_json::json!(coverage));
+            }
+            // 自动检索创造性相关知识卡片
+            if let Ok(knowledge) = search_creativity_knowledge(&ctx)
+                && !knowledge.is_empty()
+            {
+                obj.insert("knowledge_references".into(), serde_json::json!(knowledge));
             }
         }
         Ok(output)
@@ -282,17 +300,59 @@ impl AnalysisTools {
     }
 }
 
+/// 根据分析上下文自动检索创造性相关知识卡片。
+/// 检索失败不阻塞分析流程。
+fn search_creativity_knowledge(ctx: &CaseContext) -> Result<Vec<serde_json::Value>, String> {
+    let query = match (&ctx.invention_type, &ctx.distinguishing_features) {
+        (Some(t), _) => format!("创造性 {:?}", t),
+        (_, Some(dists)) if !dists.is_empty() => format!("创造性 技术启示 {}", dists.join(" ")),
+        _ => "创造性 三步法".to_string(),
+    };
+
+    let search = UnifiedSearch::with_vector(
+        Some(&codex_patent_knowledge::paths::kg_db_path()),
+        Some(&codex_patent_knowledge::paths::law_db_path()),
+        Some(&codex_patent_knowledge::paths::card_index_path()),
+        Some(&codex_patent_knowledge::paths::semantic_index_path()),
+        Some("http://localhost:8009"),
+        std::env::var("BCIP_MLX_API_KEY").ok().as_deref(),
+        Some("bge-m3-mlx-8bit"),
+    );
+    let config = SearchConfig {
+        query,
+        limit: 3,
+        mode: SearchMode::KeywordEnhanced,
+        ..Default::default()
+    };
+    let results = search.search(&config);
+    Ok(results
+        .into_iter()
+        .take(3)
+        .filter_map(|r| serde_json::to_value(r).ok())
+        .collect())
+}
+
 fn compute_functional_effect_scores(
     features_a: &[ParsedFeature],
     features_b: &[ParsedFeature],
 ) -> (f64, f64) {
     let func_a: Vec<&ParsedFeature> = features_a
         .iter()
-        .filter(|f| matches!(f.feature_type, FeatureType::Element | FeatureType::Parameter))
+        .filter(|f| {
+            matches!(
+                f.feature_type,
+                FeatureType::Element | FeatureType::Parameter
+            )
+        })
         .collect();
     let func_b: Vec<&ParsedFeature> = features_b
         .iter()
-        .filter(|f| matches!(f.feature_type, FeatureType::Element | FeatureType::Parameter))
+        .filter(|f| {
+            matches!(
+                f.feature_type,
+                FeatureType::Element | FeatureType::Parameter
+            )
+        })
         .collect();
     let func_score = set_overlap_ratio(&func_a, &func_b);
 
@@ -320,7 +380,9 @@ fn set_overlap_ratio(a: &[&ParsedFeature], b: &[&ParsedFeature]) -> f64 {
     for fa in a {
         let best = b
             .iter()
-            .map(|fb| codex_patent_domain::compare::lexical_similarity(&fa.description, &fb.description))
+            .map(|fb| {
+                codex_patent_domain::compare::lexical_similarity(&fa.description, &fb.description)
+            })
             .fold(0.0f64, f64::max);
         if best >= 0.6 {
             matched += 1;
@@ -341,7 +403,12 @@ fn classify_score(score: f64) -> &'static str {
     }
 }
 
-fn compute_overall_correspondence(lexical: f64, semantic: f64, functional: f64, effect: f64) -> &'static str {
+fn compute_overall_correspondence(
+    lexical: f64,
+    semantic: f64,
+    functional: f64,
+    effect: f64,
+) -> &'static str {
     let weighted = lexical * 0.35 + semantic * 0.25 + functional * 0.2 + effect * 0.2;
     if weighted >= 0.9 {
         "Exact"

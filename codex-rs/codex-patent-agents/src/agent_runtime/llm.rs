@@ -6,18 +6,28 @@ use crate::provider_router::resolve_base_url;
 
 pub(crate) const MAX_RETRIES: u32 = 3;
 pub(crate) const REQUEST_TIMEOUT_SECS: u64 = 120;
+#[allow(dead_code)]
+pub(crate) const DEFAULT_TEMPERATURE: f32 = 0.7;
 
-pub(crate) fn call_llm_with_retry(
+pub(crate) fn call_llm_with_retry_and_temperature(
     provider: &AgentProvider,
     model: &str,
     system_prompt: &str,
     user_prompt: &str,
     api_key: &str,
+    temperature: f32,
 ) -> Result<String, String> {
     let mut last_error = String::new();
 
     for attempt in 0..=MAX_RETRIES {
-        match call_llm_once(provider, model, system_prompt, user_prompt, api_key) {
+        match call_llm_once(
+            provider,
+            model,
+            system_prompt,
+            user_prompt,
+            api_key,
+            temperature,
+        ) {
             Ok(response) => return Ok(response),
             Err(e) => {
                 let is_auth_error = e.contains("401") || e.contains("403");
@@ -54,14 +64,20 @@ fn call_llm_once(
     system_prompt: &str,
     user_prompt: &str,
     api_key: &str,
+    temperature: f32,
 ) -> Result<String, String> {
     match provider {
         AgentProvider::Anthropic { .. } => {
-            call_anthropic(model, system_prompt, user_prompt, api_key)
+            call_anthropic(model, system_prompt, user_prompt, api_key, temperature)
         }
-        AgentProvider::OpenAiCompatible { base_url, .. } => {
-            call_openai_compatible(base_url, model, system_prompt, user_prompt, api_key)
-        }
+        AgentProvider::OpenAiCompatible { base_url, .. } => call_openai_compatible(
+            base_url,
+            model,
+            system_prompt,
+            user_prompt,
+            api_key,
+            temperature,
+        ),
     }
 }
 
@@ -71,6 +87,7 @@ fn call_openai_compatible(
     system_prompt: &str,
     user_prompt: &str,
     api_key: &str,
+    temperature: f32,
 ) -> Result<String, String> {
     let url = format!("{base_url}/chat/completions");
 
@@ -80,7 +97,7 @@ fn call_openai_compatible(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "temperature": 0.7,
+        "temperature": temperature,
         "max_tokens": 8192
     });
 
@@ -131,6 +148,7 @@ fn call_anthropic(
     system_prompt: &str,
     user_prompt: &str,
     api_key: &str,
+    temperature: f32,
 ) -> Result<String, String> {
     let base = resolve_base_url(model);
     let url = format!("{}/v1/messages", base.trim_end_matches('/'));
@@ -141,7 +159,8 @@ fn call_anthropic(
         "messages": [
             {"role": "user", "content": user_prompt}
         ],
-        "max_tokens": 8192
+        "max_tokens": 8192,
+        "temperature": temperature
     });
 
     let client = reqwest::blocking::Client::builder()

@@ -22,8 +22,12 @@ instructions = """
 - 扩展层：部分要素组合 OR，覆盖要素被分散公开的文献
 - 语义层：同义词+上下位+技术效果词，扩大覆盖面
 
-### 步骤3：跨多源并行检索
-至少检索3种来源：专利数据库（CNABS/CNTXT/Google Patents/DWPI）+ 学术论文（CNKI/Web of Science/IEEE Xplore）+ 非专利文献。
+### 步骤3：多源检索
+已接入的检索源：
+- Google Patents（通过 PatentSearch / GooglePatentsFetch）：覆盖 CN/US/EP/WO 等主要国际专利库
+- WebSearch：补充学术论文和非专利文献
+- KnowledgeSearch：本地知识库（法律法规/审查指南/知识图谱）
+建议至少使用精确检索 + IterativeSearch 语义扩展两种策略。
 
 ### 步骤4：结果筛选与排序
 按相关度排序，每篇对比文件标注：相关度（X/Y/A）、公开日、技术领域、特征覆盖度。
@@ -42,5 +46,5 @@ instructions = """
 """
 activates_agents = ["retriever"]
 related_concepts = ["现有技术", "出版物公开", "抵触申请", "IPC分类"]
-required_tools = ["PatentSearch", "GooglePatentsFetch", "IterativeSearch", "KnowledgeSearch", "SearchQueryBuilder"]
-includes = ["_shared/patent_glossary", "_shared/output_standards"]
+required_tools = ["PatentSearch", "GooglePatentsFetch", "IterativeSearch", "KnowledgeSearch", "SearchQueryBuilder", "WebSearch", "WebExtract"]
+includes = ["_shared/patent_glossary", "_shared/output_standards", "_shared/hitl_protocol"]

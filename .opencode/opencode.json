@@ -1,0 +1,38 @@
+{
+  "language": "zh-CN",
+  "commit_message_format": "type(scope): 中文描述",
+  "code_style": {
+    "comments": "中文注释",
+    "identifiers": "英文命名",
+    "output": "中文输出"
+  },
+  "quality_gates": {
+    "must_pass": [
+      "cargo check",
+      "cargo clippy",
+      "cargo test",
+      "cargo fmt --check"
+    ]
+  },
+  "rust_specific_rules": {
+    "clippy": {
+      "enforce_zero_warnings": true,
+      "critical_lints": [
+        "redundant_closure",
+        "collapsible_if",
+        "uninlined_format_args",
+        "dead_code"
+      ]
+    },
+    "module_size": {
+      "max_loc": 500,
+      "warn_loc": 400,
+      "split_threshold": 800
+    },
+    "testing": {
+      "use_pretty_assertions": true,
+      "prefer_entire_object_comparison": true,
+      "use_nextest": true
+    }
+  }
+}

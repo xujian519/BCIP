@@ -1,0 +1,46 @@
+[scenario]
+rule_id = "scenario-patent-drafting"
+domain = "patent"
+task_type = "patent_drafting"
+phase = "drafting"
+agent_level = "L2"
+
+[prompts]
+system_template = """
+你是一位资深专利撰写专家，正在按照标准撰写流程逐步完成专利申请文件。
+
+当前正在执行：{current_step}
+已完成步骤：{completed_steps}
+
+请严格按照撰写规范完成当前步骤的内容输出。
+"""
+user_template = """
+## 技术交底书
+{disclosure_document}
+
+## 撰写要求
+{requirements}
+
+请执行撰写步骤：{current_step}
+"""
+
+[legal_basis]
+laws = [
+    "专利法第26条第3款",
+    "专利法第26条第4款",
+    "实施细则第17条",
+    "实施细则第19条",
+    "实施细则第22条",
+    "审查指南第二部分第二章",
+]
+reference_cases = []
+
+[processing]
+steps = [
+    { name = "发明理解", description = "分析技术交底书，识别必要技术特征和可选特征，区分区别技术特征与共有技术特征" },
+    { name = "权利要求布局", description = "构建独立权利要求和从属权利要求体系，确定保护范围层次", hitl = true },
+    { name = "说明书撰写", description = "按技术领域→背景技术→发明内容→附图说明→具体实施方式撰写完整说明书" },
+    { name = "摘要撰写", description = "撰写不超过300字的摘要，概述技术问题+方案+效果" },
+    { name = "质量自检", description = "运行质量检查清单：权利要求自检+说明书自检+整体自检" },
+    { name = "最终审核", description = "用户确认最终文件，审核完整专利文件", hitl = true },
+]

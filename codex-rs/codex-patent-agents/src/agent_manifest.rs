@@ -118,7 +118,7 @@ pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, PatentError> {
             continue;
         }
 
-        let content = std::fs::read_to_string(&path).map_err(|e| PatentError::Io(e))?;
+        let content = std::fs::read_to_string(&path).map_err(PatentError::Io)?;
 
         if let Ok(manifest) = serde_json::from_str::<AgentManifest>(&content) {
             manifests.push(manifest);

@@ -1,0 +1,281 @@
+# 合规审计规则
+# 定义 AI 生成专利内容的质量审查和操作审计规则
+# 版本: 2.0.0
+#
+# 规则层级:
+#   CON-COMP-01xx: 生成内容审查
+#   CON-COMP-02xx: 敏感操作记录
+#   CON-COMP-03xx: 数据保留与安全
+#   CON-COMP-04xx: 输出质量标准
+
+rules:
+  # ===========================================================================
+  # 第1章: 生成内容审查
+  # ===========================================================================
+
+  content_no_invented_references:
+    id: CON-COMP-0101
+    name: 禁止编造参考文献
+    description: AI 不得编造专利号、法律条款、审查指南引用、司法案例
+    severity: critical
+    action: block
+    triggers:
+      - tool: claim_generator
+        phase: post_execution
+      - tool: patent_responder
+        phase: post_execution
+      - tool: specification_drafter
+        phase: post_execution
+      - tool: comparison_report
+        phase: post_execution
+      - tool: novelty_analysis
+        phase: post_execution
+      - tool: inventiveness_analysis
+        phase: post_execution
+    checks:
+      - check: patent_number_verification
+        description: 引用的专利号必须格式正确且合理可验证
+        patterns:
+          - regex: "CN\\d{6,}([ABUYSC])?\\d*"
+            validate: checksum
+          - regex: "US\\d{7,11}[AB1]"
+            validate: format
+          - regex: "WO\\d{4}/\\d{6}"
+            validate: format
+          - regex: "EP\\d{7}[AB]"
+            validate: format
+        action_on_failure: block_and_flag
+      - check: legal_article_verification
+        description: "引用的法律条款必须真实存在"
+        patterns:
+          - regex: "专利法第([一二三四五六七八九十百零\\d]+)条"
+            known_values: ["二", "五", "九", "十一", "二十二", "二十四", "二十五", "二十六", "二十九", "三十", "三十一", "三十三", "四十一", "四十五", "四十六", "四十八", "五十九", "六十四", "六十五", "七十", "七十一"]
+            validate: existence
+          - regex: "专利法实施细则第([一二三四五六七八九十百零\\d]+)条"
+            known_values: ["五", "十七", "十九", "二十二", "四十二", "四十七", "六十八"]
+            validate: existence
+      - check: case_number_verification
+        description: "引用的司法案例编号应格式正确"
+        patterns:
+          - regex: "\\((\\d{4})\\)[最高法]{0,4}[知]{0,2}[民初终行申再]{1,4}字第\\d+号"
+            validate: format
+
+  content_scope_consistency:
+    id: CON-COMP-0102
+    name: 权利要求范围一致性审查
+    description: 生成的权利要求范围应与输入的技术交底书/发明构思一致，不得擅自扩大
+    severity: major
+    action: review
+    triggers:
+      - tool: claim_generator
+        phase: post_execution
+      - tool: specification_drafter
+        phase: post_execution
+    checks:
+      - check: feature_source_traceability
+        description: 权利要求中的每个特征应能在输入中找到来源
+        method: feature_trace
+        rules:
+          - "独立权利要求的必要特征应来自输入的核心发明点"
+          - "从属权利要求的附加特征应来自输入的实施例或变型"
+          - "权利要求中的功能性特征的对应结构和效果应在输入中有记载"
+      - check: scope_expansion_detection
+        description: 检测是否存在保护范围不当扩大
+        indicators:
+          - "使用了输入中未公开的上位概念"
+          - "去除了输入中明确记录的必要特征"
+          - "推定的技术效果无输入支持"
+        action_on_expansion: warn + "需人工确认"
+
+  content_evidence_traceability:
+    id: CON-COMP-0103
+    name: 分析结论可追溯性
+    description: 专利分析报告中的每个结论必须有明确的法律依据和事实支撑
+    severity: major
+    action: review
+    triggers:
+      - tool: novelty_analysis
+        phase: post_execution
+      - tool: inventiveness_analysis
+        phase: post_execution
+      - tool: infringement_analysis
+        phase: post_execution
+      - tool: validity_analysis
+        phase: post_execution
+    checks:
+      - check: conclusion_evidence_chain
+        description: 结论→事实→法律依据 的链条完整
+        required:
+          - "每个结论至少引用一条法律条款作为依据"
+          - "每个事实判断引用对比文件的具体部分（段落号/附图）"
+          - "推理过程中说明每一步的逻辑推演"
+      - check: confidence_calibration
+        description: 置信度评分应客观反映证据充分性
+        calibration:
+          0.9_plus: "有直接证据和法律依据的确定性结论"
+          0.7_to_0.9: "有间接证据或需要推理的结论"
+          0.5_to_0.7: "缺乏直接证据但合理推论"
+          below_0.5: "推测性结论，应明确标注"
+
+  content_no_hallucinated_basis:
+    id: CON-COMP-0104
+    name: 禁止编造审查指南内容
+    description: AI 不得编造审查指南的规定或案例，所有指南引用必须与已知内容一致
+    severity: critical
+    action: block
+    triggers:
+      - tool: patent_responder
+        phase: post_execution
+      - tool: oa_strategist
+        phase: post_execution
+      - tool: legal_qa
+        phase: post_execution
+    checks:
+      - check: guideline_reference_verification
+        description: 审查指南引用验证
+        rules:
+          - "引用审查指南时必须指明具体章节"
+          - "已知章节范围：第一部分~第四部分"
+          - "不得编造审查指南不存在的规则"
+        action_on_failure: block_and_flag
+
+  # ===========================================================================
+  # 第2章: 敏感操作记录
+  # ===========================================================================
+
+  sensitive_operation_log:
+    id: CON-COMP-0201
+    name: 专利工具调用审计
+    description: 以下专利工具的所有调用必须记录审计日志
+    severity: major
+    action: log
+    operations:
+      - event: tool_call
+        tools:
+          - patent_search
+          - claim_generator
+          - quality_checker
+          - patent_analyzer
+          - patent_responder
+          - novelty_analysis
+          - inventiveness_analysis
+          - infringement_analysis
+          - validity_analysis
+          - specification_drafter
+          - legal_knowledge_search
+          - oa_strategist
+          - comparison_report
+        fields:
+          - timestamp
+          - tool_name
+          - input_summary           # 摘要，非原文
+          - output_summary
+          - routing_path            # local | external
+          - model_used
+          - user_intent
+          - processing_time_ms
+          - token_count
+          - error_flag
+
+      - event: constitutional_violation
+        description: 宪法规则违规事件
+        fields:
+          - timestamp
+          - rule_id
+          - severity
+          - tool_name
+          - content_location
+          - violation_detail
+          - corrective_action
+          - user_notified
+          - resolution
+
+      - event: content_flag
+        description: 内容合规标记事件
+        fields:
+          - timestamp
+          - checker_type          # reference | scope | evidence
+          - flagged_content
+          - flag_reason
+          - risk_level
+          - user_review_required
+          - resolution_status
+
+  # ===========================================================================
+  # 第3章: 输出质量标准
+  # ===========================================================================
+
+  output_compliance_checklist:
+    id: CON-COMP-0301
+    name: 专利文件输出质量合规检查清单
+    description: 所有 AI 生成的专利文件应通过以下合规检查项
+    severity: major
+    action: review
+    triggers:
+      - tool: claim_generator
+        phase: post_execution
+      - tool: specification_drafter
+        phase: post_execution
+      - tool: patent_responder
+        phase: post_execution
+      - tool: comparison_report
+        phase: post_execution
+    checklist:
+      - item: 法律依据真实性
+        description: "所有引用的法律条款、专利号、案例编号均真实存在"
+        severity: critical
+      - item: 推理逻辑完整性
+        description: "从事实到结论的推理链完整、无跳跃"
+        severity: major
+      - item: 术语一致性
+        description: "全文术语使用一致，无歧义"
+        severity: major
+      - item: 格式合规性
+        description: "文件格式符合专利局要求（CNIPA标准格式）"
+        severity: major
+      - item: 禁止内容检查
+        description: "无商业性宣传用语、无贬低他人内容"
+        severity: critical
+      - item: 保密信息检查
+        description: "不包含客户未公开的技术秘密"
+        severity: critical
+      - item: 范围一致性
+        description: "输出范围与输入一致，未不当扩大/缩小"
+        severity: major
+      - item: 引用标注完整性
+        description: "对比文件引用标注完整（来源、日期、相关段落）"
+        severity: minor
+
+  # ===========================================================================
+  # 第4章: 数据保留策略
+  # ===========================================================================
+
+  retention_policy:
+    id: CON-COMP-0401
+    name: 数据保留策略
+    description: 不同类型数据的保留期限和安全处理方式
+    severity: major
+    action: enforce
+    retention:
+      audit_logs:
+        retention_days: 365
+        description: "审计日志保留 1 年"
+        purpose: "合规追溯和争议处理"
+      session_data:
+        retention_days: 7
+        description: "会话数据保留 7 天"
+        purpose: "会话连续性"
+      tool_outputs:
+        retention_days: 30
+        description: "工具输出保留 30 天"
+        purpose: "质量审查"
+      compliance_reports:
+        retention_days: 180
+        description: "合规报告保留 6 个月"
+        purpose: "合规审计"
+      generated_documents:
+        retention_days: 365
+        description: "生成的专利文件保留 1 年"
+        purpose: "客户可追溯查阅"
+    purge_method: secure_delete
+    purge_verification: true

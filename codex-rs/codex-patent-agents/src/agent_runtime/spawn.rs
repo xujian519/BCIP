@@ -9,8 +9,11 @@ use crate::learning;
 use crate::provider_router::AgentProvider;
 use crate::provider_router::resolve_provider_api_key;
 use crate::reflection;
+use crate::roles::AgentRoleConfig;
+use crate::roles::PatentAgentRole;
+use crate::roles::find_skills_shared_dir;
 
-use super::llm::call_llm_with_retry;
+use super::llm::call_llm_with_retry_and_temperature;
 use super::prompt::build_system_prompt;
 
 pub(crate) fn spawn_agent_thread(
@@ -64,21 +67,54 @@ fn run_agent_job(
     prompt: String,
     provider: AgentProvider,
 ) -> Result<(), String> {
-    let knowledge = KnowledgeContext::new(
-        &default_kg_path(),
-        &default_law_db_path(),
-        &default_card_index_path(),
-        default_semantic_index_path().as_deref(),
-        AutoKnowledgeConfig::default(),
-    );
-    let knowledge_prefix = if knowledge.is_enabled() {
-        knowledge.resolve(&manifest.subagent_type, &prompt)
-    } else {
-        String::new()
+    let role = PatentAgentRole::from_str(&manifest.subagent_type);
+
+    let (system_prompt, knowledge_enabled) = match role {
+        Some(r) => {
+            let config = load_bcip_role_config(r.role_id());
+            let knowledge_config = config.auto_knowledge.clone().unwrap_or_default();
+            let shared_dir = find_skills_shared_dir();
+
+            let knowledge = KnowledgeContext::new(
+                &default_kg_path(),
+                &default_law_db_path(),
+                &default_card_index_path(),
+                default_semantic_index_path().as_deref(),
+                knowledge_config.clone(),
+            );
+
+            let sp = r.system_prompt_with_context(
+                &config,
+                &prompt,
+                if knowledge.is_enabled() {
+                    Some(&knowledge)
+                } else {
+                    None
+                },
+                shared_dir.as_deref(),
+            );
+            (sp, knowledge.is_enabled())
+        }
+        None => {
+            let knowledge = KnowledgeContext::new(
+                &default_kg_path(),
+                &default_law_db_path(),
+                &default_card_index_path(),
+                default_semantic_index_path().as_deref(),
+                AutoKnowledgeConfig::default(),
+            );
+            let knowledge_prefix = if knowledge.is_enabled() {
+                knowledge.resolve(&manifest.subagent_type, &prompt)
+            } else {
+                String::new()
+            };
+            let sp =
+                build_system_prompt(&manifest.subagent_type, &manifest.model, &knowledge_prefix);
+            (sp, knowledge.is_enabled())
+        }
     };
 
-    let system_prompt =
-        build_system_prompt(&manifest.subagent_type, &manifest.model, &knowledge_prefix);
+    let _ = knowledge_enabled;
 
     let api_key_env = match &provider {
         AgentProvider::Anthropic { api_key_env } => api_key_env,
@@ -92,12 +128,15 @@ fn run_agent_job(
         )
     })?;
 
-    let response = call_llm_with_retry(
+    let temperature = role.map(|r| r.temperature()).unwrap_or(0.7);
+
+    let response = call_llm_with_retry_and_temperature(
         &provider,
         &manifest.model,
         &system_prompt,
         &prompt,
         &api_key,
+        temperature,
     )?;
 
     append_agent_output(
@@ -109,6 +148,37 @@ fn run_agent_job(
     reflection::reflect_agent_result(manifest, &response);
 
     persist_agent_terminal_state(manifest, "completed", Some(&response), None)
+}
+
+fn load_bcip_role_config(role_id: &str) -> AgentRoleConfig {
+    let path_str = format!("patent/{role_id}.toml");
+    let path = std::path::Path::new(&path_str);
+    if let Some(content) = crate::bcip_roles::config_file_contents(path) {
+        match toml::from_str::<AgentRoleConfig>(content) {
+            Ok(config) => return config,
+            Err(e) => {
+                eprintln!(
+                    "[bcip-agent] WARN: 解析角色配置 patent/{role_id}.toml 失败: {e}，使用回退配置"
+                );
+            }
+        }
+    } else {
+        eprintln!("[bcip-agent] WARN: 角色 patent/{role_id}.toml 未找到，使用回退配置");
+    }
+    AgentRoleConfig {
+        role_id: role_id.to_string(),
+        name: role_id.to_string(),
+        identity: format!("你是 BCIP 专利智能体 {role_id}。"),
+        description: None,
+        developer_instructions: None,
+        methodology: vec![],
+        output_format: String::new(),
+        primary_tools: vec![],
+        secondary_tools: vec![],
+        constraints: vec![],
+        auto_knowledge: None,
+        includes: vec![],
+    }
 }
 
 pub(crate) fn persist_agent_terminal_state(

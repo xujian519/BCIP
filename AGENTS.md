@@ -63,6 +63,155 @@ Run `just fmt` (in `codex-rs` directory) automatically after you have finished m
 
 Before finalizing a large change to `codex-rs`, run `just fix -p <project>` (in `codex-rs` directory) to fix any linter issues in the code. Prefer scoping with `-p` to avoid slow workspace‑wide Clippy builds; only run `just fix` without `-p` if you changed shared crates. Do not re-run tests after running `fix` or `fmt`.
 
+## 代码质量检查清单（BCIP 专利智能体项目）
+
+### 提交前强制检查
+
+在提交任何 Rust 代码变更之前，**必须**确保以下检查全部通过：
+
+```bash
+# 1. 编译检查（所有专利 crate）
+cargo check -p codex-patent-domain -p codex-patent-agents -p codex-patent-tools --no-default-features -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+
+# 2. Clippy 检查（0 警告）
+cargo clippy -p codex-patent-domain -p codex-patent-agents -p codex-patent-tools --no-default-features -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+
+# 3. 格式化检查
+cargo fmt --check
+
+# 4. 测试（使用 nextest 加速）
+cargo nextest run --no-fail-fast -p codex-patent-domain -p codex-patent-agents -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+```
+
+### 代码质量标准
+
+#### 编译错误（零容忍）
+
+- **类型不匹配**：修复所有类型推断错误，避免使用 `as` 强制转换
+- **语法错误**：修复所有语法错误（如未闭合的花括号）
+- **缺失 trait 实现**：为所有需要 trait 的类型添加 `#[derive(...)]` 或手动实现
+
+#### Clippy 警告（零容忍）
+
+必须修复的 Clippy 警告（已配置在 `clippy.toml`）：
+
+| Lint 名称 | 说明 | 修复方法 |
+|-----------|------|----------|
+| `redundant_closure` | 冗余闭包，应使用方法引用 | `|x| x.method()` → `Self::method` |
+| `collapsible_if` | 可合并的嵌套 if | 合并为 `if cond1 && cond2 { }` |
+| `uninlined_format_args` | 格式化参数未内联 | `format!("{}", x)` → `format!("{x}")` |
+| `dead_code` | 未使用的代码 | 删除或添加 `#[allow(dead_code)]` |
+
+**示例修复**：
+
+```rust
+// ❌ 错误：redundant_closure
+let names: Vec<_> = items.iter().map(|item| item.name()).collect();
+
+// ✅ 正确：使用方法引用
+let names: Vec<_> = items.iter().map(|item| item.name()).collect();
+
+// ❌ 错误：collapsible_if
+if x > 0 {
+    if y > 0 {
+        do_something();
+    }
+}
+
+// ✅ 正确：合并嵌套 if
+if x > 0 && y > 0 {
+    do_something();
+}
+
+// ❌ 错误：uninlined_format_args
+println!("Hello, {}!", name);
+
+// ✅ 正确：内联参数
+println!("Hello, {name}!");
+```
+
+#### 模块大小限制
+
+- **目标**：单个模块 < 500 LoC（不含测试）
+- **警告**：400-500 LoC 需考虑拆分
+- **强制拆分**：超过 800 LoC 必须拆分到新模块
+- **优先级**：添加新模块 > 扩展现有模块
+
+**特别关注的高频文件**（强烈建议保持模块化）：
+- `codex-rs/tui/src/app.rs`
+- `codex-rs/tui/src/bottom_pane/chat_composer.rs`
+- `codex-rs/tui/src/bottom_pane/footer.rs`
+- `codex-rs/tui/src/chatwidget.rs`
+
+#### 测试标准
+
+- **使用 `pretty_assertions`**：导入 `use pretty_assertions::assert_eq;`
+- **整体比较**：优先比较整个对象，而非逐字段断言
+- **使用 nextest**：`cargo nextest run`（更快、更稳定）
+- **覆盖率**：新代码必须有对应单元测试
+
+```rust
+// ✅ 推荐：整体比较
+assert_eq!(expected_report, actual_report);
+
+// ❌ 避免：逐字段断言
+assert_eq!(expected_report.title, actual_report.title);
+assert_eq!(expected_report.score, actual_report.score);
+// ...（容易遗漏字段）
+```
+
+#### API 设计原则
+
+- **避免 bool/Option 歧义参数**：优先使用枚举、命名方法、newtype
+- **可调用处自文档化**：`api.execute(/*force*/ false)` > `api.execute(false)`
+- **优先私有模块**：显式导出公共 API
+- ** exhaustive match**：避免通配符 `_`
+
+### 常见问题排查
+
+| 问题 | 检查命令 | 解决方法 |
+|------|----------|----------|
+| 类型不匹配 | `cargo check 2>&1 \| grep error` | 查看具体类型，统一类型或添加转换 |
+| Clippy 警告 | `cargo clippy 2>&1 \| grep warning` | 按 Lint 名称修复 |
+| 格式化失败 | `cargo fmt --check` | 运行 `cargo fmt` 自动修复 |
+| 测试失败 | `cargo nextest run` | 查看具体测试用例，修复逻辑或更新断言 |
+
+### 依赖变更流程
+
+如果修改了 `Cargo.toml` 或 `Cargo.lock`：
+
+```bash
+# 1. 更新 Bazel lockfile
+just bazel-lock-update
+
+# 2. 验证 lockfile 无漂移
+just bazel-lock-check
+```
+
+### 自动化检查（推荐）
+
+创建 `.git/hooks/pre-commit` 自动执行检查：
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🔍 运行代码质量检查..."
+
+cargo check -p codex-patent-domain -p codex-patent-agents -p codex-patent-tools --no-default-features -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+cargo clippy -p codex-patent-domain -p codex-patent-agents -p codex-patent-tools --no-default-features -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+cargo fmt --check
+cargo nextest run -p codex-patent-domain -p codex-patent-agents -p codex-patent-workflow -p codex-patent-constitutional -p codex-patent-skills
+
+echo "✅ 所有检查通过！"
+```
+
+### 参考资料
+
+- [Rust Clippy Lints](https://rust-lang.github.io/rust-clippy/master/index.html)
+- [BCIP 智能体系统架构](./docs/patent-system-map.md)
+- [代码质量审查报告](./docs/code-quality-review-report.md)
+
 ## The `codex-core` crate
 
 Over time, the `codex-core` crate (defined in `codex-rs/core/`) has become bloated because it is the largest crate, so it is often easier to add something new to `codex-core` rather than refactor out the library code you need so your new code neither takes a dependency on, nor contributes to the size of, `codex-core`.

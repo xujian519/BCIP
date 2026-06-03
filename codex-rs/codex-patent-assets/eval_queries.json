@@ -1,0 +1,52 @@
+[
+  {
+    "query": "新颖性判断中的单独对比原则是什么",
+    "expected_titles": ["单独对比", "新颖性"],
+    "domain": "patent_novelty"
+  },
+  {
+    "query": "创造性判断的三步法具体包括哪些步骤",
+    "expected_titles": ["三步法", "创造性"],
+    "domain": "patent_creativity"
+  },
+  {
+    "query": "什么是专利侵权中的等同原则",
+    "expected_titles": ["等同侵权", "等同原则", "全面覆盖"],
+    "domain": "patent_infringement"
+  },
+  {
+    "query": "外观设计专利的侵权判定标准是什么",
+    "expected_titles": ["外观设计", "一般消费者", "整体视觉效果"],
+    "domain": "patent_design"
+  },
+  {
+    "query": "专利法中对职务发明的定义和权属规定",
+    "expected_titles": ["职务发明", "权属"],
+    "domain": "patent_ownership"
+  },
+  {
+    "query": "什么是专利无效宣告程序及其法律效果",
+    "expected_titles": ["无效宣告", "专利无效"],
+    "domain": "patent_invalidation"
+  },
+  {
+    "query": "专利法中充分公开的具体要求是什么",
+    "expected_titles": ["充分公开", "说明书", "能够实现"],
+    "domain": "patent_disclosure"
+  },
+  {
+    "query": "什么情况下可以适用BOLAR例外抗辩",
+    "expected_titles": ["bolar例外", "Bolar例外", "侵权抗辩"],
+    "domain": "patent_defense"
+  },
+  {
+    "query": "专利法中关于修改超范围的规定是什么",
+    "expected_titles": ["修改超范围", "专利法第33条"],
+    "domain": "patent_amendment"
+  },
+  {
+    "query": "如何确定专利权的保护范围",
+    "expected_titles": ["保护范围", "权利要求", "解释"],
+    "domain": "patent_scope"
+  }
+]

@@ -303,36 +303,46 @@ fn build_inventiveness_rules() -> Vec<Rule> {
         // ── 步骤2: 区别特征与技术问题 ──
         Rule {
             name: "IR-01: 区别特征识别",
-            evaluate: |ctx| {
-                match (&ctx.claim_features, &ctx.prior_art_features) {
-                    (Some(claims), Some(prior)) if !claims.is_empty() && !prior.is_empty() => {
-                        let target: Vec<CompareFeature> = claims.iter().map(|f| CompareFeature {
+            evaluate: |ctx| match (&ctx.claim_features, &ctx.prior_art_features) {
+                (Some(claims), Some(prior)) if !claims.is_empty() && !prior.is_empty() => {
+                    let target: Vec<CompareFeature> = claims
+                        .iter()
+                        .map(|f| CompareFeature {
                             id: f.id.clone(),
                             description: f.description.clone(),
-                        }).collect();
-                        let prior_feats: Vec<CompareFeature> = prior.iter().map(|f| CompareFeature {
+                        })
+                        .collect();
+                    let prior_feats: Vec<CompareFeature> = prior
+                        .iter()
+                        .map(|f| CompareFeature {
                             id: f.id.clone(),
                             description: f.description.clone(),
-                        }).collect();
-                        let result = FeatureMatcher::compare(&target, &prior_feats);
-                        let dist_count = result.different_features.len() + result.missing_features.len();
-                        let coverage = result.coverage_ratio;
-                        RuleOutput {
-                            applies: true,
-                            conclusion: format!(
-                                "识别到{dist_count}个区别特征，特征覆盖率{:.0}%",
-                                coverage * 100.0
-                            ),
-                            score: if dist_count == 0 {
-                                0.1
-                            } else {
-                                (0.3 + 0.14 * (dist_count.min(5) as f64)).min(1.0)
-                            },
-                            confidence: 0.8,
-                        }
+                        })
+                        .collect();
+                    let result = FeatureMatcher::compare(&target, &prior_feats);
+                    let dist_count =
+                        result.different_features.len() + result.missing_features.len();
+                    let coverage = result.coverage_ratio;
+                    RuleOutput {
+                        applies: true,
+                        conclusion: format!(
+                            "识别到{dist_count}个区别特征，特征覆盖率{:.0}%",
+                            coverage * 100.0
+                        ),
+                        score: if dist_count == 0 {
+                            0.1
+                        } else {
+                            (0.3 + 0.14 * (dist_count.min(5) as f64)).min(1.0)
+                        },
+                        confidence: 0.8,
                     }
-                    _ => RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 },
                 }
+                _ => RuleOutput {
+                    applies: false,
+                    conclusion: String::new(),
+                    score: 0.0,
+                    confidence: 0.0,
+                },
             },
         },
         Rule {
@@ -368,7 +378,12 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         },
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -378,10 +393,16 @@ fn build_inventiveness_rules() -> Vec<Rule> {
             evaluate: |ctx| {
                 if let Some(ref dists) = ctx.distinguishing_features {
                     if dists.is_empty() {
-                        return RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 };
+                        return RuleOutput {
+                            applies: false,
+                            conclusion: String::new(),
+                            score: 0.0,
+                            confidence: 0.0,
+                        };
                     }
                     // 启发式：区别特征越短越可能是公知常识
-                    let avg_len = dists.iter().map(|d| d.len()).sum::<usize>() as f64 / dists.len().max(1) as f64;
+                    let avg_len = dists.iter().map(|d| d.len()).sum::<usize>() as f64
+                        / dists.len().max(1) as f64;
                     let is_common = avg_len < 10.0;
                     RuleOutput {
                         applies: true,
@@ -394,7 +415,12 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.5,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -409,29 +435,37 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.75,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
         // ── 发明类型判断 ──
         Rule {
             name: "IR-05: 组合发明判断",
-            evaluate: |ctx| {
-                match ctx.is_combination {
-                    Some(CombinationType::Synergistic) => RuleOutput {
-                        applies: true,
-                        conclusion: "组合发明各要素功能上彼此支持产生协同效果，具备创造性".into(),
-                        score: 0.8,
-                        confidence: 0.75,
-                    },
-                    Some(CombinationType::SimpleStack) => RuleOutput {
-                        applies: true,
-                        conclusion: "组合发明为简单叠加，各要素各自发挥常规功能".into(),
-                        score: 0.25,
-                        confidence: 0.7,
-                    },
-                    None => RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 },
-                }
+            evaluate: |ctx| match ctx.is_combination {
+                Some(CombinationType::Synergistic) => RuleOutput {
+                    applies: true,
+                    conclusion: "组合发明各要素功能上彼此支持产生协同效果，具备创造性".into(),
+                    score: 0.8,
+                    confidence: 0.75,
+                },
+                Some(CombinationType::SimpleStack) => RuleOutput {
+                    applies: true,
+                    conclusion: "组合发明为简单叠加，各要素各自发挥常规功能".into(),
+                    score: 0.25,
+                    confidence: 0.7,
+                },
+                None => RuleOutput {
+                    applies: false,
+                    conclusion: String::new(),
+                    score: 0.0,
+                    confidence: 0.0,
+                },
             },
         },
         Rule {
@@ -450,7 +484,12 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.7,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -466,7 +505,12 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.75,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -481,7 +525,12 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.7,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -496,7 +545,93 @@ fn build_inventiveness_rules() -> Vec<Rule> {
                         confidence: 0.7,
                     }
                 } else {
-                    RuleOutput { applies: false, conclusion: String::new(), score: 0.0, confidence: 0.0 }
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
+                }
+            },
+        },
+        // ── 旧字段兼容规则 ──
+        Rule {
+            name: "IR-10: 技术效果评估",
+            evaluate: |ctx| {
+                if let Some(ref effect) = ctx.technical_effect {
+                    if !effect.is_empty() {
+                        RuleOutput {
+                            applies: true,
+                            conclusion: "发明具有明确的技术效果".into(),
+                            score: 0.65,
+                            confidence: 0.6,
+                        }
+                    } else {
+                        RuleOutput {
+                            applies: false,
+                            conclusion: String::new(),
+                            score: 0.0,
+                            confidence: 0.0,
+                        }
+                    }
+                } else {
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
+                }
+            },
+        },
+        Rule {
+            name: "IR-11: 性能提升幅度",
+            evaluate: |ctx| {
+                if let Some(improvement) = ctx.performance_improvement {
+                    let score = if improvement > 0.5 {
+                        0.85
+                    } else if improvement > 0.1 {
+                        0.6
+                    } else {
+                        0.3
+                    };
+                    RuleOutput {
+                        applies: true,
+                        conclusion: format!("性能提升{:.0}%", improvement * 100.0),
+                        score,
+                        confidence: 0.7,
+                    }
+                } else {
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
+                }
+            },
+        },
+        Rule {
+            name: "IR-12: 非显而易见性",
+            evaluate: |ctx| {
+                if let Some(obvious) = ctx.obviousness {
+                    RuleOutput {
+                        applies: true,
+                        conclusion: if obvious {
+                            "对本领域技术人员而言显而易见".into()
+                        } else {
+                            "对本领域技术人员而言非显而易见".into()
+                        },
+                        score: if obvious { 0.15 } else { 0.75 },
+                        confidence: 0.65,
+                    }
+                } else {
+                    RuleOutput {
+                        applies: false,
+                        conclusion: String::new(),
+                        score: 0.0,
+                        confidence: 0.0,
+                    }
                 }
             },
         },
@@ -643,20 +778,39 @@ mod tests {
     #[test]
     fn test_ir01_distinguishing_features() {
         let mut engine = QualitativeRuleEngine::new();
-        use codex_patent_core::ParsedFeature;
         use codex_patent_core::FeatureType;
+        use codex_patent_core::ParsedFeature;
         let ctx = CaseContext {
             claim_features: Some(vec![
-                ParsedFeature { id: "C1".into(), description: "温度传感器".into(), feature_type: FeatureType::Element, component: None, parameters: vec![] },
-                ParsedFeature { id: "C2".into(), description: "AI自适应控制模块".into(), feature_type: FeatureType::Element, component: None, parameters: vec![] },
+                ParsedFeature {
+                    id: "C1".into(),
+                    description: "温度传感器".into(),
+                    feature_type: FeatureType::Element,
+                    component: None,
+                    parameters: vec![],
+                },
+                ParsedFeature {
+                    id: "C2".into(),
+                    description: "AI自适应控制模块".into(),
+                    feature_type: FeatureType::Element,
+                    component: None,
+                    parameters: vec![],
+                },
             ]),
-            prior_art_features: Some(vec![
-                ParsedFeature { id: "P1".into(), description: "温度传感器".into(), feature_type: FeatureType::Element, component: None, parameters: vec![] },
-            ]),
+            prior_art_features: Some(vec![ParsedFeature {
+                id: "P1".into(),
+                description: "温度传感器".into(),
+                feature_type: FeatureType::Element,
+                component: None,
+                parameters: vec![],
+            }]),
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir01 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-01"));
+        let ir01 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-01"));
         assert!(ir01.is_some(), "IR-01 应该触发");
         assert!(ir01.unwrap().score > 0.3);
     }
@@ -670,7 +824,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir02 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-02"));
+        let ir02 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-02"));
         assert!(ir02.is_some());
         assert!(ir02.unwrap().score > 0.5);
     }
@@ -683,7 +840,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir04 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-04"));
+        let ir04 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-04"));
         assert!(ir04.is_some());
         assert!(ir04.unwrap().score > 0.7);
     }
@@ -696,7 +856,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir05 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-05"));
+        let ir05 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-05"));
         assert!(ir05.is_some());
         assert!(ir05.unwrap().score > 0.7);
     }
@@ -710,7 +873,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir06 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-06"));
+        let ir06 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-06"));
         assert!(ir06.is_some());
         assert!(ir06.unwrap().score > 0.7);
     }

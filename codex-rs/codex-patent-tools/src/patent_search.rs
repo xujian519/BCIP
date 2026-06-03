@@ -69,9 +69,20 @@ pub async fn search_query_builder(
             variants.push(term.to_string());
         }
     }
+    let dict = shared_synonym_dict();
+    let expanded = dict.expand(&input.concept);
+    let stage2 = if expanded.len() > 1 {
+        expanded.join(" OR ")
+    } else {
+        format!(
+            "{} OR 相关 OR 近似 OR 类似 OR similar OR related",
+            input.concept
+        )
+    };
+
     Ok(serde_json::json!({
         "stage1_exact": exact_terms,
-        "stage2_semantic": format!("{} 相关 OR 近似 OR 类似", input.concept),
+        "stage2_semantic": stage2,
         "stage3_variants": variants,
     }))
 }
@@ -115,5 +126,7 @@ pub async fn iterative_search(input: IterativeSearchInput) -> Result<serde_json:
             Err(err) => return Err(err),
         }
     }
+    let mut seen = std::collections::HashSet::new();
+    all_results.retain(|r| seen.insert(r.patent_number.clone()));
     serde_json::to_value(all_results).map_err(|e| format!("{e}"))
 }

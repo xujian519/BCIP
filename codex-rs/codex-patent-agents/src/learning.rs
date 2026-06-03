@@ -122,10 +122,10 @@ impl LearningStore {
                 entry.avg_quality_score =
                     entry.avg_quality_score * (n - 1) as f64 / n as f64 + qs / n as f64;
             }
-            if !rec.success {
-                if let Some(ref err) = rec.error_category {
-                    entry.last_error = Some(err.clone());
-                }
+            if !rec.success
+                && let Some(ref err) = rec.error_category
+            {
+                entry.last_error = Some(err.clone());
             }
         }
 

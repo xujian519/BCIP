@@ -1,0 +1,143 @@
+# 批评门控配置
+# 定义哪些工具需要经过 AI 后执行审查（批评），以及审查轮次
+# 版本: 2.0.0
+
+critique_config:
+  # ── 全局设置 ──
+  global:
+    max_rounds: 2                    # 最大批评轮次（防止无限循环）
+    min_confidence_for_pass: 0.8     # 批评通过的最低置信度
+    require_human_after_timeout: true # 超时后要求人工介入
+
+  # ── 按工具配置 ──
+  per_tool:
+
+    # --- 第1层：关键领域 — 需要全面批评 ---
+    - tool: claim_generator
+      critique_type: full
+      max_rounds: 3
+      checks:
+        - patent_law_compliance        # CON-203~206 法律合规
+        - scope_consistency            # 范围一致性
+        - clarity_review               # 清楚性审查
+        - support_review               # 支持性审查
+      human_required_after: 3
+      priority: critical
+
+    - tool: specification_drafter
+      critique_type: full
+      max_rounds: 3
+      checks:
+        - disclosure_completeness      # CON-201 公开完整性
+        - section_structure            # CON-202 章节结构
+        - forbidden_content            # CON-1302 禁用内容
+      human_required_after: 3
+      priority: critical
+
+    - tool: patent_responder
+      critique_type: full
+      max_rounds: 3
+      checks:
+        - legal_basis_verification     # 法律依据验证
+        - reference_verification       # 引用文献验证
+        - strategy_appropriateness     # 策略适当性
+        - scope_compliance             # CON-701 范围限制
+      human_required_after: 3
+      priority: critical
+
+    # --- 第2层：分析领域 — 需要质量审查 ---
+    - tool: comparison_report
+      critique_type: quality
+      max_rounds: 2
+      checks:
+        - evidence_traceability        # CON-COMP-0103 可追溯性
+        - conclusion_soundness         # 结论合理性
+        - coverage_completeness        # 覆盖完整性
+
+    - tool: novelty_analysis
+      critique_type: quality
+      max_rounds: 2
+      checks:
+        - comparison_correctness       # 对比正确性
+        - conclusion_support           # 结论支持
+        - prior_art_handling           # 现有技术处理
+
+    - tool: inventiveness_analysis
+      critique_type: quality
+      max_rounds: 2
+      checks:
+        - three_step_accuracy          # 三步法准确性
+        - secondary_indicator_usage    # 辅助因素使用
+        - logic_chain_integrity        # 逻辑链完整性
+
+    - tool: infringement_analysis
+      critique_type: quality
+      max_rounds: 2
+      checks:
+        - all_elements_rule            # 全面覆盖原则
+        - equivalents_analysis         # 等同分析
+        - defense_consideration        # 抗辩考虑
+
+    # --- 第3层: 监测领域 — 错误检查 ---
+    - tool: patent_search
+      critique_type: error_check
+      max_rounds: 1
+      checks:
+        - query_relevance              # 检索式相关性
+        - result_deduplication         # 结果去重
+      skip_on_success: true            # 无错误则跳过批评
+
+    - tool: quality_checker
+      critique_type: error_check
+      max_rounds: 1
+      checks:
+        - false_positive_audit         # 误报审查
+      skip_on_success: true
+
+    - tool: claim_output_processor
+      critique_type: format_check
+      max_rounds: 1
+      checks:
+        - format_consistency           # 格式一致性
+        - numbering_correctness        # 编号正确性
+      skip_on_success: true
+
+  # ── 裁决与动作 ──
+  verdicts:
+    pass:
+      description: "通过审查，直接返回"
+      next_action: return
+    revise:
+      description: "需要修改后重新审查"
+      next_action: revise_and_recritique
+      max_retry: 2
+    block:
+      description: "阻止输出，需要人工介入"
+      next_action: flag_for_human
+      notify_user: true
+    require_human:
+      description: "需要人工审查和确认"
+      next_action: pause_and_wait
+
+  # ── 审查结果格式 ──
+  report_format:
+    title: "宪法合规审查报告"
+    sections:
+      - tool_name: "工具名称"
+      - verdict: "裁决结论"
+      - checks: "逐项检查结果"
+      - violations: "违规详情"
+      - revision_suggestions: "修改建议"
+      - confidence: "总体置信度"
+
+  # ── 例外处理 ──
+  overrides:
+    - condition: user_role == "senior_patent_attorney"
+      override: relax_rounds_1
+      description: "资深代理人可减少审查轮次"
+    - condition: mode == "draft"
+      override: skip_non_critical
+      description: "草稿模式跳过非关键审查"
+    - condition: mode == "final"
+      override: enforce_full
+      description: "终稿模式强制执行全部审查"

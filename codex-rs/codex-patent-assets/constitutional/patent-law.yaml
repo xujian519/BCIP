@@ -1,0 +1,987 @@
+# 专利法宪法规则 — 全生命周期法律约束
+# 定义 AI 在生成/审查/分析专利文件时必须遵守的专利法规则
+# 版本: 2.0.0
+# 法律依据: 中国专利法及其实施细则（2023修订）、专利审查指南（2023）
+#
+# 规则格式:
+#   id: CON-XXX    - 唯一规则编号
+#   phase: [申请前|撰写|审查|答复|无效|维权] - 生命周期阶段
+#   severity: critical/major/minor
+#   action: block/warn/review/enforce
+#   legal_basis: 法律条款原文
+
+rules:
+  # ===========================================================================
+  # 第1章: 保护客体 — 专利法第2条、第5条、第25条
+  # ===========================================================================
+
+  subject_matter_invention:
+    id: CON-101
+    name: 发明定义-技术方案三要素
+    description: 授权客体必须构成技术方案，包含技术手段、技术问题、技术效果三要素
+    phase: 申请前
+    severity: critical
+    action: block
+    legal_basis: 专利法第二条第二款：发明是指对产品、方法或者其改进所提出的新的技术方案
+    check:
+      type: structural_analysis
+      requires_all:
+        - element: technical_means
+          description: 技术手段 — 采用自然规律的技术性手段（装置/方法/步骤/算法）
+          patterns:
+            - "装置|设备|机构|系统|单元|模块|组件|电路|网络"
+            - "采用|利用|使用|设置|配置|安装|连接|通过|经由|基于"
+        - element: technical_problem
+          description: 技术问题 — 利用自然规律解决的问题
+          patterns:
+            - "问题|不足|缺点|缺陷|困难|需要|缺乏|缺少"
+            - "效率|精度|性能|质量|稳定性|可靠性|安全性"
+        - element: technical_effect
+          description: 技术效果 — 符合自然规律的积极效果
+          patterns:
+            - "提高|改善|增强|优化|减少|降低|节省"
+            - "效率|精度|性能|质量|稳定性|可靠性"
+      min_confidence: 0.6
+
+  subject_matter_excluded_art5:
+    id: CON-102
+    name: 违法/违反公序良俗排除
+    description: 违反法律、社会公德或妨害公共利益的发明创造不授予专利权
+    phase: 申请前
+    severity: critical
+    action: block
+    legal_basis: 专利法第五条：对违反法律、社会公德或妨害公共利益的发明创造，不授予专利权
+    check:
+      type: keyword_blocklist
+      keywords:
+        - "赌博|博彩|赌场|老虎机"
+        - "毒品|违禁品|非法药物|制毒"
+        - "诈骗|欺诈|传销|非法集资"
+        - "窃听|偷拍|非法监控"
+        - "克隆人|人类胚胎|基因编辑生殖细胞"
+        - "武器|炸药|核武器|生化武器"
+      negation_context: true  # "用于检测赌博"（排除）vs "防止赌博"（不排除）
+      severity_if_found: critical
+
+  subject_matter_excluded_art25:
+    id: CON-103
+    name: 专利法第25条排除客体
+    description: 科学发现、智力活动规则、疾病诊断方法、动植物品种、原子核变换方法等不授予专利权
+    phase: 申请前
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十五条：对下列各项不授予专利权...
+    check:
+      type: category_detection
+      categories:
+        scientific_discovery:
+          description: 科学发现
+          patterns:
+            - "发现.*新(物质|元素|定理|规律)"
+            - "揭示.*(规律|原理|机制)"
+            - "自然界中(存在|发现)"
+          guidance: "科学发现本身不授权，但将其应用于特定技术问题可授权"
+        intellectual_activity:
+          description: 智力活动的规则和方法
+          patterns:
+            - "(仅|单纯|纯粹).*(计算|运算|统计|分析|推理|判断|决策)"
+            - "(规则|方法|模式|算法).*(管理|控制|优化|排序)"
+            - "游戏.*规则|竞赛.*方法|商业.*模式"
+            - "教学.*方法|信息.*呈现"
+          guidance: "涉及技术手段的算法/商业方法可能授权，需分析三要素"
+        medical_diagnosis:
+          description: 疾病诊断和治疗方法
+          patterns:
+            - "(疾病|病症|病情).*(诊断|检查|筛查|检测|评估)"
+            - "(手术|治疗|疗法|医治).*(方法|方案|步骤)"
+            - "(药物|药品|药剂).*(配方|组合物)"
+          guidance: "诊断设备/试剂盒/药物本身可授权，方法不可授权"
+        animal_plant:
+          description: 动物和植物品种
+          patterns:
+            - "(动物|植物).*(品种|变种|新品系)"
+            - "(育种|培育|转基因).*(方法|技术)"
+          guidance: "微生物/基因/育种方法本身可授权"
+        nuclear:
+          description: 原子核变换方法
+          patterns:
+            - "(原子核|核能|核反应).*(变换|裂变|聚变)"
+          guidance: "核技术设备/仪器可授权"
+      assessment: |
+        match_level_1: block + "排除客体"
+        match_level_2: warn + "需分析技术手段是否存在"
+        no_match: pass
+
+  subject_matter_computer_program:
+    id: CON-104
+    name: 计算机程序相关发明的客体判断
+    description: 单纯计算机程序不授权，与硬件结合的技术方案可能授权
+    phase: 申请前
+    severity: major
+    action: review
+    legal_basis: 审查指南第二部分第九章：涉及计算机程序的发明专利申请审查
+    check:
+      type: pattern_analysis
+      hardware_integration_markers:
+        - "存储介质|处理器|控制器|芯片|传感器|执行器"
+        - "硬件.*协同|软硬件.*结合|嵌入式"
+        - "信号.*处理|数据.*采集|控制.*指令"
+      pure_software_markers:
+        - "仅.*(软件|程序|代码|算法)"
+        - "单纯.*计算机"
+        - "存储介质.*计算机程序"
+      guidance: |
+        纯软件：block → "不属于授权客体"
+        软硬结合：pass → 需进一步分析三要素
+        难以判断：warn → "建议分析技术贡献的物理属性"
+
+  # ===========================================================================
+  # 第2章: 申请文件基本要求 — 专利法第26条、实施细则第17-24条
+  # ===========================================================================
+
+  specification_sufficient_disclosure:
+    id: CON-201
+    name: 说明书充分公开
+    description: 说明书应当对发明作出清楚、完整的说明，以所属领域技术人员能够实现为准
+    phase: 撰写
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十六条第三款：说明书应当对发明作出清楚、完整的说明，以所属技术领域的技术人员能够实现为准
+    check:
+      type: specification_analysis
+      dimensions:
+        - dimension: clarity
+          description: 清楚
+          checks:
+            - "技术问题明确"
+            - "技术方案与问题对应"
+            - "技术效果与方案因果关系清晰"
+        - dimension: completeness
+          description: 完整
+          checks:
+            - "技术领域栏存在"
+            - "背景技术栏存在且记载了现有技术"
+            - "发明内容栏存在且公开了技术方案"
+            - "有益效果栏存在且与技术方案对应"
+            - "至少一个具体实施方式（实施例）"
+            - "有附图的必须有附图说明"
+            - "涉及生物材料的需保藏"
+        - dimension: enablement
+          description: 能够实现
+          checks:
+            - "实施例数量与范围匹配（宽范围需多实施例）"
+            - "化学领域需要具体实施例（化合物制备/参数）"
+            - "计算机领域需要有流程图或数据结构"
+            - "参数/方法/步骤具体可操作"
+      assessment: |
+        all_dimensions_pass: pass
+        one_dimension_fail: warn + "指出缺失部分"
+        two_or_more_fail: block + "公开不充分"
+
+  specification_sections:
+    id: CON-202
+    name: 说明书撰写格式要求
+    description: 说明书应当按照规定顺序和格式撰写
+    phase: 撰写
+    severity: major
+    action: review
+    legal_basis: 专利法实施细则第十七条：说明书应当按以下顺序撰写...
+    check:
+      type: section_structure
+      required_sections:
+        - name: 发明名称
+          patterns: ["^发明名称"]
+          max_length: 25_chars
+          constraints: "一般不超过25个字，不包含非技术词语"
+        - name: 技术领域
+          patterns: ["技术领域"]
+          description: "本发明涉及..."
+        - name: 背景技术
+          patterns: ["背景技术"]
+          description: "记载现有技术及其缺点"
+        - name: 发明内容
+          patterns: ["发明内容"]
+          subsections:
+            - "要解决的技术问题"
+            - "技术方案"
+            - "有益效果"
+        - name: 附图说明
+          patterns: ["附图说明"]
+          condition: "有附图时必需"
+        - name: 具体实施方式
+          patterns: ["具体实施方式"]
+          description: "至少一个实施例"
+      forbidden_content:
+        - "商业性宣传用语（最好/最佳/世界领先）"
+        - "贬低他人产品的表述"
+        - "违反公序良俗的内容"
+
+  claim_clarity:
+    id: CON-203
+    name: 权利要求清楚简要
+    description: 权利要求应当清楚、简要地限定要求保护的范围
+    phase: 撰写
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十六条第四款：权利要求应当以说明书为依据，清楚、简要地限定要求专利保护的范围
+    check:
+      type: claim_clarity_analysis
+      unclear_terms:
+        - "大约|左右|上下|等等|可能|大概|约|大致"
+        - "或者其组合|例如|特别是|优选地"
+        - "必要时|适当情况下|根据需要"
+      over_broad:
+        - "任何|全部|所有|一切"
+        - "任意种类|各种类型的"
+      mixed_categories:
+        description: "产品权利要求不得混入方法特征"
+        patterns:
+          - "产品权利要求中包含方法/步骤特征"
+      chained_references:
+        description: "多项引用多项时需注意清楚的限制"
+        rule: "多项引用多项的从属权利要求总数不宜过多"
+      assessment: |
+        no_issues: pass
+        unclear_terms_found: warn + "建议替换为确定性表述"
+        over_broad_found: warn + "建议限定范围"
+        mixed_categories: block + "产品与方法特征分离"
+
+  claim_support_by_spec:
+    id: CON-204
+    name: 权利要求以说明书为依据
+    description: 权利要求的范围不得超出说明书公开的范围
+    phase: 撰写
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十六条第四款：权利要求应当以说明书为依据
+    check:
+      type: support_analysis
+      methods:
+        - method: embodiment_coverage
+          description: "权利要求概括的范围是否得到实施例支持"
+          rules:
+            - "上位概念需要下位实施例支持"
+            - "功能限定需要多种实现方式"
+            - "数值范围需要端点附近实施例"
+            - "马库什要素需要共同性能/结构"
+        - method: functional_limitation
+          description: "功能性特征是否得到充分支持"
+          rules:
+            - "装置权利要求中的功能特征需有结构支持"
+            - "方法权利要求中的功能特征需有步骤支持"
+      severity_if_unsupported: critical
+
+  claim_independent_essential:
+    id: CON-205
+    name: 独立权利要求必要技术特征
+    description: 独立权利要求应当记载解决技术问题的必要技术特征
+    phase: 撰写
+    severity: major
+    action: review
+    legal_basis: 专利法实施细则第十九条第一款：独立权利要求应当从整体上反映发明的技术方案，记载解决技术问题的必要技术特征
+    check:
+      type: essential_feature_analysis
+      principles:
+        - "必要技术特征=解决技术问题所必不可少的技术特征"
+        - "非必要特征不应写入独立权利要求"
+        - "写入过多必要特征会不当缩小保护范围"
+        - "写入过少必要特征可能导致不清楚"
+      indicators:
+        too_many:
+          description: "独立权利要求中疑似非必要技术特征"
+          patterns:
+            - "优选地|具体地|特别地|示例性地"
+            - "具体数值/材料/尺寸等可替换参数"
+        too_few:
+          description: "独立权利要求可能缺少必要特征"
+          patterns:
+            - "仅有功能效果描述，缺少实现结构/步骤"
+            - "缺少与背景技术区别的根本性特征"
+
+  claim_dependency_rules:
+    id: CON-206
+    name: 从属权利要求引用规则
+    description: 从属权利要求必须引用在前的权利要求，引用号和关系正确
+    phase: 撰写
+    severity: major
+    action: warn
+    legal_basis: 专利法实施细则第二十二条：发明或实用新型的从属权利要求应当包括引用部分和限定部分
+    check:
+      type: dependency_validation
+      rules:
+        - rule: sequential_reference
+          description: "引用号应该是已出现的权利要求号"
+          error_pattern: "引用不存在的权利要求号"
+        - rule: chain_limit
+          description: "从属权利要求不能形成闭环引用"
+          error_pattern: "权利要求A引用B、B引用C、C引用A"
+        - rule: multiple_dependency
+          description: "多项引用多项时的格式规范"
+          format: "根据权利要求1至3中任一项所述的..."
+        - rule: category_correct
+          description: "引用类型与权利要求类型一致"
+          constraint: "产品权利要求不应引用方法权利要求中的步骤特征"
+
+  # ===========================================================================
+  # 第3章: 新颖性 — 专利法第22条第2款
+  # ===========================================================================
+
+  novelty_requirement:
+    id: CON-301
+    name: 新颖性基本要求
+    description: 发明或实用新型不属于现有技术，且无任何主体在申请日前提出过相同申请
+    phase: 审查
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十二条第二款：新颖性是指该发明或实用新型不属于现有技术，也没有任何单位或者个人就同样的发明或者实用新型在申请日以前向专利局提出过申请
+    check:
+      type: novelty_analysis
+      prior_art_scope:
+        - 申请日前的国内外出版物公开
+        - 申请日前的国内外使用公开
+        - 申请日前申请、申请日后公布的专利申请（抵触申请）
+      comparison_principles:
+        - principle: separate_comparison
+          description: "单独对比原则 — 每篇对比文件单独与申请比较"
+          detail: "不得将多篇对比文件组合起来评价新颖性"
+        - principle: identical_or_substantially
+          description: "相同或实质相同"
+          detail: "技术领域、技术问题、技术方案、技术效果全部相同"
+        - principle: specific_concept
+          description: "具体概念与上位概念"
+          detail: "申请的具体(下位)概念使对比文件的一般(上位)概念丧失新颖性"
+
+  novelty_grace_period:
+    id: CON-302
+    name: 不丧失新颖性的宽限期
+    description: 申请日前6个月内的特定公开不丧失新颖性
+    phase: 审查
+    severity: major
+    action: review
+    legal_basis: 专利法第二十四条：不丧失新颖性的情形——中国政府主办的国际展览会、学术会议、他人未经同意泄露
+    check:
+      type: grace_period_analysis
+      conditions:
+        - type: exhibition
+          description: "在中国政府主办或承认的国际展览会上首次展出"
+          requirements:
+            - "展览会开始日距申请日不超过6个月"
+            - "需在请求书中声明"
+            - "需在2个月内提交证明"
+        - type: conference
+          description: "在规定的学术会议或技术会议上首次发表"
+          requirements:
+            - "会议开始日距申请日不超过6个月"
+            - "需在请求书中声明"
+            - "需在2个月内提交证明"
+        - type: unauthorized
+          description: "他人未经申请人同意而泄露"
+          requirements:
+            - "泄露日距申请日不超过6个月"
+            - "需在请求书中声明"
+            - "需在2个月内提交证明"
+
+  # ===========================================================================
+  # 第4章: 创造性 — 专利法第22条第3款
+  # ===========================================================================
+
+  inventiveness_requirement:
+    id: CON-401
+    name: 创造性基本要求（非显而易见性）
+    description: 发明具有突出的实质性特点和显著的进步
+    phase: 审查
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十二条第三款：创造性是指与现有技术相比，该发明具有突出的实质性特点和显著的进步
+    check:
+      type: inventiveness_analysis
+      method: three_step_method
+      steps:
+        - step: 1
+          name: 确定最接近的现有技术
+          criteria:
+            - "技术领域相同或相近"
+            - "解决的技术问题最接近"
+            - "公开的技术特征最多"
+            - "通常选择公开发明技术特征最多的对比文件"
+        - step: 2
+          name: 确定区别特征和实际解决的技术问题
+          criteria:
+            - "逐特征对比，找出区别技术特征"
+            - "根据区别特征在申请中产生的技术效果确定技术问题"
+            - "避免事后诸葛亮（hindsight bias）"
+        - step: 3
+          name: 判断是否显而易见
+          criteria:
+            - "现有技术整体上是否存在技术启示"
+            - "是否存在结合动机"
+            - "辅助判断因素：商业成功、技术偏见、预料不到的效果"
+      secondary_indicators:
+        positive:
+          - "解决了长期存在的技术难题"
+          - "克服了技术偏见"
+          - "取得了预料不到的技术效果"
+          - "商业成功（与技术特征有因果关系）"
+        negative:
+          - "简单组合现有技术"
+          - "普通设计选择"
+          - "现有技术的等同替换"
+
+  inventiveness_utility_model:
+    id: CON-402
+    name: 实用新型创造性标准
+    description: 实用新型的创造性标准低于发明，要求实质性特点和进步
+    phase: 审查
+    severity: major
+    action: review
+    legal_basis: 专利法第二十二条第三款—实用新型创造性
+    check:
+      type: inventiveness_analysis
+      standard_lower: true
+      special_notes:
+        - "实用新型通常不评价方法特征"
+        - "材料特征在特定条件下可考虑"
+        - "形状/结构特征为主要评价对象"
+      comparison: "与发明相比，实用新型在组合对比文件的数量和范围上更宽松"
+
+  # ===========================================================================
+  # 第5章: 实用性 — 专利法第22条第4款
+  # ===========================================================================
+
+  utility_requirement:
+    id: CON-501
+    name: 实用性要求
+    description: 发明或实用新型能够制造或者使用，并能够产生积极效果
+    phase: 审查
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十二条第四款：实用性是指该发明能够制造或者使用，并能够产生积极效果
+    check:
+      type: utility_analysis
+      grounds_for_rejection:
+        - ground: no_industrial_applicability
+          description: "缺乏工业实用性"
+          examples:
+            - "利用独一无二的自然条件（如特定地形的方案）"
+            - "违背自然规律（永动机）"
+            - "仅利用特定自然资源（如某地特有的矿产）"
+        - ground: no_reproducibility
+          description: "无法再现"
+          examples:
+            - "依赖随机因素（如完全随机的配方）"
+            - "依赖个人技艺（如厨师的「适量」）"
+            - "条件不明确导致无法重复实现"
+        - ground: negative_effect
+          description: "产生消极效果"
+          examples:
+            - "严重污染环境"
+            - "明显降低效率"
+            - "无法接受的副作用"
+
+  # ===========================================================================
+  # 第6章: 单一性 — 专利法第31条
+  # ===========================================================================
+
+  unity_of_invention:
+    id: CON-601
+    name: 单一性原则
+    description: 一件专利申请应当限于一项发明，属于一个总的发明构思的两项以上发明可以作为一件申请提出
+    phase: 审查
+    severity: major
+    action: review
+    legal_basis: 专利法第三十一条：一件发明或者实用新型专利申请应当限于一项发明，属于一个总的发明构思的两项以上发明可以作为一件申请提出
+    check:
+      type: unity_analysis
+      same_inventive_concept:
+        criteria:
+          - "存在相同或相应的特定技术特征"
+          - "特定技术特征是体现发明对现有技术贡献的技术特征"
+          - "各发明之间在技术上相互关联"
+      allowed_combinations:
+        - "产品+专门制造该产品的方法"
+        - "产品+专门使用该产品的设备"
+        - "方法+专门实施该方法的设备"
+        - "产品+方法+专门设备（三项）"
+      guidance: |
+        无相同/相应特定技术特征 → 要求分案
+        有相同/相应特定技术特征 → 可保留在一件申请中
+        不确定 → warn + "建议分析是否存在特定技术特征"
+
+  divisional_application:
+    id: CON-602
+    name: 分案申请规则
+    description: 分案申请不得超出原申请记载的范围
+    phase: 审查
+    severity: critical
+    action: block
+    legal_basis: 专利法实施细则第四十二条：分案申请不得超出原申请记载的范围
+    check:
+      type: divisional_rules
+      timing:
+        - "收到授权通知前"
+        - "驳回决定尚未生效前"
+        - "复审期间"
+        - "无效宣告期间"
+      constraints:
+        - "分案申请的内容不得超出原申请公开的范围"
+        - "分案申请的申请人应与原申请一致"
+        - "分案申请的类型（发明/实用新型）应与原申请一致"
+        - "已经分出的申请不得再次分案"
+
+  # ===========================================================================
+  # 第7章: 修改限制 — 专利法第33条
+  # ===========================================================================
+
+  amendment_not_beyond_scope:
+    id: CON-701
+    name: 修改不超范围（禁止引入新事项）
+    description: 对专利申请文件的修改不得超出原说明书和权利要求书记载的范围
+    phase: 答复
+    severity: critical
+    action: block
+    legal_basis: 专利法第三十三条：申请人可以对其专利申请文件进行修改，但不得超出原说明书和权利要求书记载的范围
+    check:
+      type: amendment_analysis
+      principles:
+        - principle: direct_and_unambiguous
+          description: "修改内容必须能够从原申请文件中直接地、毫无疑义地确定"
+          detail: "申请人不能通过修改引入原申请未记载的技术内容"
+        - principle: no_new_matter
+          description: "禁止引入新事项"
+          forbidden:
+            - "新增加原申请未记载的技术特征"
+            - "从实施例中概括出原申请未支持的上位概念"
+            - "补入原申请未记载的实验数据来证明技术效果"
+            - "修改后的数值范围原申请未提及且不能直接推导"
+        - principle: claim_narrowing
+          description: "修改只能缩小保护范围"
+          detail: "引入原申请中记载的但原权利要求未包含的技术特征以进一步限定"
+      permissible:
+        - "删除权利要求或技术方案"
+        - "进一步限定（引入原申请已记载的特征）"
+        - "修正明显错误（文字错误、符号错误）"
+        - "澄清不明确的表述（不引入新内容的前提下）"
+
+  amendment_claim_narrowing:
+    id: CON-702
+    name: 修改权利要求范围只能缩小
+    description: 主动修改或答复审查意见时，权利要求的保护范围只能缩小或保持不变
+    phase: 答复
+    severity: critical
+    action: block
+    legal_basis: 专利法第三十三条—修改不超范围（范围不得扩大原则）
+    check:
+      type: scope_comparison
+      direction: narrow_only
+      assessment: |
+        范围不变或缩小 → pass
+        范围扩大 → block + "修改扩大了保护范围，违反专利法第33条"
+        不确定 → warn + "需要人工审查"
+
+  amendment_voluntary_opportunities:
+    id: CON-703
+    name: 主动修改时机
+    description: 主动修改必须在规定时间内进行
+    phase: 答复
+    severity: major
+    action: warn
+    legal_basis: 专利法实施细则第四十七条：主动修改的时机
+    check:
+      type: timing_analysis
+      invention:
+        - "收到进入实质审查通知书之日起3个月内"
+        - "提出实质审查请求时"
+      utility:
+        - "申请日起2个月内"
+      design:
+        - "申请日起2个月内"
+
+  # ===========================================================================
+  # 第8章: 优先权 — 专利法第29条、第30条
+  # ===========================================================================
+
+  priority_foreign:
+    id: CON-801
+    name: 外国优先权要求
+    description: 申请人自首次申请日起12个月内可要求外国优先权
+    phase: 申请前
+    severity: major
+    action: review
+    legal_basis: 专利法第二十九条第一款：申请人自发明或实用新型在外国第一次提出专利申请之日起十二个月内，又在中国就相同主题提出专利申请的，依照该外国同中国签订的协议或者共同参加的国际条约可以享有优先权
+    check:
+      type: priority_analysis
+      priority_type: foreign
+      time_limit:
+        invention_utility: 12_months
+        design: 6_months
+      requirements:
+        - "首次申请在国家必须与中国有协议或共同参加国际条约（巴黎公约/PCT）"
+        - "中国申请与首次申请的主题必须相同"
+        - "首次申请必须是正规国家申请"
+        - "优先权请求必须在申请时同时提出"
+        - "优先权证明文件需在3个月内提交"
+
+  priority_domestic:
+    id: CON-802
+    name: 本国优先权要求
+    description: 申请人自首次申请日起12个月内可要求本国优先权
+    phase: 申请前
+    severity: major
+    action: review
+    legal_basis: 专利法第二十九条第二款：申请人自发明或实用新型在中国第一次提出专利申请之日起十二个月内，又就相同主题提出专利申请的，可以享有优先权
+    check:
+      type: priority_analysis
+      priority_type: domestic
+      constraints:
+        - "在先申请必须是首次申请"
+        - "要求优先权的在后申请的申请日距在先申请日不超过12个月"
+        - "已经被授予专利权的在先申请不能作为优先权基础"
+        - "分案申请不能作为优先权基础"
+        - "要求优先权的在后申请的类型应与在先申请相同"
+      special_notes:
+        - "要求本国优先权后，在先申请视为撤回"
+        - "实用新型和发明之间可以相互要求优先权"
+
+  priority_same_subject:
+    id: CON-803
+    name: 相同主题的判断标准
+    description: 优先权要求的在后申请与在先申请主题必须相同
+    phase: 审查
+    severity: critical
+    action: block
+    legal_basis: 专利法第二十九条—相同主题
+    check:
+      type: same_subject_analysis
+      criteria:
+        - "技术领域、技术问题、技术方案、技术效果实质上相同"
+        - "在后申请的权利要求限定的技术方案已记载在在先申请中"
+        - "补充的新内容不能享有优先权"
+      assessment: |
+        全部权利要求均记载在在先申请 → 完全优先权
+        部分权利要求记载在在先申请 → 部分优先权
+        均未记载 → 不享有优先权
+
+  # ===========================================================================
+  # 第9章: 审查意见答复 — 审查指南第二部分第八章
+  # ===========================================================================
+
+  oa_response_deadline:
+    id: CON-901
+    name: 审查意见答复期限
+    description: 应当在规定的答复期限内提交意见陈述书
+    phase: 答复
+    severity: critical
+    action: block
+    legal_basis: 专利法实施细则第五条：专利局送达的文件，指定期限一般为4个月（发明首次审查意见）或2个月（后续审查意见/实用新型/外观设计）
+    check:
+      type: deadline_analysis
+      deadlines:
+        - scenario: first_oa_invention
+          description: "发明首次审查意见"
+          period: 4_months
+          extension: 可请求延长，每次不超过2个月
+        - scenario: subsequent_oa
+          description: "发明后续审查意见/实用新型/外观设计"
+          period: 2_months
+          extension: 可请求延长，每次不超过2个月
+      consequences:
+        - 逾期未答复 → 申请被视为撤回
+        - 收到驳回决定后3个月内可请求复审
+
+  oa_novelty_response:
+    id: CON-902
+    name: 新颖性驳回的答复策略
+    description: 针对新颖性驳回，应进行特征对比分析而非引入公知常识
+    phase: 答复
+    severity: major
+    action: review
+    legal_basis: 新颖性判断标准（专利法第22条第2款）
+    check:
+      type: oa_response_strategy
+      oa_type: novelty
+      valid_strategies:
+        - strategy: feature_comparison
+          description: "逐特征对比，指出至少一个区别技术特征"
+          efficacy: high
+        - strategy: different_field
+          description: "技术领域不同，解决的技术问题不同"
+          efficacy: medium
+        - strategy: different_effect
+          description: "技术效果完全不同"
+          efficacy: medium
+      invalid_strategies:
+        - "主张区别是公知常识（不能在新颖性评价中使用）"
+        - "主张区别是惯用手段的直接置换（只在特定条件下适用）"
+      assessment: |
+        存在至少一个区别特征 → 建议用区别特征争辩新颖性
+        全部特征相同 → 考虑修改权利要求加入区别特征
+        审查员引用多篇对比文件 → 指出新颖性是单独对比
+
+  oa_inventiveness_response:
+    id: CON-903
+    name: 创造性驳回的答复策略
+    description: 针对创造性驳回应用三步法进行分析和争辩
+    phase: 答复
+    severity: major
+    action: review
+    check:
+      type: oa_response_strategy
+      oa_type: inventiveness
+      valid_strategies:
+        - strategy: three_step_rebuttal
+          description: "逐步骤反驳审查员的重新确定的技术问题"
+          efficacy: high
+          details:
+            - "步骤1: 接受或重新确定最接近的现有技术"
+            - "步骤2: 重新确定区别特征和实际解决的技术问题"
+            - "步骤3: 争辩非显而易见性（无技术启示/无结合动机）"
+        - strategy: unexpected_effect
+          description: "主张预料不到的技术效果"
+          efficacy: medium
+          requirement: "需有实验数据或对比证据支持"
+        - strategy: secondary_indicators
+          description: "辅助判断因素"
+          efficacy: low_to_medium
+          factors:
+            - "商业成功（需与区别特征有因果关系）"
+            - "克服技术偏见（需有证据证明偏见存在）"
+            - "长期未能解决的技术难题"
+        - strategy: claim_amendment
+          description: "通过修改权利要求引入区别特征"
+          efficacy: medium
+          constraint: "修改不得超范围（第33条）"
+      invalid_strategies:
+        - "仅主张「审查员没有理解本发明」而无具体分析"
+        - "仅罗列技术效果而无因果关系论证"
+        - "引入说明书记载但原权利要求未包含的任意特征"
+
+  oa_clarity_response:
+    id: CON-904
+    name: 清楚/支持驳回的答复策略
+    description: 针对不清楚、不支持、缺少必要技术特征的驳回
+    phase: 答复
+    severity: major
+    action: review
+    check:
+      type: oa_response_strategy
+      oa_type: clarity_or_support
+      valid_strategies:
+        - strategy: clarify_language
+          description: "修改模糊表述为确定性表述"
+          efficacy: high
+        - strategy: add_limitation
+          description: "增加说明书记载的限定特征"
+          efficacy: medium
+          constraint: "不引入新事项"
+        - strategy: argument_only
+          description: "仅通过论据不修改权利要求"
+          efficacy: low
+          condition: "审查员的理解明显有误时"
+        - strategy: delete_claim
+          description: "删除被驳回的权利要求"
+          efficacy: high
+          condition: "有足够的其他权利要求覆盖保护范围"
+
+  # ===========================================================================
+  # 第10章: 复审 — 专利法第41条
+  # ===========================================================================
+
+  reexamination_request:
+    id: CON-1001
+    name: 复审请求条件
+    description: 对驳回决定不服的，可在收到通知后3个月内请求复审
+    phase: 无效
+    severity: critical
+    action: block
+    legal_basis: 专利法第四十一条：专利申请人对驳回决定不服的，可以自收到通知之日起三个月内向专利复审委员会请求复审
+    check:
+      type: reexamination_rules
+      requirements:
+        - "请求人必须是申请人本人"
+        - "必须在收到驳回决定之日起3个月内"
+        - "应提交复审请求书，说明理由"
+        - "可修改申请文件，但不得超范围"
+      scope:
+        - "仅针对驳回决定不服的部分"
+        - "复审委可撤销驳回、或维持驳回"
+        - "对复审决定不服可在3个月内向北京知识产权法院起诉"
+
+  # ===========================================================================
+  # 第11章: 无效宣告 — 专利法第45条、第46条
+  # ===========================================================================
+
+  invalidation_grounds:
+    id: CON-1101
+    name: 无效宣告理由
+    description: 自授权公告日起，任何主体可请求宣告专利权无效
+    phase: 无效
+    severity: critical
+    action: block
+    legal_basis: 专利法第四十五条：自国务院专利行政部门公告授予专利权之日起，任何单位或者个人认为该专利权的授予不符合本法有关规定的，可以请求宣告该专利权无效
+    check:
+      type: invalidation_analysis
+      grounds:
+        - ground: art5
+          description: "违反法律/公序良俗（第5条）"
+        - ground: art2_25
+          description: "不属于授权客体（第2条/第25条）"
+        - ground: art22_2
+          description: "缺乏新颖性（第22条第2款）"
+        - ground: art22_3
+          description: "缺乏创造性（第22条第3款）"
+        - ground: art22_4
+          description: "缺乏实用性（第22条第4款）"
+        - ground: art26_3
+          description: "公开不充分（第26条第3款）"
+        - ground: art26_4
+          description: "权利要求不清楚/不支持（第26条第4款）"
+        - ground: art33
+          description: "修改超范围（第33条）"
+        - ground: art9
+          description: "重复授权（第9条）"
+        - ground: art31
+          description: "缺乏单一性（第31条）"
+      restrictions:
+        - "无效宣告请求人需说明事实和理由"
+        - "专利权人可在无效程序中修改权利要求"
+        - "修改方式仅限于删除/合并/进一步限定"
+        - "无效决定具有溯及力（另有规定除外）"
+
+  invalidation_amendment:
+    id: CON-1102
+    name: 无效程序中的修改规则
+    description: 无效宣告程序中专利权人修改权利要求的方式受限
+    phase: 无效
+    severity: critical
+    action: block
+    legal_basis: 专利法实施细则第六十八条：在无效宣告程序中，专利权人修改权利要求的方式
+    check:
+      type: invalidation_amendment_rules
+      allowed:
+        - method: claim_deletion
+          description: "删除权利要求"
+        - method: claim_merging
+          description: "合并多项从属权利要求"
+          constraint: "仅限引用同一在先权利要求的从属权利要求"
+        - method: further_limitation
+          description: "进一步限定（引入未被引用的权利要求中的技术特征）"
+      forbidden:
+        - "改变权利要求类型（如产品改为方法）"
+        - "扩大保护范围"
+        - "引入说明书中的技术特征（非进一步限定方式）"
+
+  # ===========================================================================
+  # 第12章: 专利侵权 — 专利法第11条、第59条、第64条
+  # ===========================================================================
+
+  infringement_determination:
+    id: CON-1201
+    name: 侵权判定基本规则
+    description: 全面覆盖原则、等同原则、禁止反悔原则
+    phase: 维权
+    severity: major
+    action: review
+    legal_basis: 专利法第五十九条、第六十四条
+    check:
+      type: infringement_analysis
+      principles:
+        - principle: all_elements
+          name: 全面覆盖原则
+          description: 被控侵权技术方案包含与权利要求全部技术特征相同或等同的技术特征
+          rules:
+            - "被控方案缺少一个技术特征 → 不侵权"
+            - "被控方案有一个以上不同技术特征 → 需判断是否等同"
+            - "被控方案包含额外特征 → 仍然侵权"
+        - principle: equivalents
+          name: 等同原则
+          description: 以基本相同的手段、实现基本相同的功能、达到基本相同的效果
+          rules:
+            - "三基本+本领域技术人员无需创造性劳动即可联想到"
+            - "禁止扩大至专利申请日时尚未公开的技术"
+            - "化学领域的数值范围等同需谨慎适用"
+        - principle: estoppel
+          name: 禁止反悔原则
+          description: 申请人在审查过程中为获得授权而放弃的内容不得主张等同
+          rules:
+            - "修改导致的放弃 → 禁止反悔"
+            - "意见陈述导致的放弃 → 禁止反悔"
+            - "放弃的内容包括明示和暗示放弃"
+      defenses:
+        - defense: prior_art
+          name: 现有技术抗辩
+          description: "被控侵权人可主张使用现有技术"
+          condition: "被控侵权技术方案与一份现有技术文件中的技术方案相同或无实质性差异"
+        - defense: exhaustion
+          name: 权利用尽抗辩
+          description: "专利产品首次售出后，专利权人无权控制后续使用、销售"
+        - defense: experimental
+          name: 科研实验抗辩
+          description: "专为科学研究和实验而使用有关专利的，不视为侵权"
+
+  infringement_damages:
+    id: CON-1202
+    name: 侵权损害赔偿计算
+    description: 赔偿额计算方式及适用顺序
+    phase: 维权
+    severity: major
+    action: review
+    legal_basis: 专利法第六十五条、第七十一条
+    check:
+      type: damages_analysis
+      calculation_order:
+        - method: actual_loss
+          description: "权利人实际损失"
+          priority: 1
+        - method: infringer_gains
+          description: "侵权人侵权获利"
+          priority: 2
+        - method: license_fee
+          description: "专利许可使用费的倍数（1-5倍）"
+          priority: 3
+        - method: statutory
+          description: "法定赔偿（3万-500万）"
+          priority: 4
+          notes: "2020年修正后最高500万元"
+      punitive:
+        - condition: "故意侵权+情节严重"
+        - multiplier: "1-5倍"
+        - legal_basis: "专利法第七十一条第一款"
+
+  # ===========================================================================
+  # 第13章: 禁止性内容
+  # ===========================================================================
+
+  forbidden_claim_language:
+    id: CON-1301
+    name: 权利要求禁用表述
+    description: 权利要求中禁止使用商业性宣传用语和不确定表述
+    phase: 撰写
+    severity: critical
+    action: block
+    check:
+      type: keyword_blocklist
+      absolute_ban:
+        - "最好|最佳|最先进|世界领先|国际领先"
+        - "独一无二|不可替代|前所未有的"
+      context_ban:
+        - "大约|左右|上下|大概|约"          # 数值不清楚
+        - "等等|诸如此类|或其类似物"           # 范围不确定
+        - "优选地|更优选地|最优选地"           # 商业性描述
+      severity: critical
+
+  forbidden_specification_language:
+    id: CON-1302
+    name: 说明书禁用表述
+    description: 说明书中不得贬低他人或使用商业性宣传用语
+    phase: 撰写
+    severity: major
+    action: warn
+    legal_basis: 审查指南第二部分第二章：说明书不得使用贬低他人的表述
+    check:
+      type: keyword_blocklist
+      patterns:
+        - "现有技术.*(不足|缺陷|缺点|错误|失败)"
+        - "本发明的.*(首创|独创|突破性|革命性)"
+        - "他人.*(抄袭|模仿|盗用)"
+      exception: "客观评价现有技术的缺点不在此限"
+      severity: warn

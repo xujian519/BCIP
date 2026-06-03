@@ -6,6 +6,7 @@ use serde::Deserialize;
 pub struct FormalCheckInput {
     pub claims: Vec<String>,
     pub specification_sections: Option<Vec<String>>,
+    pub invention_title: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct QualityAssessInput {
@@ -59,11 +60,39 @@ impl ReviewTools {
                 }
             }
         }
-        // Section completeness
+        // Section completeness (5 mandatory sections per 实施细则第17条)
         if let Some(ref sections) = input.specification_sections {
-            for req in &["技术领域", "背景技术", "发明内容", "具体实施方式"] {
+            for req in &[
+                "技术领域",
+                "背景技术",
+                "发明内容",
+                "附图说明",
+                "具体实施方式",
+            ] {
                 if !sections.iter().any(|s| s.contains(req)) {
                     issues.push(format!("缺少必要章节: {}", req));
+                }
+            }
+        }
+        // Invention title length check (实施细则第18条: ≤25字)
+        if let Some(ref title) = input.invention_title {
+            let char_count = title.chars().count();
+            if char_count > 25 {
+                issues.push(format!("发明名称过长: {}字（不超过25字）", char_count));
+            }
+            let promo_words = ["最佳", "最优", "最好", "革命性", "最先进", "新型", "新"];
+            for word in &promo_words {
+                if title.contains(word) {
+                    issues.push(format!("发明名称含禁止用词: \"{}\"（细则第18条）", word));
+                }
+            }
+        }
+        // Commercial promotion words in claims
+        let promo_in_claims = ["最佳", "最优", "最好", "最先进", "革命性"];
+        for (i, claim) in input.claims.iter().enumerate() {
+            for word in &promo_in_claims {
+                if claim.contains(word) {
+                    issues.push(format!("权利要求{}含禁止用词: \"{}\"", i + 1, word));
                 }
             }
         }

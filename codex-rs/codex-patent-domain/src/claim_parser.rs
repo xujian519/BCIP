@@ -191,10 +191,8 @@ fn split_sub_clauses(text: &str) -> Vec<&str> {
             // 检查「，所述」模式
             let is_split_point = if text[i..].starts_with("，所述") {
                 true
-            } else if w == '：' || w == ':' {
-                true
             } else {
-                false
+                w == '：' || w == ':'
             };
 
             if is_split_point && i > last {
