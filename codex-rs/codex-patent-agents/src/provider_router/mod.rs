@@ -180,7 +180,12 @@ mod tests {
         assert_eq!(url, "https://api.anthropic.com");
     }
 
+    /// Serializes env mutation so tests don't race on concurrent set_var.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn with_env<F: FnOnce()>(name: &str, value: Option<&str>, f: F) {
+        // SAFETY: ENV_LOCK serializes all env mutations, so no data race.
+        let _guard = ENV_LOCK.lock().unwrap();
         let prev = std::env::var(name).ok();
         match value {
             Some(v) => unsafe { std::env::set_var(name, v) },
