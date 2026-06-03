@@ -1,13 +1,10 @@
 //! 评分与策略函数：答复质量评估、强弱项识别、结果预测
 
-use serde_json::Value;
-use serde_json::json;
-
 use super::types::*;
 
 impl ExaminerSimulator {
     /// 评估申请人最终答复质量(规则层,0–100)
-    pub fn evaluate_final_response(applicant_response: &str) -> Value {
+    pub fn evaluate_final_response(applicant_response: &str) -> serde_json::Value {
         let completeness = Self::score_completeness(applicant_response);
         let persuasiveness = Self::score_persuasiveness(applicant_response);
         let technical_depth = Self::score_technical_depth(applicant_response);
@@ -18,20 +15,21 @@ impl ExaminerSimulator {
             + technical_depth * 0.25
             + logic_consistency * 0.20;
 
-        json!({
-            "overallScore": overall,
-            "scores": {
-                "completeness": completeness,
-                "persuasiveness": persuasiveness,
-                "technicalDepth": technical_depth,
-                "logicConsistency": logic_consistency
+        let output = EvaluationOutput {
+            overall_score: overall,
+            scores: EvaluationScores {
+                completeness,
+                persuasiveness,
+                technical_depth,
+                logic_consistency,
             },
-            "strengths": Self::identify_strengths(applicant_response),
-            "weaknesses": Self::identify_weaknesses(applicant_response),
-            "recommendations": Self::recommendations(overall),
-            "predictedOutcome": Self::predict_outcome(overall),
-            "integrationMode": "rust_rule_layer"
-        })
+            strengths: Self::identify_strengths(applicant_response),
+            weaknesses: Self::identify_weaknesses(applicant_response),
+            recommendations: Self::recommendations(overall),
+            predicted_outcome: Self::predict_outcome(overall),
+            integration_mode: "rust_rule_layer",
+        };
+        serde_json::to_value(output).unwrap()
     }
 
     pub(crate) fn score_completeness(response: &str) -> f64 {
