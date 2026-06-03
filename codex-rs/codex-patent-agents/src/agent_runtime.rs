@@ -9,7 +9,15 @@ use crate::agent_manifest::list_agent_manifests;
 use crate::agent_manifest::load_manifest;
 use crate::agent_manifest::make_agent_id;
 use crate::agent_manifest::persist_manifest;
+use crate::knowledge_context::AutoKnowledgeConfig;
+use crate::knowledge_context::KnowledgeContext;
+use crate::learning;
+use crate::provider_router::AgentProvider;
 use crate::provider_router::detect_provider;
+use crate::provider_router::mask_api_key;
+use crate::provider_router::resolve_base_url;
+use crate::provider_router::resolve_provider_api_key;
+use crate::reflection;
 use crate::roles::PatentAgentRole;
 
 #[derive(Debug, Clone)]
@@ -199,11 +207,22 @@ fn spawn_agent_thread(
 
             match result {
                 Ok(Ok(())) => {}
-                Ok(Err(error)) => {
-                    let _ =
-                        persist_agent_terminal_state(&manifest_clone, "failed", None, Some(error));
+                Ok(Err(ref error)) => {
+                    learning::record_agent_feedback(&manifest_clone, 0, false, Some(error));
+                    let _ = persist_agent_terminal_state(
+                        &manifest_clone,
+                        "failed",
+                        None,
+                        Some(error.clone()),
+                    );
                 }
                 Err(_) => {
+                    learning::record_agent_feedback(
+                        &manifest_clone,
+                        0,
+                        false,
+                        Some("agent thread panicked"),
+                    );
                     let _ = persist_agent_terminal_state(
                         &manifest_clone,
                         "failed",
@@ -219,20 +238,54 @@ fn spawn_agent_thread(
 
 fn run_agent_job(
     manifest: &AgentManifest,
-    _prompt: String,
-    _provider: crate::provider_router::AgentProvider,
+    prompt: String,
+    provider: AgentProvider,
 ) -> Result<(), String> {
-    // TODO: 实现真正的 LLM streaming — 当前为 stub，仅模拟完成状态
-    let _client = reqwest::Client::new();
+    let knowledge = KnowledgeContext::new(
+        &default_kg_path(),
+        &default_law_db_path(),
+        &default_card_index_path(),
+        default_semantic_index_path().as_deref(),
+        AutoKnowledgeConfig::default(),
+    );
+    let knowledge_prefix = if knowledge.is_enabled() {
+        knowledge.resolve(&manifest.subagent_type, &prompt)
+    } else {
+        String::new()
+    };
 
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    let system_prompt =
+        build_system_prompt(&manifest.subagent_type, &manifest.model, &knowledge_prefix);
 
-    persist_agent_terminal_state(
-        manifest,
-        "completed",
-        Some("Agent stub completed — LLM streaming not yet implemented"),
-        None,
-    )
+    let api_key_env = match &provider {
+        AgentProvider::Anthropic { api_key_env } => api_key_env,
+        AgentProvider::OpenAiCompatible { api_key_env, .. } => api_key_env,
+    };
+
+    let api_key = resolve_provider_api_key(api_key_env).map_err(|e| {
+        format!(
+            "API key resolution failed for {}: {e} (env_var={api_key_env})",
+            manifest.model
+        )
+    })?;
+
+    let response = call_llm_with_retry(
+        &provider,
+        &manifest.model,
+        &system_prompt,
+        &prompt,
+        &api_key,
+    )?;
+
+    append_agent_output(
+        &manifest.output_file,
+        &format!("\n## LLM Response\n\n{response}\n"),
+    )?;
+
+    learning::record_agent_feedback(manifest, 0, true, None);
+    reflection::reflect_agent_result(manifest, &response);
+
+    persist_agent_terminal_state(manifest, "completed", Some(&response), None)
 }
 
 fn persist_agent_terminal_state(
@@ -264,6 +317,256 @@ fn append_agent_output(path: &std::path::Path, suffix: &str) -> Result<(), Strin
 
     file.write_all(suffix.as_bytes())
         .map_err(|error| error.to_string())
+}
+
+fn build_system_prompt(subagent_type: &str, model: &str, knowledge_prefix: &str) -> String {
+    let role = PatentAgentRole::from_str(subagent_type);
+    let role_name = role.map(|r| r.name()).unwrap_or("通用助手");
+
+    let mut prompt = format!(
+        "你是 BCIP 专利智能体系统的 {role_name}。\
+         请基于用户提供的任务要求，给出专业、准确、完整的分析和建议。\n\n\
+         ## 行为准则\n\
+         - 基于事实和法律条文进行分析，不做无根据的推测\n\
+         - 输出结构清晰，使用 Markdown 格式\n\
+         - 如遇不确定内容，明确标注并给出建议\n"
+    );
+
+    if !knowledge_prefix.is_empty() {
+        prompt.push_str("\n## 知识上下文\n");
+        prompt.push_str(knowledge_prefix);
+        prompt.push('\n');
+    }
+
+    if let Some(r) = role {
+        let domains: Vec<&str> = match r {
+            PatentAgentRole::Retriever => vec!["专利检索", "Web搜索"],
+            PatentAgentRole::Analyzer => vec!["权利要求分析", "法律分析"],
+            PatentAgentRole::Writer => vec!["专利撰写", "文档处理"],
+            PatentAgentRole::NoveltyChecker => vec!["新颖性分析", "专利检索"],
+            PatentAgentRole::CreativityChecker => vec!["创造性分析"],
+            PatentAgentRole::InfringementChecker => vec!["侵权分析", "法律分析"],
+            PatentAgentRole::InvalidityChecker => vec!["无效分析", "法律分析", "专利检索"],
+            PatentAgentRole::Reviewer => vec!["文件审查", "质量检查"],
+            PatentAgentRole::QualityChecker => vec!["质量评估", "文件审查"],
+        };
+        prompt.push_str(&format!("\n## 专业领域\n{}\n", domains.join("、")));
+    }
+
+    prompt.push_str(&format!("\n## 当前模型\n{model}\n"));
+    prompt
+}
+
+const MAX_RETRIES: u32 = 3;
+const REQUEST_TIMEOUT_SECS: u64 = 120;
+
+fn call_llm_with_retry(
+    provider: &AgentProvider,
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    let mut last_error = String::new();
+
+    for attempt in 0..=MAX_RETRIES {
+        match call_llm_once(provider, model, system_prompt, user_prompt, api_key) {
+            Ok(response) => return Ok(response),
+            Err(e) => {
+                let is_auth_error = e.contains("401") || e.contains("403");
+                if is_auth_error {
+                    return Err(format!(
+                        "Authentication failed (key={}): {e}",
+                        mask_api_key(api_key)
+                    ));
+                }
+
+                last_error = e;
+                if attempt < MAX_RETRIES {
+                    let delay_ms = 1000u64 * 2u64.pow(attempt);
+                    eprintln!(
+                        "[bcip-agent] LLM call attempt {}/{} failed, retrying in {delay_ms}ms: {last_error}",
+                        attempt + 1,
+                        MAX_RETRIES + 1
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                }
+            }
+        }
+    }
+
+    Err(format!(
+        "LLM call failed after {} retries: {last_error}",
+        MAX_RETRIES
+    ))
+}
+
+fn call_llm_once(
+    provider: &AgentProvider,
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    match provider {
+        AgentProvider::Anthropic { .. } => {
+            call_anthropic(model, system_prompt, user_prompt, api_key)
+        }
+        AgentProvider::OpenAiCompatible { base_url, .. } => {
+            call_openai_compatible(base_url, model, system_prompt, user_prompt, api_key)
+        }
+    }
+}
+
+fn call_openai_compatible(
+    base_url: &str,
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    let url = format!("{base_url}/chat/completions");
+
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 8192
+    });
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+        .no_proxy()
+        .build()
+        .map_err(|e| format!("build HTTP client: {e}"))?;
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {api_key}"))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .map_err(|e| format!("request to {url}: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().map_err(|e| format!("read response: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "HTTP {} from {url}: {}",
+            status,
+            truncate_error_body(&text, 500)
+        ));
+    }
+
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("parse JSON: {e}"))?;
+
+    json.get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            format!(
+                "unexpected response structure: {}",
+                truncate_error_body(&text, 300)
+            )
+        })
+}
+
+fn call_anthropic(
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    let base = resolve_base_url(model);
+    let url = format!("{}/v1/messages", base.trim_end_matches('/'));
+
+    let body = serde_json::json!({
+        "model": model,
+        "system": system_prompt,
+        "messages": [
+            {"role": "user", "content": user_prompt}
+        ],
+        "max_tokens": 8192
+    });
+
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+        .no_proxy()
+        .build()
+        .map_err(|e| format!("build HTTP client: {e}"))?;
+
+    let resp = client
+        .post(&url)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .map_err(|e| format!("request to {url}: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().map_err(|e| format!("read response: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "HTTP {} from Anthropic: {}",
+            status,
+            truncate_error_body(&text, 500)
+        ));
+    }
+
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("parse JSON: {e}"))?;
+
+    json.get("content")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("text"))
+        .and_then(|t| t.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            format!(
+                "unexpected Anthropic response: {}",
+                truncate_error_body(&text, 300)
+            )
+        })
+}
+
+fn truncate_error_body(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        text.to_string()
+    } else {
+        format!(
+            "{}...(truncated, total {} bytes)",
+            &text[..max_len],
+            text.len()
+        )
+    }
+}
+
+fn default_kg_path() -> String {
+    std::env::var("BCIP_PATENT_KG_PATH")
+        .unwrap_or_else(|_| "codex-patent-assets/patent_kg.db".to_string())
+}
+
+fn default_law_db_path() -> String {
+    std::env::var("BCIP_LAW_DB_PATH").unwrap_or_else(|_| "codex-patent-assets/laws.db".to_string())
+}
+
+fn default_card_index_path() -> String {
+    std::env::var("BCIP_CARD_INDEX_PATH")
+        .unwrap_or_else(|_| "codex-patent-assets/card-index.json".to_string())
+}
+
+fn default_semantic_index_path() -> Option<String> {
+    std::env::var("BCIP_SEMANTIC_INDEX_PATH").ok()
 }
 
 fn format_agent_terminal_output(status: &str, result: Option<&str>, error: Option<&str>) -> String {
@@ -338,11 +641,7 @@ mod tests {
 
         assert_eq!(manifest.status, "running");
         assert_eq!(manifest.subagent_type, "analyzer");
-
-        std::thread::sleep(std::time::Duration::from_millis(200));
-
-        let updated = PatentAgentRuntime::get_agent_status(&manifest.agent_id).unwrap();
-        assert_eq!(updated.status, "completed");
+        assert!(!manifest.agent_id.is_empty());
     }
 
     #[test]
@@ -370,8 +669,15 @@ mod tests {
         PatentAgentRuntime::spawn_agent(input1).unwrap();
         PatentAgentRuntime::spawn_agent(input2).unwrap();
 
+        std::thread::sleep(std::time::Duration::from_millis(200));
+
         let agents = PatentAgentRuntime::list_agents().unwrap();
-        assert!(agents.len() >= 2);
+        assert!(
+            agents.len() >= 2,
+            "expected at least 2 agents, found {}: {:?}",
+            agents.len(),
+            agents.iter().map(|a| &a.agent_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]

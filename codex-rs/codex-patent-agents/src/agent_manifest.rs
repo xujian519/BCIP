@@ -98,13 +98,10 @@ pub fn load_manifest(agent_id: &str) -> Result<AgentManifest, String> {
 
 /// 列出所有 agent manifest
 pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, String> {
-    let store_dir = agent_store_dir();
-
-    if store_dir.is_err() {
-        return Ok(Vec::new());
-    }
-
-    let store_dir = store_dir.unwrap();
+    let store_dir = match agent_store_dir() {
+        Ok(dir) => dir,
+        Err(_) => return Ok(Vec::new()),
+    };
 
     if !store_dir.exists() {
         return Ok(Vec::new());

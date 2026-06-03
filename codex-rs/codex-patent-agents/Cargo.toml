@@ -10,7 +10,7 @@ toml = "0.8"
 thiserror = "2"
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
 codex-patent-core = { path = "../codex-patent-core" }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking"] }
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
