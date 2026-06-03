@@ -95,18 +95,19 @@
     --status-info: #5A7A9A;
     --status-info-bg: rgba(90, 122, 154, 0.08);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-    --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-composer: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --shadow-composer-focus: 0 4px 12px rgba(0, 0, 0, 0.08);
+    /* 暖色阴影 — 核心质感：使用暖黑而非纯黑 */
+    --shadow-sm: 0 1px 2px rgba(26, 24, 20, 0.05);
+    --shadow-md: 0 4px 12px rgba(26, 24, 20, 0.07), 0 1px 3px rgba(26, 24, 20, 0.04);
+    --shadow-lg: 0 8px 24px rgba(26, 24, 20, 0.09), 0 2px 6px rgba(26, 24, 20, 0.04);
+    --shadow-card: 0 2px 8px rgba(26, 24, 20, 0.05), 0 1px 2px rgba(26, 24, 20, 0.03);
+    --shadow-floating: 0 8px 24px rgba(26, 24, 20, 0.10), 0 2px 6px rgba(26, 24, 20, 0.05);
+    --shadow-modal: 0 12px 40px rgba(26, 24, 20, 0.12), 0 4px 12px rgba(26, 24, 20, 0.06);
+    --shadow-drag: 0 8px 24px rgba(26, 24, 20, 0.12), 0 2px 8px rgba(26, 24, 20, 0.06);
+    --shadow-composer: 0 4px 16px rgba(26, 24, 20, 0.12), 0 1px 4px rgba(26, 24, 20, 0.05);
+    --shadow-composer-focus: 0 4px 16px rgba(74, 124, 111, 0.10), 0 1px 4px rgba(26, 24, 20, 0.04);
 
-    --glass-bg: rgba(255, 255, 255, 0.82);
-    --glass-backdrop: blur(20px) saturate(180%);
+    --glass-bg: rgba(250, 248, 245, 0.78);
+    --glass-backdrop: blur(24px) saturate(200%);
     --glass-border: 1px solid var(--border-default);
     --glass-shadow: var(--shadow-md);
     --selection-bg: rgba(74, 124, 111, 0.25);
@@ -205,17 +206,18 @@
     --status-info: #7A9ABA;
     --status-info-bg: rgba(122, 154, 186, 0.12);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.45);
-    --shadow-floating: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
-    --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.40);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.40), 0 1px 2px rgba(0, 0, 0, 0.28);
+    --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.40);
+    --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.60), 0 4px 12px rgba(0, 0, 0, 0.45);
     --shadow-drag: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.40);
-    --shadow-composer: 0 2px 12px rgba(0, 0, 0, 0.45);
+    --shadow-composer: 0 2px 16px rgba(0, 0, 0, 0.50), 0 1px 4px rgba(0, 0, 0, 0.35);
+    --shadow-composer-focus: 0 2px 16px rgba(95, 160, 143, 0.12), 0 1px 4px rgba(0, 0, 0, 0.35);
 
-    --glass-bg: rgba(28, 28, 28, 0.88);
-    --glass-backdrop: blur(20px) saturate(180%);
+    --glass-bg: rgba(28, 26, 24, 0.85);
+    --glass-backdrop: blur(24px) saturate(180%);
     --glass-border: 1px solid rgba(255, 255, 255, 0.1);
     --selection-bg: rgba(90, 154, 140, 0.3);
     --focus-ring: 0 0 0 2px rgba(90, 154, 140, 0.4);
@@ -501,8 +503,25 @@
 
   /* Subtle gradient accent for brand elements */
   .brand-glow {
-    box-shadow: 0 0 0 1px rgba(74, 124, 111, 0.1),
-                0 0 16px rgba(74, 124, 111, 0.06);
+    box-shadow: 0 0 0 1px rgba(74, 124, 111, 0.08),
+                0 0 20px rgba(74, 124, 111, 0.10),
+                0 0 6px rgba(74, 124, 111, 0.06);
+  }
+
+  .dark .brand-glow {
+    box-shadow: 0 0 0 1px rgba(106, 176, 160, 0.06),
+                0 0 20px rgba(106, 176, 160, 0.08),
+                0 0 6px rgba(106, 176, 160, 0.04);
+  }
+
+  /* Noise texture overlay for depth */
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-5%, -10%); }
+    30% { transform: translate(3%, -15%); }
+    50% { transform: translate(12%, 9%); }
+    70% { transform: translate(9%, 4%); }
+    90% { transform: translate(-1%, 7%); }
   }
 }
 
