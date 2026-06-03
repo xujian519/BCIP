@@ -130,6 +130,9 @@ members = [
     "codex-experimental-api-macros",
     "plugin",
     "model-provider",
+    "liteparse",
+    "pdfium",
+    "pdfium-sys",
 ]
 resolver = "2"
 

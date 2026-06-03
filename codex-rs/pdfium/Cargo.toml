@@ -1,0 +1,10 @@
+[package]
+name = "liteparse-pdfium"
+version = "1.0.1"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/run-llama/liteparse"
+description = "Safe Rust wrapper around PDFium for liteparse"
+
+[dependencies]
+pdfium-sys = { package = "liteparse-pdfium-sys", version = "1.1.0", path = "../pdfium-sys" }

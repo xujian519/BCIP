@@ -21,7 +21,7 @@ regex = "1"
 base64 = { workspace = true }
 
 # LiteParse: PDF 解析引擎（通过 feature gate 启用）
-liteparse = { path = "../../../../Downloads/liteparse-docker-v2.0.5/crates/liteparse", default-features = false, optional = true }
+liteparse = { path = "../liteparse", default-features = false, optional = true }
 
 [features]
 default = []
