@@ -317,7 +317,7 @@ export default function StatusBar() {
     <footer
       className={cn(
         'h-statusbar flex items-center justify-between shrink-0 px-3',
-        'bg-[var(--bg-surface)]/80 backdrop-blur-md',
+        'glass-strong',
         'border-t border-[var(--border-default)]',
         'select-none z-50'
       )}

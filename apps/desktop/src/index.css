@@ -16,7 +16,7 @@
     /* 背景 — 浅色：规范暖色调 */
     --bg-base: #F5F2EE;
     --bg-surface: #FAF8F5;
-    --bg-elevated: #FAF8F5;
+    --bg-elevated: #FEFCFA;
     --bg-sidebar: #F0EDE8;
     --bg-sidebar-solid: #F0EDE8;
     --bg-sidebar-active: #E8E4DE;
@@ -30,7 +30,7 @@
     /* 文字 — 暖中性色 */
     --text-primary: #1A1814;
     --text-secondary: #6B6560;
-    --text-tertiary: #A39E98;
+    --text-tertiary: #8C8680;
     --text-inverse: #FFFFFF;
     --text-accent: #4A7C6F;
     --text-link: #3A8B8C;
@@ -151,7 +151,7 @@
     /* 暗色 — 规范暖深色调 */
     --bg-base: #1C1A18;
     --bg-surface: #1A1816;
-    --bg-elevated: #1A1816;
+    --bg-elevated: #201E1B;
     --bg-sidebar: #1A1816;
     --bg-sidebar-solid: #1A1816;
     --bg-sidebar-active: #2A2622;
@@ -162,7 +162,7 @@
     --bg-overlay: rgba(0, 0, 0, 0.72);
     --bg-surface-rgb: 15, 15, 15;
 
-    --text-primary: #FFFFFF;
+    --text-primary: #F2EDE8;
     --text-secondary: #A39E98;
     --text-tertiary: #8E8E93;
     --text-inverse: #0F0F0F;
@@ -216,8 +216,8 @@
     --shadow-composer: 0 2px 16px rgba(0, 0, 0, 0.50), 0 1px 4px rgba(0, 0, 0, 0.35);
     --shadow-composer-focus: 0 2px 16px rgba(95, 160, 143, 0.12), 0 1px 4px rgba(0, 0, 0, 0.35);
 
-    --glass-bg: rgba(28, 26, 24, 0.85);
-    --glass-backdrop: blur(24px) saturate(180%);
+    --glass-bg: rgba(34, 30, 26, 0.85);
+    --glass-backdrop: blur(24px) saturate(200%);
     --glass-border: 1px solid rgba(255, 255, 255, 0.1);
     --selection-bg: rgba(90, 154, 140, 0.3);
     --focus-ring: 0 0 0 2px rgba(90, 154, 140, 0.4);
@@ -275,6 +275,25 @@
     overflow: hidden;
     margin: 0;
     padding: 0;
+    position: relative;
+  }
+
+  /* 全局噪点纹理叠加 — 增加材质质感 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.018;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    animation: grain 8s steps(10) infinite;
+  }
+
+  .dark body::before {
+    opacity: 0.025;
   }
 
   #root {

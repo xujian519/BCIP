@@ -127,6 +127,18 @@ export default function AgentPanel({ width, fillWidth }: { width: number; fillWi
             messages={state.messages}
             isStreaming={state.isStreaming}
             streamingMessageId={streamingMessageId}
+            onQuickStart={(text) =>
+              handleAgentSend(
+                {
+                  useRpc: session.useRpc,
+                  connectionStatus: state.connectionStatus,
+                  bootPhase: state.bootPhase,
+                  sendRpc: session.sendMessage,
+                  dispatch,
+                },
+                text,
+              )
+            }
           />
           <ApprovalPendingBanner />
           <Composer

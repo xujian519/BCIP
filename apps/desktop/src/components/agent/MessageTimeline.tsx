@@ -21,7 +21,7 @@ const quickStarts = [
   { label: '/draft 起草专利文稿', icon: Zap },
 ];
 
-function EmptyConversation() {
+function EmptyConversation({ onQuickStart }: { onQuickStart?: (text: string) => void }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const t = requestAnimationFrame(() => setVisible(true));
@@ -65,13 +65,18 @@ function EmptyConversation() {
         {quickStarts.map((item, i) => {
           const Icon = item.icon;
           return (
-            <div
+            <button
               key={item.label}
+              type="button"
+              onClick={() => onQuickStart?.(item.label)}
               className={cn(
-                'flex items-center gap-2 rounded-lg px-3 py-2',
+                'flex items-center gap-2 rounded-lg px-3 py-2 w-full',
                 'bg-[var(--bg-elevated)] border border-[var(--border-default)]',
                 'text-xs text-[var(--text-secondary)]',
                 'transition-all duration-300',
+                'hover:bg-[var(--bg-hover)] hover:border-[var(--border-hover)]',
+                'hover:text-[var(--text-primary)]',
+                'cursor-pointer text-left',
               )}
               style={{
                 transitionDelay: `${300 + i * 80}ms`,
@@ -82,7 +87,7 @@ function EmptyConversation() {
             >
               <Icon size={13} className="text-[var(--text-tertiary)] shrink-0" />
               <span className="truncate">{item.label}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -94,6 +99,7 @@ interface MessageTimelineProps {
   messages: Message[];
   isStreaming?: boolean;
   streamingMessageId?: string | null;
+  onQuickStart?: (text: string) => void;
 }
 
 function MessageItem({ message }: { message: Message }) {
@@ -146,6 +152,7 @@ export default function MessageTimeline({
   messages,
   isStreaming = false,
   streamingMessageId = null,
+  onQuickStart,
 }: MessageTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -190,7 +197,7 @@ export default function MessageTimeline({
       }}
     >
       {displayMessages.length === 0 ? (
-        <EmptyConversation />
+        <EmptyConversation onQuickStart={onQuickStart} />
       ) : (
         turns.map((turn, turnIndex) => (
           <div

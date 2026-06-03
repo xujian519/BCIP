@@ -425,8 +425,12 @@ export default function Composer({
               'max-h-[200px]',
               'leading-relaxed',
               'disabled:opacity-50',
+              'transition-[height] duration-200',
             )}
-            style={{ minHeight: 'var(--chat-composer-min-h)' }}
+            style={{
+              minHeight: 'var(--chat-composer-min-h)',
+              transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
           />
         </div>
 

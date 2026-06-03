@@ -2,7 +2,8 @@
  * AgentBlock —— 助手消息（以纯文字为主，工具调用为紧凑行）
  */
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Copy, Check } from 'lucide-react';
 import ReasoningBlock from './ReasoningBlock';
 import ToolCallCard from './ToolCallCard';
 import type { MessageStatus, ToolCall as ToolCallType } from '@/types';
@@ -14,6 +15,54 @@ interface AgentBlockProps {
   reasoning?: string;
   toolCalls?: ToolCallType[];
   animate?: boolean;
+}
+
+function CodeCopyButton({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [code]);
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={cn(
+        'absolute top-1.5 right-1.5 z-20',
+        'flex items-center justify-center w-7 h-7 rounded-md',
+        'bg-[var(--bg-elevated)] border border-[var(--border-default)]',
+        'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
+        'hover:bg-[var(--bg-hover)] hover:border-[var(--border-hover)]',
+        'opacity-0 group-hover:opacity-100',
+        'transition-all duration-150',
+        'cursor-pointer',
+      )}
+      aria-label={copied ? '已复制' : '复制代码'}
+    >
+      {copied ? (
+        <Check size={13} className="text-[var(--status-success)]" />
+      ) : (
+        <Copy size={13} />
+      )}
+    </button>
+  );
 }
 
 function formatContent(content: string, isStreaming: boolean) {
@@ -31,6 +80,7 @@ function formatContent(content: string, isStreaming: boolean) {
           const code = lines.slice(1).join('\n').trim();
           return (
           <div key={index} className="my-2 relative group">
+            <CodeCopyButton code={code} />
             {lang && (
               <div
                 className="absolute top-0 right-0 font-mono text-2xs text-[var(--text-tertiary)]

@@ -127,7 +127,7 @@ export default function ResizeHandle({
         onMouseLeave={() => setIsHovered(false)}
         className={cn(
           'shrink-0 z-10 flex items-center justify-center relative',
-          isHorizontal ? 'w-1 cursor-col-resize' : 'h-1 cursor-row-resize'
+          isHorizontal ? 'w-[7px] cursor-col-resize' : 'h-[7px] cursor-row-resize'
         )}
       >
         {/* 悬停/拖拽时显示的品牌绿色竖线 */}

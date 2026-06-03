@@ -243,6 +243,7 @@ const WorkspaceTabs: FC<WorkspaceTabsProps> = ({
               className={cn(
                 'group flex shrink-0 cursor-grab select-none items-center gap-1.5 active:cursor-grabbing',
                 'transition-colors duration-150',
+                'relative',
               )}
               style={{
                 padding: '0 12px',
@@ -264,6 +265,15 @@ const WorkspaceTabs: FC<WorkspaceTabsProps> = ({
                 });
               }}
             >
+              {/* 底部激活指示条 */}
+              {isActive && (
+                <div
+                  className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[var(--accent-primary)]"
+                  style={{
+                    transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  }}
+                />
+              )}
               <FileText size={12} style={{ flexShrink: 0 }} />
               <span className="flex-1 truncate">{tab.title}</span>
               <button
