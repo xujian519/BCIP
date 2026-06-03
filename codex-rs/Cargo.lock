@@ -2539,6 +2539,7 @@ dependencies = [
  "codex-otel",
  "codex-patent-agents",
  "codex-patent-constitutional",
+ "codex-patent-knowledge",
  "codex-patent-tools",
  "codex-plugin",
  "codex-protocol",

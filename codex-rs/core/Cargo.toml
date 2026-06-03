@@ -76,6 +76,7 @@ codex-utils-template = { workspace = true }
 codex-patent-tools = { path = "../codex-patent-tools", optional = true }
 codex-patent-constitutional = { path = "../codex-patent-constitutional", optional = true }
 codex-patent-agents = { path = "../codex-patent-agents", optional = true }
+codex-patent-knowledge = { path = "../codex-patent-knowledge", optional = true }
 codex-windows-sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
 csv = { workspace = true }
 dirs = { workspace = true }
@@ -164,4 +165,4 @@ zstd = { workspace = true }
 ignored = ["openssl-sys"]
 
 [features]
-patent-tools = ["codex-patent-tools", "codex-patent-constitutional", "codex-patent-agents"]
+patent-tools = ["codex-patent-tools", "codex-patent-constitutional", "codex-patent-agents", "codex-patent-knowledge"]

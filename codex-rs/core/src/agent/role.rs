@@ -79,6 +79,7 @@ async fn apply_role_to_config_inner(
         preserve_current_service_tier,
     )
     .await?;
+    config.active_agent_type = Some(role_name.to_string());
     Ok(())
 }
 
@@ -92,7 +93,8 @@ async fn load_role_layer_toml(
         let role_config_contents = built_in::config_file_contents(config_file)
             .map(str::to_owned)
             .ok_or(anyhow!("No corresponding config content"))?;
-        let role_config_toml: TomlValue = toml::from_str(&role_config_contents)?;
+        let mut role_config_toml: TomlValue = toml::from_str(&role_config_contents)?;
+        inject_patent_role_context(&mut role_config_toml, role_name);
         let role_config_toml = strip_non_config_fields(role_config_toml);
         (role_config_toml, config.codex_home.as_path())
     } else {
@@ -144,6 +146,76 @@ fn strip_non_config_fields(toml: TomlValue) -> TomlValue {
     table.retain(|key, _| !PATENT_ROLE_NON_CONFIG_KEYS.iter().any(|k| *k == key));
     TomlValue::Table(table)
 }
+
+/// For built-in patent roles: extract `auto_knowledge` config, resolve knowledge context,
+/// and append it to `developer_instructions` before non-config fields get stripped.
+#[cfg(feature = "patent-tools")]
+fn inject_patent_role_context(toml: &mut TomlValue, role_name: &str) {
+    use codex_patent_agents::roles::PatentAgentRole;
+
+    if PatentAgentRole::from_str(role_name).is_none() {
+        return;
+    }
+
+    let Some(table) = toml.as_table_mut() else {
+        return;
+    };
+
+    let has_auto_knowledge = table
+        .get("auto_knowledge")
+        .and_then(|v| v.as_table())
+        .is_some_and(|t| t.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false));
+
+    if !has_auto_knowledge {
+        return;
+    }
+
+    let ak_toml = match table.get("auto_knowledge").cloned() {
+        Some(v) => v,
+        None => {
+            tracing::debug!("auto_knowledge config missing for role {role_name}");
+            return;
+        }
+    };
+    let ak_str = match toml::to_string(&ak_toml) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::debug!("auto_knowledge serialization failed for role {role_name}: {e}");
+            return;
+        }
+    };
+    let ak_config: codex_patent_agents::knowledge_context::AutoKnowledgeConfig =
+        match toml::from_str(&ak_str) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::debug!("auto_knowledge deserialization failed for role {role_name}: {e}");
+                return;
+            }
+        };
+
+    let semantic_path = codex_patent_knowledge::paths::semantic_index_path();
+    let knowledge_ctx = codex_patent_agents::knowledge_context::KnowledgeContext::new(
+        &codex_patent_knowledge::paths::kg_db_path(),
+        &codex_patent_knowledge::paths::law_db_path(),
+        &codex_patent_knowledge::paths::card_index_path(),
+        Some(&semantic_path),
+        ak_config,
+    );
+
+    let knowledge_text = knowledge_ctx.resolve(role_name, "");
+    if knowledge_text.is_empty() {
+        tracing::debug!("knowledge context resolved empty for role {role_name}");
+        return;
+    }
+
+    if let Some(TomlValue::String(instructions)) = table.get_mut("developer_instructions") {
+        instructions.push_str("\n\n### 知识上下文\n\n");
+        instructions.push_str(&knowledge_text);
+    }
+}
+
+#[cfg(not(feature = "patent-tools"))]
+fn inject_patent_role_context(_toml: &mut TomlValue, _role_name: &str) {}
 
 pub(crate) fn resolve_role_config<'a>(
     config: &'a Config,

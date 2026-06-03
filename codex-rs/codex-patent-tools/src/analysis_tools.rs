@@ -28,10 +28,17 @@ pub struct NoveltyAnalysisInput {
 }
 #[derive(Debug, Deserialize)]
 pub struct InventivenessAnalysisInput {
-    pub invention_description: String,
+    pub invention_description: Option<String>,
     pub technical_effect: Option<String>,
     pub performance_improvement: Option<f64>,
     pub obviousness: Option<bool>,
+    // ── 新增：三步法增强字段 ──
+    pub claim_text: Option<String>,
+    pub closest_prior_art: Option<String>,
+    pub has_teaching_away: Option<bool>,
+    pub has_technical_prejudice: Option<bool>,
+    pub has_unexpected_effect: Option<bool>,
+    pub has_long_felt_need: Option<bool>,
 }
 #[derive(Debug, Deserialize)]
 pub struct InfringementAnalysisInput {
@@ -59,23 +66,91 @@ impl AnalysisTools {
     }
 
     pub fn claim_compare(input: ClaimCompareInput) -> Result<serde_json::Value, String> {
-        let a = ParsedFeature {
-            id: "A".into(),
-            description: input.claim_a,
-            feature_type: FeatureType::Element,
-            component: None,
-            parameters: vec![],
-        };
-        let b = ParsedFeature {
-            id: "B".into(),
-            description: input.claim_b,
-            feature_type: FeatureType::Element,
-            component: None,
-            parameters: vec![],
-        };
-        let sim = ClaimParser::feature_similarity(&a, &b);
-        let corr = ClaimParser::classify_correspondence(sim);
-        Ok(serde_json::json!({"similarity": sim, "correspondence": format!("{corr:?}")}))
+        let parser = ClaimParser::new();
+        let parsed_a = parser.parse(1, &input.claim_a);
+        let parsed_b = parser.parse(2, &input.claim_b);
+
+        let features_a: Vec<CompareFeature> = parsed_a
+            .features
+            .iter()
+            .map(|f| CompareFeature {
+                id: f.id.clone(),
+                description: f.description.clone(),
+            })
+            .collect();
+        let features_b: Vec<CompareFeature> = parsed_b
+            .features
+            .iter()
+            .map(|f| CompareFeature {
+                id: f.id.clone(),
+                description: f.description.clone(),
+            })
+            .collect();
+
+        // 第一层: 词法对比 (bigram Jaccard 逐特征匹配)
+        let lexical_result = FeatureMatcher::compare(&features_a, &features_b);
+
+        // 第二层: 语义层 (整段文本相似度)
+        let semantic_score =
+            codex_patent_text::text_similarity(&input.claim_a, &input.claim_b);
+
+        // 第三层 & 第四层: 功能层/效果层 (基于特征类型统计)
+        let (functional_score, effect_score) =
+            compute_functional_effect_scores(&parsed_a.features, &parsed_b.features);
+
+        // 特征矩阵
+        let matrix =
+            codex_patent_domain::compare::build_feature_matrix(&features_a, &features_b);
+
+        // 综合判定
+        let overall = compute_overall_correspondence(
+            lexical_result.coverage_ratio,
+            semantic_score,
+            functional_score,
+            effect_score,
+        );
+
+        Ok(serde_json::json!({
+            "layers": {
+                "lexical": {
+                    "exact_count": lexical_result.exact_matches.len(),
+                    "equivalent_count": lexical_result.equivalent_matches.len(),
+                    "different_count": lexical_result.different_features.len(),
+                    "missing_count": lexical_result.missing_features.len(),
+                    "coverage_ratio": lexical_result.coverage_ratio,
+                    "matches": lexical_result.exact_matches.iter()
+                        .chain(lexical_result.equivalent_matches.iter())
+                        .map(|m| serde_json::json!({
+                            "target": m.target_feature,
+                            "prior": m.prior_feature,
+                            "score": (m.similarity_score * 100.0).round() / 100.0,
+                            "type": format!("{:?}", m.match_type),
+                        }))
+                        .collect::<Vec<_>>(),
+                },
+                "semantic": {
+                    "score": (semantic_score * 100.0).round() / 100.0,
+                    "level": classify_score(semantic_score),
+                },
+                "functional": {
+                    "score": (functional_score * 100.0).round() / 100.0,
+                    "matched_types": count_matching_types(&parsed_a.features, &parsed_b.features),
+                },
+                "effect": {
+                    "score": (effect_score * 100.0).round() / 100.0,
+                },
+            },
+            "matrix": {
+                "overlap_ratio": (matrix.overlap_ratio * 100.0).round() / 100.0,
+                "target_only_count": matrix.target_only.len(),
+                "prior_only_count": matrix.prior_only.len(),
+            },
+            "overall_correspondence": overall,
+            "feature_counts": {
+                "claim_a": parsed_a.features.len(),
+                "claim_b": parsed_b.features.len(),
+            },
+        }))
     }
 
     pub fn novelty_analysis(input: NoveltyAnalysisInput) -> Result<serde_json::Value, String> {
@@ -85,12 +160,7 @@ impl AnalysisTools {
             invention: Some(input.invention_description.clone()),
             prior_art_contains_all: Some(!prior.is_empty()),
             differences: input.differences,
-            technical_effect: None,
-            performance_improvement: None,
-            obviousness: None,
-            rejection_type: None,
-            technical_effects: None,
-            prior_art_different_field: None,
+            ..Default::default()
         };
         let rule_result = engine.analyze_novelty(&ctx).map_err(|e| format!("{e}"))?;
         Ok(
@@ -102,21 +172,63 @@ impl AnalysisTools {
         input: InventivenessAnalysisInput,
     ) -> Result<serde_json::Value, String> {
         let mut engine = QualitativeRuleEngine::new();
+        let parser = ClaimParser::new();
+
+        // 自动提取区别特征
+        let (claim_feats, prior_feats, distinguishing, coverage) =
+            match (&input.claim_text, &input.closest_prior_art) {
+                (Some(claim), Some(prior)) if !claim.is_empty() && !prior.is_empty() => {
+                    let claim_parsed = parser.parse(1, claim);
+                    let prior_parsed = parser.parse(1, prior);
+                    let target: Vec<CompareFeature> = claim_parsed.features.iter()
+                        .map(|f| CompareFeature { id: f.id.clone(), description: f.description.clone() })
+                        .collect();
+                    let prior_target: Vec<CompareFeature> = prior_parsed.features.iter()
+                        .map(|f| CompareFeature { id: f.id.clone(), description: f.description.clone() })
+                        .collect();
+                    let result = FeatureMatcher::compare(&target, &prior_target);
+                    let dists: Vec<String> = result.different_features.iter()
+                        .chain(result.missing_features.iter()).cloned().collect();
+                    let cov = result.coverage_ratio;
+                    (
+                        Some(claim_parsed.features),
+                        Some(prior_parsed.features),
+                        if dists.is_empty() { None } else { Some(dists) },
+                        cov,
+                    )
+                }
+                _ => (None, None, None, 0.0),
+            };
+
         let ctx = CaseContext {
-            invention: Some(input.invention_description),
-            prior_art_contains_all: None,
-            differences: None,
+            invention: input.invention_description,
             technical_effect: input.technical_effect,
             performance_improvement: input.performance_improvement,
             obviousness: input.obviousness,
-            rejection_type: None,
-            technical_effects: None,
-            prior_art_different_field: None,
+            closest_prior_art: input.closest_prior_art,
+            claim_features: claim_feats,
+            prior_art_features: prior_feats,
+            distinguishing_features: distinguishing.clone(),
+            has_teaching_away: input.has_teaching_away,
+            has_technical_prejudice: input.has_technical_prejudice,
+            has_unexpected_effect: input.has_unexpected_effect,
+            has_long_felt_need: input.has_long_felt_need,
+            ..Default::default()
         };
         let r = engine
             .analyze_inventiveness(&ctx)
             .map_err(|e| format!("{e}"))?;
-        serde_json::to_value(r).map_err(|e| format!("{e}"))
+
+        let mut output = serde_json::to_value(r).map_err(|e| format!("{e}"))?;
+        if let Some(obj) = output.as_object_mut() {
+            if let Some(ref dists) = distinguishing {
+                obj.insert("distinguishing_features".into(), serde_json::json!(dists));
+            }
+            if coverage > 0.0 {
+                obj.insert("coverage_ratio".into(), serde_json::json!(coverage));
+            }
+        }
+        Ok(output)
     }
 
     pub fn infringement_analysis(
@@ -168,6 +280,95 @@ impl AnalysisTools {
         };
         serde_json::to_value(search.search(&config)).map_err(|e| format!("{e}"))
     }
+}
+
+fn compute_functional_effect_scores(
+    features_a: &[ParsedFeature],
+    features_b: &[ParsedFeature],
+) -> (f64, f64) {
+    let func_a: Vec<&ParsedFeature> = features_a
+        .iter()
+        .filter(|f| matches!(f.feature_type, FeatureType::Element | FeatureType::Parameter))
+        .collect();
+    let func_b: Vec<&ParsedFeature> = features_b
+        .iter()
+        .filter(|f| matches!(f.feature_type, FeatureType::Element | FeatureType::Parameter))
+        .collect();
+    let func_score = set_overlap_ratio(&func_a, &func_b);
+
+    let eff_a: Vec<&ParsedFeature> = features_a
+        .iter()
+        .filter(|f| matches!(f.feature_type, FeatureType::Result | FeatureType::Action))
+        .collect();
+    let eff_b: Vec<&ParsedFeature> = features_b
+        .iter()
+        .filter(|f| matches!(f.feature_type, FeatureType::Result | FeatureType::Action))
+        .collect();
+    let eff_score = set_overlap_ratio(&eff_a, &eff_b);
+
+    (func_score, eff_score)
+}
+
+fn set_overlap_ratio(a: &[&ParsedFeature], b: &[&ParsedFeature]) -> f64 {
+    if a.is_empty() && b.is_empty() {
+        return 1.0;
+    }
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let mut matched = 0usize;
+    for fa in a {
+        let best = b
+            .iter()
+            .map(|fb| codex_patent_domain::compare::lexical_similarity(&fa.description, &fb.description))
+            .fold(0.0f64, f64::max);
+        if best >= 0.6 {
+            matched += 1;
+        }
+    }
+    matched as f64 / a.len().max(b.len()) as f64
+}
+
+fn classify_score(score: f64) -> &'static str {
+    if score >= 0.9 {
+        "identical"
+    } else if score >= 0.6 {
+        "similar"
+    } else if score >= 0.3 {
+        "partially_similar"
+    } else {
+        "different"
+    }
+}
+
+fn compute_overall_correspondence(lexical: f64, semantic: f64, functional: f64, effect: f64) -> &'static str {
+    let weighted = lexical * 0.35 + semantic * 0.25 + functional * 0.2 + effect * 0.2;
+    if weighted >= 0.9 {
+        "Exact"
+    } else if weighted >= 0.6 {
+        "Equivalent"
+    } else if weighted >= 0.3 {
+        "Different"
+    } else {
+        "Missing"
+    }
+}
+
+fn count_matching_types(
+    features_a: &[ParsedFeature],
+    features_b: &[ParsedFeature],
+) -> std::collections::HashMap<String, (usize, usize)> {
+    use std::collections::HashMap;
+    let mut counts: HashMap<String, (usize, usize)> = HashMap::new();
+    for f in features_a {
+        let key = format!("{:?}", f.feature_type);
+        counts.entry(key).or_insert((0, 0)).0 += 1;
+    }
+    for f in features_b {
+        let key = format!("{:?}", f.feature_type);
+        counts.entry(key).or_insert((0, 0)).1 += 1;
+    }
+    counts
 }
 
 pub fn register_analysis_tools() -> std::collections::HashMap<String, super::ToolHandler> {

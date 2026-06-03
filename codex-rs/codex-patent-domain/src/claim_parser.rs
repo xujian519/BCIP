@@ -35,27 +35,14 @@ impl ClaimParser {
         }
     }
 
-    /// 计算两个特征之间的相似度(Jaccard 系数)
+    /// 计算两个特征之间的相似度(bigram Jaccard 系数，支持中文)
     pub fn feature_similarity(a: &ParsedFeature, b: &ParsedFeature) -> f64 {
-        let set_a: std::collections::HashSet<&str> = a.description.split_whitespace().collect();
-        let set_b: std::collections::HashSet<&str> = b.description.split_whitespace().collect();
-
-        let intersection = set_a.intersection(&set_b).count() as f64;
-        let union = set_a.union(&set_b).count() as f64;
-
-        if union == 0.0 {
-            return 0.0;
-        }
-        intersection / union
+        crate::compare::lexical_similarity(&a.description, &b.description)
     }
 
-    /// 计算两个文本的 Jaccard 相似度
+    /// 计算两个文本的 bigram Jaccard 相似度（支持中文）
     pub fn feature_text_similarity(a: &str, b: &str) -> f64 {
-        let set_a: std::collections::HashSet<&str> = a.split_whitespace().collect();
-        let set_b: std::collections::HashSet<&str> = b.split_whitespace().collect();
-        let intersection = set_a.intersection(&set_b).count() as f64;
-        let union = set_a.union(&set_b).count().max(1) as f64;
-        intersection / union
+        crate::compare::lexical_similarity(a, b)
     }
 
     /// 根据相似度值判定对应关系类型
@@ -96,6 +83,7 @@ fn extract_reference_cn(text: &str) -> Option<u32> {
     for pat in patterns {
         if let Some(pos) = text.find(pat) {
             let rest = &text[pos + pat.len()..];
+            // 提取第一个数字（支持 "1至3" 格式，取起始编号）
             let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
             if let Ok(n) = digits.parse::<u32>() {
                 return Some(n);
@@ -147,11 +135,10 @@ fn extract_features(body: &str) -> Vec<ParsedFeature> {
         return Vec::new();
     }
 
-    // 按「;」或「,所述」分割特征
     let mut features = Vec::new();
     let mut id_counter = 0u32;
 
-    // 按中文分号分割
+    // 按中文分号分割为一级段
     let segments: Vec<&str> = body.split('；').collect();
 
     for seg in segments {
@@ -159,40 +146,72 @@ fn extract_features(body: &str) -> Vec<ParsedFeature> {
         if seg.is_empty() {
             continue;
         }
-        id_counter += 1;
-        features.push(ParsedFeature {
-            id: format!("F{id_counter}"),
-            description: seg.to_string(),
-            feature_type: classify_feature(seg),
-            component: extract_component(seg),
-            parameters: Vec::new(),
-        });
-    }
 
-    // 如果只有一段(无分号),按逗号内的「所述」关键词尝试细分
-    if features.len() == 1 && body.contains("所述") {
-        let sub_parts: Vec<&str> = body.split("，").collect();
-        if sub_parts.len() > 1 {
-            features.clear();
-            id_counter = 0;
-            for part in sub_parts {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-                id_counter += 1;
-                features.push(ParsedFeature {
-                    id: format!("F{id_counter}"),
-                    description: part.to_string(),
-                    feature_type: classify_feature(part),
-                    component: extract_component(part),
-                    parameters: Vec::new(),
-                });
+        // 按子句分隔符进一步分割
+        let sub_parts = split_sub_clauses(seg);
+        for part in sub_parts {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
             }
+            id_counter += 1;
+            features.push(ParsedFeature {
+                id: format!("F{id_counter}"),
+                description: part.to_string(),
+                feature_type: classify_feature(part),
+                component: extract_component(part),
+                parameters: Vec::new(),
+            });
         }
     }
 
     features
+}
+
+/// 按子句级别分隔符拆分特征段
+fn split_sub_clauses(text: &str) -> Vec<&str> {
+    // 如果包含「，所述」或「：」或「:」则按这些分隔符拆分
+    if text.contains("，所述") || text.contains('：') || text.contains(':') {
+        let mut result = Vec::new();
+        let mut last = 0;
+        let mut in_parens = 0i32;
+
+        for (i, w) in text.char_indices().peekable() {
+            // 跟踪括号嵌套深度，括号内不分割
+            if w == '（' || w == '(' {
+                in_parens += 1;
+            } else if w == '）' || w == ')' {
+                in_parens -= 1;
+            }
+
+            if in_parens > 0 {
+                continue;
+            }
+
+            // 检查「，所述」模式
+            let is_split_point = if text[i..].starts_with("，所述") {
+                true
+            } else if w == '：' || w == ':' {
+                true
+            } else {
+                false
+            };
+
+            if is_split_point && i > last {
+                result.push(&text[last..i]);
+                last = i;
+            }
+        }
+        if last < text.len() {
+            result.push(&text[last..]);
+        }
+        if result.len() > 1 {
+            return result;
+        }
+    }
+
+    // fallback: 整段作为一个特征
+    vec![text]
 }
 
 fn classify_feature(text: &str) -> FeatureType {

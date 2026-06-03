@@ -799,6 +799,9 @@ pub struct Config {
     /// User-defined role declarations keyed by role name.
     pub agent_roles: BTreeMap<String, AgentRoleConfig>,
 
+    /// Currently active agent type (set by `apply_role_to_config` for primary threads).
+    pub active_agent_type: Option<String>,
+
     /// Memories subsystem settings.
     pub memories: MemoriesConfig,
 
@@ -3420,6 +3423,7 @@ impl Config {
             agent_max_threads,
             agent_max_depth,
             agent_roles,
+            active_agent_type: None,
             memories: cfg.memories.unwrap_or_default().into(),
             agent_job_max_runtime_seconds,
             agent_interrupt_message_enabled,

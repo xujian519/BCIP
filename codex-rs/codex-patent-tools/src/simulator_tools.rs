@@ -85,15 +85,10 @@ impl SimulatorTools {
     pub fn rule_analysis(input: RuleAnalysisInput) -> Result<serde_json::Value, String> {
         let mut engine = QualitativeRuleEngine::new();
         let ctx = CaseContext {
-            invention: None,
-            prior_art_contains_all: None,
             differences: input.differences,
-            technical_effect: None,
-            performance_improvement: None,
-            obviousness: None,
             rejection_type: input.rejection_type,
             technical_effects: input.technical_effects,
-            prior_art_different_field: None,
+            ..Default::default()
         };
         match input.analysis_type.as_str() {
             "novelty" => {

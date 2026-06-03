@@ -23,13 +23,25 @@ pub struct MethodologyStep {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AgentRoleConfig {
+    #[serde(default)]
     pub role_id: String,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub identity: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub developer_instructions: Option<String>,
+    #[serde(default)]
     pub methodology: Vec<MethodologyStep>,
+    #[serde(default)]
     pub output_format: String,
+    #[serde(default)]
     pub primary_tools: Vec<String>,
+    #[serde(default)]
     pub secondary_tools: Vec<String>,
+    #[serde(default)]
     pub constraints: Vec<String>,
     #[serde(default)]
     pub auto_knowledge: Option<AutoKnowledgeConfig>,
@@ -265,6 +277,9 @@ impl PatentAgentRole {
 
     /// 构建 agent 系统提示词。
     ///
+    /// 优先使用 `developer_instructions`（bcip 新版格式，完整专业提示词）；
+    /// 回退到旧版拼接模式（identity + methodology + output_format + constraints）。
+    ///
     /// - `task_description`: 当前任务描述
     /// - `knowledge`: 知识上下文（可选）
     /// - `shared_dir`: 共享模块目录路径，用于解析 `{{include:_shared/name}}` 内联标记
@@ -275,13 +290,39 @@ impl PatentAgentRole {
         knowledge: Option<&KnowledgeContext>,
         shared_dir: Option<&Path>,
     ) -> String {
-        let identity = if let Some(dir) = shared_dir {
-            resolve_text_includes(&config.identity, dir)
-        } else {
-            config.identity.clone()
-        };
+        let mut prompt = format!("## 角色: {}\n\n", config.name);
 
-        let mut prompt = format!("## 角色: {}\n\n{identity}\n\n", config.name);
+        if let Some(ref dev_instr) = config.developer_instructions {
+            let resolved = if let Some(dir) = shared_dir {
+                resolve_text_includes(dev_instr, dir)
+            } else {
+                dev_instr.clone()
+            };
+            prompt.push_str(&resolved);
+            prompt.push_str("\n\n");
+        } else {
+            let identity = if let Some(dir) = shared_dir {
+                resolve_text_includes(&config.identity, dir)
+            } else {
+                config.identity.clone()
+            };
+            prompt.push_str(&identity);
+            prompt.push_str("\n\n### 工作方法\n");
+            for step in &config.methodology {
+                prompt.push_str(&format!(
+                    "{}. {}: {}\n",
+                    step.step_number, step.step_name, step.description
+                ));
+            }
+            prompt.push_str(&format!(
+                "\n### 输出格式\n{}\n\n### 约束\n",
+                config.output_format
+            ));
+            for c in &config.constraints {
+                prompt.push_str(&format!("- {}\n", c));
+            }
+            prompt.push('\n');
+        }
 
         if let Some(kc) = knowledge
             && kc.is_enabled()
@@ -294,15 +335,6 @@ impl PatentAgentRole {
             }
         }
 
-        prompt.push_str("### 工作方法\n");
-        for step in &config.methodology {
-            prompt.push_str(&format!(
-                "{}. {}: {}\n",
-                step.step_number, step.step_name, step.description
-            ));
-        }
-
-        // 解析 includes — 追加共享模块内容
         if let Some(dir) = shared_dir {
             for include in &config.includes {
                 let include_path =
@@ -319,13 +351,6 @@ impl PatentAgentRole {
             }
         }
 
-        prompt.push_str(&format!(
-            "\n### 输出格式\n{}\n\n### 约束\n",
-            config.output_format
-        ));
-        for c in &config.constraints {
-            prompt.push_str(&format!("- {}\n", c));
-        }
         prompt
     }
 

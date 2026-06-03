@@ -782,6 +782,7 @@ fn add_patent_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Plann
             .session_source
             .get_agent_role()
             .as_deref()
+            .or(context.turn_context.config.active_agent_type.as_deref())
             .and_then(codex_patent_agents::roles::PatentAgentRole::from_str);
 
         let patent_adapters =

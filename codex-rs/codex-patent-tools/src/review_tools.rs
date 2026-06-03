@@ -111,15 +111,11 @@ impl ReviewTools {
     pub fn oa_strategy(input: OaStrategyInput) -> Result<serde_json::Value, String> {
         let mut engine = QualitativeRuleEngine::new();
         let ctx = CaseContext {
-            invention: None,
-            prior_art_contains_all: None,
             differences: input.differences,
-            technical_effect: None,
-            performance_improvement: None,
-            obviousness: None,
             rejection_type: Some(input.rejection_type),
             technical_effects: input.technical_effects,
             prior_art_different_field: input.prior_art_different_field,
+            ..Default::default()
         };
         let r = engine
             .suggest_oa_strategy(&ctx)

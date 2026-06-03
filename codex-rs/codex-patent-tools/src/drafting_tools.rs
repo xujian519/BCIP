@@ -81,14 +81,10 @@ impl DraftingTools {
         let mut engine = QualitativeRuleEngine::new();
         let ctx = CaseContext {
             invention: Some(invention),
-            prior_art_contains_all: None,
-            differences: None,
             technical_effect: effect,
             performance_improvement: improvement,
             obviousness: obvious,
-            rejection_type: None,
-            technical_effects: None,
-            prior_art_different_field: None,
+            ..Default::default()
         };
         let r = engine
             .analyze_inventiveness(&ctx)

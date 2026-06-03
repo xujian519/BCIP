@@ -172,6 +172,28 @@ pub struct ReasoningConclusion {
     pub evidence_ids: Vec<String>,
 }
 
+/// 发明类型（创造性三步法分类）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum InventionType {
+    Pioneering,
+    Combination,
+    Selection,
+    Transconversion,
+    NewUse,
+    ElementModification,
+    #[default]
+    Unknown,
+}
+
+/// 组合发明类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CombinationType {
+    SimpleStack,
+    Synergistic,
+}
+
 /// 案例上下文
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -185,6 +207,18 @@ pub struct CaseContext {
     pub rejection_type: Option<String>,
     pub technical_effects: Option<Vec<String>>,
     pub prior_art_different_field: Option<bool>,
+    // ── 三步法扩展字段 ──
+    pub closest_prior_art: Option<String>,
+    pub claim_features: Option<Vec<ParsedFeature>>,
+    pub prior_art_features: Option<Vec<ParsedFeature>>,
+    pub distinguishing_features: Option<Vec<String>>,
+    pub actual_problem_solved: Option<String>,
+    pub invention_type: Option<InventionType>,
+    pub has_teaching_away: Option<bool>,
+    pub has_technical_prejudice: Option<bool>,
+    pub has_unexpected_effect: Option<bool>,
+    pub has_long_felt_need: Option<bool>,
+    pub is_combination: Option<CombinationType>,
 }
 
 /// 应用的规则

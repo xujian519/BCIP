@@ -95,9 +95,7 @@ fn workflow_novelty_check() {
         technical_effect: Some("节能30%".into()),
         performance_improvement: Some(0.3),
         obviousness: Some(false),
-        rejection_type: None,
-        technical_effects: None,
-        prior_art_different_field: None,
+        ..Default::default()
     };
 
     let result = engine.analyze_novelty(&ctx).unwrap();
@@ -118,14 +116,10 @@ fn workflow_inventiveness_check() {
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
         invention: Some("一种基于深度学习的图像识别方法".into()),
-        prior_art_contains_all: None,
-        differences: None,
         technical_effect: Some("识别准确率提升15%".into()),
         performance_improvement: Some(0.5),
         obviousness: Some(false),
-        rejection_type: None,
-        technical_effects: None,
-        prior_art_different_field: None,
+        ..Default::default()
     };
 
     let result = engine.analyze_inventiveness(&ctx).unwrap();
@@ -222,15 +216,11 @@ fn workflow_oa_response() {
 
     let mut engine = QualitativeRuleEngine::new();
     let ctx = CaseContext {
-        invention: None,
-        prior_art_contains_all: None,
         differences: Some(vec!["双重加密机制".into(), "实时异常检测".into()]),
-        technical_effect: None,
-        performance_improvement: None,
-        obviousness: None,
         rejection_type: Some("novelty".into()),
         technical_effects: Some(vec!["安全性提升40%".into(), "误报率降低60%".into()]),
         prior_art_different_field: Some(true),
+        ..Default::default()
     };
 
     let strategy = engine.suggest_oa_strategy(&ctx).unwrap();
@@ -288,9 +278,7 @@ fn workflow_full_pipeline() {
         technical_effect: Some("电池寿命延长20%".into()),
         performance_improvement: Some(0.2),
         obviousness: Some(false),
-        rejection_type: None,
-        technical_effects: None,
-        prior_art_different_field: None,
+        ..Default::default()
     };
     let novelty = engine.analyze_novelty(&ctx).unwrap();
     assert!(novelty.confidence > 0.3, "Step3: 新颖性分析失败");
