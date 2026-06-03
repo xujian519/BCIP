@@ -92,6 +92,38 @@ impl CardIndex {
         scored.into_iter().take(limit).map(|(c, _)| c).collect()
     }
 
+    /// 基于 related_concepts 的关联搜索：查找与给定概念相关的卡片
+    pub fn search_by_concept(&self, concept: &str, limit: usize) -> Vec<&KnowledgeCard> {
+        let concept_lower = concept.to_lowercase();
+        let mut scored: Vec<(&KnowledgeCard, f64)> = self
+            .cards
+            .iter()
+            .map(|c| {
+                let mut score = 0.0;
+                if c.concept.to_lowercase() == concept_lower {
+                    score += 10.0;
+                } else if c.concept.to_lowercase().contains(&concept_lower) {
+                    score += 5.0;
+                }
+                for rc in &c.related_concepts {
+                    if rc.to_lowercase() == concept_lower {
+                        score += 3.0;
+                    } else if rc.to_lowercase().contains(&concept_lower) {
+                        score += 1.5;
+                    }
+                }
+                if c.domain.to_lowercase().contains(&concept_lower) {
+                    score += 1.0;
+                }
+                (c, score)
+            })
+            .filter(|(_, score)| *score > 0.0)
+            .collect();
+
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.into_iter().take(limit).map(|(c, _)| c).collect()
+    }
+
     pub fn filter_by_quality(&self, threshold: f64, limit: usize) -> Vec<&KnowledgeCard> {
         let mut results: Vec<&KnowledgeCard> = self
             .cards

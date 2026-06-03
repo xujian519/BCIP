@@ -40,3 +40,18 @@ pub fn eval_queries_path() -> String {
 pub fn kb_root() -> String {
     std::env::var("BCIP_ASSETS_DIR").unwrap_or_else(|_| DEFAULT_ASSETS_DIR.into())
 }
+
+/// MLX Embedding 服务 URL
+pub fn mlx_url() -> String {
+    std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8009".into())
+}
+
+/// MLX Embedding 服务 API Key
+pub fn mlx_api_key() -> Option<String> {
+    std::env::var("BCIP_MLX_API_KEY").ok()
+}
+
+/// MLX Embedding 模型名
+pub fn mlx_model() -> String {
+    std::env::var("BCIP_MLX_MODEL").unwrap_or_else(|_| "bge-m3-mlx-8bit".into())
+}

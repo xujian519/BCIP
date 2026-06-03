@@ -78,39 +78,22 @@ impl RoleKeywords {
 }
 
 pub struct KnowledgeContext {
-    search: UnifiedSearch,
+    search: &'static UnifiedSearch,
     config: AutoKnowledgeConfig,
 }
 
 impl KnowledgeContext {
     pub fn new(
-        kg_path: &str,
-        law_db_path: &str,
-        card_index_path: &str,
-        semantic_index_path: Option<&str>,
+        _kg_path: &str,
+        _law_db_path: &str,
+        _card_index_path: &str,
+        _semantic_index_path: Option<&str>,
         config: AutoKnowledgeConfig,
     ) -> Self {
-        let search = if let Some(si_path) = semantic_index_path {
-            let mlx_url =
-                std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8009".into());
-            let mlx_key = std::env::var("BCIP_MLX_API_KEY").unwrap_or_default();
-            UnifiedSearch::with_vector(
-                Some(kg_path),
-                Some(law_db_path),
-                Some(card_index_path),
-                Some(si_path),
-                Some(&mlx_url),
-                if mlx_key.is_empty() {
-                    None
-                } else {
-                    Some(&mlx_key)
-                },
-                Some("bge-m3-mlx-8bit"),
-            )
-        } else {
-            UnifiedSearch::new(Some(kg_path), Some(law_db_path), Some(card_index_path))
-        };
-        Self { search, config }
+        Self {
+            search: UnifiedSearch::global(),
+            config,
+        }
     }
 
     /// 为指定角色和任务生成知识上下文（注入到 Agent prompt 中）
