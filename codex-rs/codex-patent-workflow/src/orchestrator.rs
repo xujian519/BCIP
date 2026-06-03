@@ -93,7 +93,7 @@ impl Orchestrator {
         self
     }
 
-    fn ensure_executor(&mut self) -> Result<&mut GraphExecutor, String> {
+    fn ensure_executor(&mut self) -> Result<&GraphExecutor, String> {
         if self.graph_executor.is_none() {
             let store = if let Some(s) = self.checkpoint_store.take() {
                 s
@@ -117,7 +117,7 @@ impl Orchestrator {
             self.graph_executor = Some(executor);
         }
         self.graph_executor
-            .as_mut()
+            .as_ref()
             .ok_or_else(|| "GraphExecutor 未初始化".to_string())
     }
 

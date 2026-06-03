@@ -2,6 +2,8 @@
 
 use crate::roles::PatentAgentRole;
 
+const MAX_KNOWLEDGE_PREFIX_LEN: usize = 8000;
+
 pub(crate) fn build_system_prompt(
     subagent_type: &str,
     model: &str,
@@ -21,7 +23,20 @@ pub(crate) fn build_system_prompt(
 
     if !knowledge_prefix.is_empty() {
         prompt.push_str("\n## 知识上下文\n");
-        prompt.push_str(knowledge_prefix);
+        if knowledge_prefix.len() > MAX_KNOWLEDGE_PREFIX_LEN {
+            tracing::warn!(
+                original_len = knowledge_prefix.len(),
+                truncated_to = MAX_KNOWLEDGE_PREFIX_LEN,
+                "知识上下文过长，已截断"
+            );
+            let truncated: String = knowledge_prefix
+                .chars()
+                .take(MAX_KNOWLEDGE_PREFIX_LEN)
+                .collect();
+            prompt.push_str(&truncated);
+        } else {
+            prompt.push_str(knowledge_prefix);
+        }
         prompt.push('\n');
     }
 

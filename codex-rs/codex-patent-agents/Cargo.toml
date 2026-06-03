@@ -11,6 +11,7 @@ thiserror = "2"
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
 codex-patent-core = { path = "../codex-patent-core" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking"] }
+tracing = { workspace = true }
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]

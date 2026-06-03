@@ -1,6 +1,5 @@
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
-use codex_patent_knowledge::SqliteKnowledgeGraph;
 use codex_patent_knowledge::UnifiedSearch;
 use serde::Deserialize;
 
@@ -44,6 +43,58 @@ pub struct DecisionSearchInput {
     pub conclusion: Option<String>,
     pub ipc: Option<String>,
     pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct KnowledgeSearchRawInput {
+    pub query: String,
+    #[serde(default)]
+    pub limit: u64,
+    #[serde(default)]
+    pub semantic: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphQueryRawInput {
+    pub start_id: String,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: u64,
+    pub relation_filter: Option<Vec<String>>,
+}
+
+fn default_max_depth() -> u64 {
+    2
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphNeighborsRawInput {
+    pub node_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LinkGraphRawInput {
+    #[serde(default)]
+    pub keyword: String,
+    pub kb_root: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CardSearchRawInput {
+    pub query: String,
+    #[serde(default = "default_card_limit")]
+    pub limit: u64,
+}
+
+fn default_card_limit() -> u64 {
+    10
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FindPathRawInput {
+    pub from_id: String,
+    pub to_id: String,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: u64,
 }
 
 pub struct LegalTools;
@@ -178,22 +229,7 @@ impl LegalTools {
         limit: usize,
         semantic: bool,
     ) -> Result<serde_json::Value, String> {
-        let mlx_url =
-            std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8009".into());
-        let mlx_key = std::env::var("BCIP_MLX_API_KEY").unwrap_or_default();
-        let search = UnifiedSearch::with_vector(
-            Some(&codex_patent_knowledge::paths::kg_db_path()),
-            Some(&codex_patent_knowledge::paths::law_db_path()),
-            Some(&codex_patent_knowledge::paths::card_index_path()),
-            Some(&codex_patent_knowledge::paths::semantic_index_path()),
-            Some(&mlx_url),
-            if mlx_key.is_empty() {
-                None
-            } else {
-                Some(&mlx_key)
-            },
-            Some("bge-m3-mlx-8bit"),
-        );
+        let search = UnifiedSearch::global();
         let config = SearchConfig {
             query: query.to_string(),
             limit,
@@ -214,8 +250,8 @@ impl LegalTools {
         relation_filter: Option<Vec<String>>,
         max_depth: usize,
     ) -> Result<serde_json::Value, String> {
-        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
-            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
         let filter: Option<Vec<&str>> = relation_filter
             .as_ref()
             .map(|v| v.iter().map(|s| s.as_str()).collect());
@@ -227,8 +263,8 @@ impl LegalTools {
     }
 
     pub fn graph_neighbors(node_id: &str) -> Result<serde_json::Value, String> {
-        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
-            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
         let edges = kg.get_edges(node_id).map_err(|e| e.to_string())?;
         serde_json::to_value(&edges).map_err(|e| e.to_string())
     }
@@ -236,8 +272,8 @@ impl LegalTools {
     /// IPC 技术领域搜索
     pub fn ipc_search(input: IpcSearchInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(10);
-        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
-            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
         let results = kg
             .search_ipc(&input.query, limit)
             .map_err(|e| format!("IPC 搜索失败: {e}"))?;
@@ -252,8 +288,8 @@ impl LegalTools {
     /// 三角关联查询：通过 IPC/法条/概念任意组合查找关联节点
     pub fn triangle_query(input: TriangleQueryInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(20);
-        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
-            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
         let results = kg
             .search_by_triangle(
                 input.ipc.as_deref(),
@@ -285,8 +321,8 @@ impl LegalTools {
     /// 复审决定搜索：按法条、无效理由、结论、IPC 搜索
     pub fn decision_search(input: DecisionSearchInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(20);
-        let kg = SqliteKnowledgeGraph::open(codex_patent_knowledge::paths::kg_db_path())
-            .map_err(|e| format!("无法打开知识图谱: {e}"))?;
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
 
         // 构建搜索查询
         let mut query_parts = Vec::new();
@@ -360,6 +396,68 @@ impl LegalTools {
             "total": total
         }))
     }
+
+    /// 知识卡片搜索：按概念/关键词检索 Wiki 知识卡片
+    pub fn card_search(query: &str, limit: usize) -> Result<serde_json::Value, String> {
+        let card_mutex = UnifiedSearch::global()
+            .card_index()
+            .ok_or("知识卡片索引未初始化")?;
+        let index = card_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+
+        let by_keyword = index.search_by_keyword(query, limit);
+        let by_concept = index.search_by_concept(query, limit);
+
+        // 合并去重，概念搜索优先
+        let mut seen_ids = std::collections::HashSet::new();
+        let mut results = Vec::new();
+        for card in by_concept.iter().chain(by_keyword.iter()) {
+            if seen_ids.insert(card.id.clone()) {
+                let content = index.load_content(card).unwrap_or_default();
+                let preview = if content.len() > 300 {
+                    &content[..300]
+                } else {
+                    &content
+                };
+                results.push(serde_json::json!({
+                    "id": card.id,
+                    "title": card.title,
+                    "concept": card.concept,
+                    "domain": card.domain,
+                    "quality": card.quality,
+                    "related_concepts": card.related_concepts,
+                    "content_preview": preview,
+                }));
+                if results.len() >= limit {
+                    break;
+                }
+            }
+        }
+        Ok(serde_json::json!({
+            "query": query,
+            "total": results.len(),
+            "results": results,
+        }))
+    }
+
+    /// 路径查找：在知识图谱中查找两个节点之间的最短路径
+    pub fn find_path(
+        from_id: &str,
+        to_id: &str,
+        max_depth: usize,
+    ) -> Result<serde_json::Value, String> {
+        let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
+        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let paths = kg
+            .find_path(from_id, to_id, max_depth)
+            .map_err(|e| format!("路径查找失败: {e}"))?;
+        Ok(serde_json::json!({
+            "from": from_id,
+            "to": to_id,
+            "max_depth": max_depth,
+            "paths": paths,
+            "path_count": paths.len(),
+        }))
+    }
 }
 
 pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHandler> {
@@ -387,38 +485,27 @@ pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHa
     });
     t.insert("KnowledgeSearch".into(), |input| {
         Box::pin(async move {
-            let query = input.get("query").and_then(|v| v.as_str()).unwrap_or("");
-            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
-            let semantic = input
-                .get("semantic")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-            LegalTools::knowledge_search(query, limit, semantic)
+            let parsed: KnowledgeSearchRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::knowledge_search(&parsed.query, parsed.limit as usize, parsed.semantic)
         })
     });
     t.insert("GraphQuery".into(), |input| {
         Box::pin(async move {
-            let start_id = input
-                .get("start_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
-            let max_depth = input.get("max_depth").and_then(|v| v.as_u64()).unwrap_or(2) as usize;
-            let relations = input
-                .get("relation_filter")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                });
-            LegalTools::graph_query(&start_id, relations, max_depth)
+            let parsed: GraphQueryRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::graph_query(
+                &parsed.start_id,
+                parsed.relation_filter,
+                parsed.max_depth as usize,
+            )
         })
     });
     t.insert("GraphNeighbors".into(), |input| {
         Box::pin(async move {
-            let node_id = input.get("node_id").and_then(|v| v.as_str()).unwrap_or("");
-            LegalTools::graph_neighbors(node_id)
+            let parsed: GraphNeighborsRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::graph_neighbors(&parsed.node_id)
         })
     });
     t.insert("IpcSearch".into(), |input| {
@@ -444,15 +531,14 @@ pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHa
     });
     t.insert("LinkGraph".into(), |input| {
         Box::pin(async move {
-            let keyword = input.get("keyword").and_then(|v| v.as_str()).unwrap_or("");
-            let link_root = input
-                .get("kb_root")
-                .and_then(|v| v.as_str())
-                .map(String::from)
+            let parsed: LinkGraphRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let link_root = parsed
+                .kb_root
                 .unwrap_or_else(codex_patent_knowledge::paths::kb_root);
             let graph =
                 codex_patent_knowledge::LinkGraph::build(&link_root).map_err(|e| e.to_string())?;
-            let links: Vec<serde_json::Value> = if keyword.is_empty() {
+            let links: Vec<serde_json::Value> = if parsed.keyword.is_empty() {
                 graph
                     .all_links()
                     .iter()
@@ -467,7 +553,7 @@ pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHa
                     .collect()
             } else {
                 graph
-                    .search_by_concept(keyword)
+                    .search_by_concept(&parsed.keyword)
                     .iter()
                     .take(50)
                     .map(|l| {
@@ -518,6 +604,20 @@ pub fn register_legal_tools() -> std::collections::HashMap<String, super::ToolHa
             let results = evaluator.run(mode);
             let summary = codex_patent_knowledge::SearchEval::summary(&results);
             serde_json::to_value(&summary).map_err(|e| e.to_string())
+        })
+    });
+    t.insert("CardSearch".into(), |input| {
+        Box::pin(async move {
+            let parsed: CardSearchRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::card_search(&parsed.query, parsed.limit as usize)
+        })
+    });
+    t.insert("FindPath".into(), |input| {
+        Box::pin(async move {
+            let parsed: FindPathRawInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            LegalTools::find_path(&parsed.from_id, &parsed.to_id, parsed.max_depth as usize)
         })
     });
     t

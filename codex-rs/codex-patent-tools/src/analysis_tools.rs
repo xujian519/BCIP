@@ -41,6 +41,13 @@ pub struct InventivenessAnalysisInput {
     pub has_long_felt_need: Option<bool>,
 }
 #[derive(Debug, Deserialize)]
+pub struct InnovationEvaluatorInput {
+    pub invention_description: String,
+    pub technical_effect: Option<String>,
+    pub performance_improvement: Option<f64>,
+    pub obviousness: Option<bool>,
+}
+#[derive(Debug, Deserialize)]
 pub struct InfringementAnalysisInput {
     pub claim_text: String,
     pub accused_product_description: String,
@@ -54,6 +61,39 @@ pub struct KnowledgeSearchInput {
     pub query: String,
     pub limit: Option<usize>,
     pub semantic: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TechTripleExtractorInput {
+    pub text: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct FeatureExtractorInput {
+    pub text: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct PatentCompareInput {
+    pub target: String,
+    pub prior_art: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct InventionUnderstandingInput {
+    pub invention_title: String,
+    pub technical_field: String,
+    pub technical_disclosure: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct TechUnitInput {
+    pub claim_text: String,
+}
+fn default_researcher_depth() -> u64 {
+    2
+}
+#[derive(Debug, Deserialize)]
+pub struct ResearcherInput {
+    pub query: String,
+    #[serde(default = "default_researcher_depth")]
+    pub depth: u64,
 }
 
 pub struct AnalysisTools;
@@ -276,15 +316,7 @@ impl AnalysisTools {
     }
 
     pub fn knowledge_search(input: KnowledgeSearchInput) -> Result<serde_json::Value, String> {
-        let search = UnifiedSearch::with_vector(
-            Some(&codex_patent_knowledge::paths::kg_db_path()),
-            Some(&codex_patent_knowledge::paths::law_db_path()),
-            Some(&codex_patent_knowledge::paths::card_index_path()),
-            Some(&codex_patent_knowledge::paths::semantic_index_path()),
-            Some("http://localhost:8009"),
-            std::env::var("BCIP_MLX_API_KEY").ok().as_deref(),
-            Some("bge-m3-mlx-8bit"),
-        );
+        let search = UnifiedSearch::global();
         let mode = if input.semantic.unwrap_or(false) {
             SearchMode::Hybrid
         } else {
@@ -309,15 +341,7 @@ fn search_creativity_knowledge(ctx: &CaseContext) -> Result<Vec<serde_json::Valu
         _ => "创造性 三步法".to_string(),
     };
 
-    let search = UnifiedSearch::with_vector(
-        Some(&codex_patent_knowledge::paths::kg_db_path()),
-        Some(&codex_patent_knowledge::paths::law_db_path()),
-        Some(&codex_patent_knowledge::paths::card_index_path()),
-        Some(&codex_patent_knowledge::paths::semantic_index_path()),
-        Some("http://localhost:8009"),
-        std::env::var("BCIP_MLX_API_KEY").ok().as_deref(),
-        Some("bge-m3-mlx-8bit"),
-    );
+    let search = UnifiedSearch::global();
     let config = SearchConfig {
         query,
         limit: 3,
@@ -478,20 +502,13 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
     });
     t.insert("InnovationEvaluator".into(), |input| {
         Box::pin(async move {
-            let invention = input
-                .get("invention_description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let effect = input.get("technical_effect").and_then(|v| v.as_str());
-            let improvement = input
-                .get("performance_improvement")
-                .and_then(|v| v.as_f64());
-            let obvious = input.get("obviousness").and_then(|v| v.as_bool());
+            let parsed: InnovationEvaluatorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             super::drafting_tools::DraftingTools::innovation_evaluator(
-                invention.into(),
-                effect.map(|s| s.to_string()),
-                improvement,
-                obvious,
+                parsed.invention_description,
+                parsed.technical_effect,
+                parsed.performance_improvement,
+                parsed.obviousness,
             )
         })
     });
@@ -504,19 +521,24 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
     });
     t.insert("TechTripleExtractor".into(), |input| {
         Box::pin(async move {
-            let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            let parsed: TechTripleExtractorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             use codex_patent_domain::disclosure::FeatureExtractor;
-            let features = FeatureExtractor::extract_features(text, None);
-            let pfe =
-                FeatureExtractor::extract_problem_feature_effects(text, None, Some(&features));
+            let features = FeatureExtractor::extract_features(&parsed.text, None);
+            let pfe = FeatureExtractor::extract_problem_feature_effects(
+                &parsed.text,
+                None,
+                Some(&features),
+            );
             serde_json::to_value(&pfe).map_err(|e| format!("{e}"))
         })
     });
     t.insert("FeatureExtractor".into(), |input| {
         Box::pin(async move {
-            let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
+            let parsed: FeatureExtractorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             use codex_patent_domain::disclosure::FeatureExtractor;
-            let features = FeatureExtractor::extract_features(text, None);
+            let features = FeatureExtractor::extract_features(&parsed.text, None);
             serde_json::to_value(&features).map_err(|e| format!("{e}"))
         })
     });
@@ -529,35 +551,39 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
     });
     t.insert("PatentCompareTool".into(), |input| {
         Box::pin(async move {
-            let target = input.get("target").and_then(|v| v.as_str()).unwrap_or("");
-            let prior = input
-                .get("prior_art")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let sim = codex_patent_text::text_similarity(target, prior);
+            let parsed: PatentCompareInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let sim = codex_patent_text::text_similarity(&parsed.target, &parsed.prior_art);
             Ok(serde_json::json!({"similarity": sim, "has_differences": sim < 0.9}))
         })
     });
-    t.insert("InventionUnderstanding".into(), |input| Box::pin(async move {
-        let title = input.get("invention_title").and_then(|v| v.as_str()).unwrap_or("");
-        let field = input.get("technical_field").and_then(|v| v.as_str()).unwrap_or("");
-        let disclosure = input.get("technical_disclosure").and_then(|v| v.as_str()).unwrap_or("");
-        use codex_patent_domain::disclosure::DisclosureParser;
-        let doc = DisclosureParser::parse(disclosure);
-        Ok(serde_json::json!({"title": title, "field": field, "sections_found": doc.sections.len(), "confidence": doc.confidence}))
-    }));
-    t.insert("TechUnit".into(), |input| Box::pin(async move {
-        let text = input.get("claim_text").and_then(|v| v.as_str()).unwrap_or("");
-        let tokens = codex_patent_text::tokenize(text);
-        let keywords = codex_patent_text::extract_keywords(text, 5);
-        let ipc = codex_patent_text::IpcClassifier::new().classify(text);
-        Ok(serde_json::json!({"token_count": tokens.len(), "keywords": keywords, "ipc_suggestions": ipc}))
-    }));
-    t.insert("Researcher".into(), |input| Box::pin(async move {
-        let query = input.get("query").and_then(|v| v.as_str()).unwrap_or("");
-        let depth = input.get("depth").and_then(|v| v.as_u64()).unwrap_or(2);
-        Ok(serde_json::json!({"query": query, "depth": depth, "note": "技术调研结果将基于知识库和网络搜索综合生成"}))
-    }));
+    t.insert("InventionUnderstanding".into(), |input| {
+        Box::pin(async move {
+            let parsed: InventionUnderstandingInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            use codex_patent_domain::disclosure::DisclosureParser;
+            let doc = DisclosureParser::parse(&parsed.technical_disclosure);
+            Ok(serde_json::json!({"title": parsed.invention_title, "field": parsed.technical_field, "sections_found": doc.sections.len(), "confidence": doc.confidence}))
+        })
+    });
+    t.insert("TechUnit".into(), |input| {
+        Box::pin(async move {
+            let parsed: TechUnitInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let tokens = codex_patent_text::tokenize(&parsed.claim_text);
+            let keywords = codex_patent_text::extract_keywords(&parsed.claim_text, 5);
+            let ipc = codex_patent_text::IpcClassifier::new()
+                .classify(&parsed.claim_text);
+            Ok(serde_json::json!({"token_count": tokens.len(), "keywords": keywords, "ipc_suggestions": ipc}))
+        })
+    });
+    t.insert("Researcher".into(), |input| {
+        Box::pin(async move {
+            let parsed: ResearcherInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            Ok(serde_json::json!({"query": parsed.query, "depth": parsed.depth, "note": "技术调研结果将基于知识库和网络搜索综合生成"}))
+        })
+    });
     t.insert("SynergyAnalysis".into(), |input| {
         Box::pin(async move {
             let parsed: super::advanced_analysis::SynergyAnalysisInput =

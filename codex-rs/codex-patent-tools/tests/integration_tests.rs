@@ -124,6 +124,7 @@ fn test_formal_check_execution() {
             "发明内容".into(),
             "具体实施方式".into(),
         ]),
+        invention_title: None,
     };
     let result = ReviewTools::formal_check(input);
     match result {

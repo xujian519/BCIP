@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 codex-patent-core = { path = "../codex-patent-core" }
 codex-patent-text = { path = "../codex-patent-text" }
+tracing = { workspace = true }
 rusqlite = { version = "0.32", features = ["bundled"], default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 serde = { workspace = true }

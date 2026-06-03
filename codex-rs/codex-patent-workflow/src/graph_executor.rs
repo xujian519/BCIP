@@ -1,11 +1,13 @@
 //! DAG 图执行器 — 按拓扑层级执行 FlowGraph 中的节点。
 //!
-//! 同一层级内的节点语义上可并行执行；当前采用串行实现，
-//! 但拓扑分组已为异步并行化做好准备。
+//! 同一层级内的节点并行执行（通过 std::thread::scope），
+//! 拓扑分组按层级展开，各层之间顺序推进。
 //!
 //! 支持条件路由：节点完成后根据成功/失败出边决定下一层节点。
 
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use super::agent_bridge::AgentExecutor;
 use super::checkpoint::generate_run_id;
@@ -30,9 +32,10 @@ pub struct GraphExecution {
 pub struct GraphExecutor {
     #[allow(dead_code)]
     checkpoint_store: CheckpointStore,
-    tool_executor: Option<ToolExecutorFn>,
-    agent_executor: Option<Box<dyn AgentExecutor>>,
-    code_executor: Option<Box<dyn CodeExecutor>>,
+    tool_executor: Option<Arc<ToolExecutorFn>>,
+    agent_executor: Option<Arc<Mutex<Box<dyn AgentExecutor>>>>,
+    code_executor: Option<Arc<Mutex<Box<dyn CodeExecutor>>>>,
+    max_retries: u32,
 }
 
 impl GraphExecutor {
@@ -42,36 +45,45 @@ impl GraphExecutor {
             tool_executor: None,
             agent_executor: None,
             code_executor: None,
+            max_retries: 3,
         }
     }
 
     pub fn with_tool_executor(mut self, executor: ToolExecutorFn) -> Self {
-        self.tool_executor = Some(executor);
+        self.tool_executor = Some(Arc::new(executor));
         self
     }
 
     pub fn with_agent_executor(mut self, executor: Box<dyn AgentExecutor>) -> Self {
-        self.agent_executor = Some(executor);
+        self.agent_executor = Some(Arc::new(Mutex::new(executor)));
         self
     }
 
     pub fn with_code_executor(mut self, executor: Box<dyn CodeExecutor>) -> Self {
-        self.code_executor = Some(executor);
+        self.code_executor = Some(Arc::new(Mutex::new(executor)));
         self
     }
 
-    pub fn execute(&mut self, graph: &FlowGraph) -> Result<GraphExecution, String> {
+    pub fn with_max_retries(mut self, retries: u32) -> Self {
+        self.max_retries = retries;
+        self
+    }
+
+    pub fn execute(&self, graph: &FlowGraph) -> Result<GraphExecution, String> {
         graph.validate().map_err(|errs| errs.join("; "))?;
 
-        let _entry = graph
+        let entry = graph
             .resolve_entry_node()
             .ok_or_else(|| "无法确定入口节点".to_string())?;
         let run_id = generate_run_id();
         let mut node_results: Vec<GraphNodeResult> = Vec::new();
 
+        let max_retries = graph.retry_on_failure.unwrap_or(self.max_retries);
+
         let levels = graph.topological_levels()?;
 
         let mut completed: HashSet<String> = HashSet::new();
+        let mut active: HashSet<String> = HashSet::from([entry]);
         let mut suspended = false;
         let mut failed = false;
 
@@ -80,19 +92,23 @@ impl GraphExecutor {
                 break;
             }
 
-            let mut next_nodes: Vec<String> = level.clone();
+            let pending: Vec<&String> = level
+                .iter()
+                .filter(|id| active.contains(id.as_str()) && !completed.contains(id.as_str()))
+                .collect();
 
-            while !next_nodes.is_empty() {
-                let current = next_nodes.remove(0);
-                if completed.contains(&current) {
-                    continue;
-                }
+            if pending.is_empty() {
+                continue;
+            }
 
+            if pending.len() == 1 {
+                // 单节点：串行执行
+                let current = pending[0].clone();
                 let node = graph
                     .find_node(&current)
                     .ok_or_else(|| format!("节点 {} 不存在", current))?;
 
-                let step_result = self.execute_step(&node.step)?;
+                let step_result = self.execute_step(&node.step, max_retries)?;
 
                 let success = step_result.success;
                 node_results.push(GraphNodeResult {
@@ -115,9 +131,9 @@ impl GraphExecutor {
                 if !success {
                     let outgoing = graph.compute_next_nodes(&current, false);
                     let mut handled = false;
-                    for next_id in outgoing {
-                        if !completed.contains(&next_id) && !next_nodes.contains(&next_id) {
-                            next_nodes.push(next_id);
+                    for next_id in &outgoing {
+                        if !completed.contains(next_id) {
+                            active.insert(next_id.clone());
                             handled = true;
                         }
                     }
@@ -125,14 +141,92 @@ impl GraphExecutor {
                         failed = true;
                         break;
                     }
-                    continue;
+                } else {
+                    for next_id in graph.compute_next_nodes(&current, true) {
+                        active.insert(next_id);
+                    }
+                }
+            } else {
+                // 多节点：并行执行
+                let tool_exec = self.tool_executor.as_ref().map(Arc::clone);
+                let agent_exec = self.agent_executor.as_ref().map(Arc::clone);
+                let code_exec = self.code_executor.as_ref().map(Arc::clone);
+
+                let (tx, rx) = std::sync::mpsc::channel();
+                std::thread::scope(|s| {
+                    for node_id in &pending {
+                        let node = graph.find_node(node_id).unwrap();
+                        let step = node.step.clone();
+                        let node_id = (*node_id).clone();
+                        let tx = tx.clone();
+                        let tool = tool_exec.clone();
+                        let agent = agent_exec.clone();
+                        let code = code_exec.clone();
+                        s.spawn(move || {
+                            let result =
+                                execute_step_from_parts(&step, &tool, &agent, &code, max_retries);
+                            let _ = tx.send((node_id, result));
+                        });
+                    }
+                });
+                drop(tx);
+
+                let mut level_results: Vec<(String, StepResult)> = rx
+                    .iter()
+                    .filter_map(|(id, r)| r.ok().map(|r| (id, r)))
+                    .collect();
+
+                level_results.sort_by_key(|(id, _)| {
+                    pending.iter().position(|p| *p == id).unwrap_or(usize::MAX)
+                });
+
+                let mut level_suspended = false;
+                let mut level_failed = false;
+
+                for (node_id, step_result) in &level_results {
+                    node_results.push(GraphNodeResult {
+                        node_id: node_id.clone(),
+                        step_result: step_result.clone(),
+                    });
+                    completed.insert(node_id.clone());
+
+                    if let Some(node) = graph.find_node(node_id) {
+                        if node_matches_step(
+                            &node.step,
+                            &FlowStep::HumanApproval {
+                                title: String::new(),
+                                description: String::new(),
+                            },
+                        ) {
+                            level_suspended = true;
+                        }
+                    }
+
+                    if step_result.success {
+                        for next_id in graph.compute_next_nodes(node_id, true) {
+                            active.insert(next_id);
+                        }
+                    } else {
+                        let outgoing = graph.compute_next_nodes(node_id, false);
+                        if outgoing.is_empty()
+                            || outgoing.iter().all(|id| completed.contains(id.as_str()))
+                        {
+                            level_failed = true;
+                        } else {
+                            for next_id in &outgoing {
+                                active.insert(next_id.clone());
+                            }
+                        }
+                    }
                 }
 
-                let outgoing = graph.compute_next_nodes(&current, success);
-                for next_id in outgoing {
-                    if !completed.contains(&next_id) && !next_nodes.contains(&next_id) {
-                        next_nodes.push(next_id);
-                    }
+                if level_suspended {
+                    suspended = true;
+                    break;
+                }
+                if level_failed {
+                    failed = true;
+                    break;
                 }
             }
         }
@@ -153,142 +247,223 @@ impl GraphExecutor {
         })
     }
 
-    fn execute_step(&mut self, step: &FlowStep) -> Result<StepResult, String> {
-        match step {
-            FlowStep::AgentCall { agent_name, prompt } => {
-                if let Some(ref mut agent_exec) = self.agent_executor {
-                    match agent_exec.execute(agent_name, prompt) {
-                        Ok(result) => Ok(StepResult {
-                            step_index: 0,
-                            success: result.success,
-                            output: Some(serde_json::json!({
-                                "agent": result.agent_name,
-                                "prompt": result.prompt,
-                                "output": result.output,
-                                "success": result.success,
-                                "error": result.error,
-                            })),
-                            error: result.error,
-                        }),
-                        Err(e) => Ok(StepResult {
-                            step_index: 0,
-                            success: false,
-                            output: None,
-                            error: Some(format!("Agent 执行失败: {e}")),
-                        }),
-                    }
-                } else {
-                    Ok(StepResult {
+    fn execute_step(&self, step: &FlowStep, max_retries: u32) -> Result<StepResult, String> {
+        execute_step_from_parts(
+            step,
+            &self.tool_executor,
+            &self.agent_executor,
+            &self.code_executor,
+            max_retries,
+        )
+    }
+}
+
+fn execute_step_from_parts(
+    step: &FlowStep,
+    tool_executor: &Option<Arc<ToolExecutorFn>>,
+    agent_executor: &Option<Arc<Mutex<Box<dyn AgentExecutor>>>>,
+    code_executor: &Option<Arc<Mutex<Box<dyn CodeExecutor>>>>,
+    max_retries: u32,
+) -> Result<StepResult, String> {
+    match step {
+        FlowStep::AgentCall { agent_name, prompt } => {
+            if let Some(ref agent_exec) = agent_executor {
+                match agent_exec
+                    .lock()
+                    .map_err(|e| format!("Agent executor lock error: {e}"))?
+                    .execute(agent_name, prompt)
+                {
+                    Ok(result) => Ok(StepResult {
+                        step_index: 0,
+                        success: result.success,
+                        output: Some(serde_json::json!({
+                            "agent": result.agent_name,
+                            "prompt": result.prompt,
+                            "output": result.output,
+                            "success": result.success,
+                            "error": result.error,
+                        })),
+                        error: result.error,
+                    }),
+                    Err(e) => Ok(StepResult {
                         step_index: 0,
                         success: false,
                         output: None,
-                        error: Some(format!(
-                            "未注册 Agent 执行器，无法执行 agent '{agent_name}'"
-                        )),
-                    })
+                        error: Some(format!("Agent 执行失败: {e}")),
+                    }),
                 }
+            } else {
+                Ok(StepResult {
+                    step_index: 0,
+                    success: false,
+                    output: None,
+                    error: Some(format!(
+                        "未注册 Agent 执行器，无法执行 agent '{agent_name}'"
+                    )),
+                })
             }
-            FlowStep::AgentTool { agent_name, input } => {
-                if let Some(ref mut agent_exec) = self.agent_executor {
-                    let prompt = serde_json::to_string(input).unwrap_or_default();
-                    match agent_exec.delegate_to(agent_name, &prompt) {
-                        Ok(result) => Ok(StepResult {
-                            step_index: 0,
-                            success: result.success,
-                            output: Some(serde_json::json!({
-                                "agent": result.agent_name,
-                                "output": result.output,
-                            })),
-                            error: result.error,
-                        }),
-                        Err(e) => Ok(StepResult {
-                            step_index: 0,
-                            success: false,
-                            output: None,
-                            error: Some(format!("AgentTool 委托失败: {e}")),
-                        }),
-                    }
-                } else {
-                    Ok(StepResult {
+        }
+        FlowStep::AgentTool { agent_name, input } => {
+            if let Some(ref agent_exec) = agent_executor {
+                let prompt = serde_json::to_string(input).unwrap_or_default();
+                match agent_exec
+                    .lock()
+                    .map_err(|e| format!("Agent executor lock error: {e}"))?
+                    .delegate_to(agent_name, &prompt)
+                {
+                    Ok(result) => Ok(StepResult {
+                        step_index: 0,
+                        success: result.success,
+                        output: Some(serde_json::json!({
+                            "agent": result.agent_name,
+                            "output": result.output,
+                        })),
+                        error: result.error,
+                    }),
+                    Err(e) => Ok(StepResult {
                         step_index: 0,
                         success: false,
                         output: None,
-                        error: Some("未注册 Agent 执行器，无法委托 AgentTool".into()),
-                    })
+                        error: Some(format!("AgentTool 委托失败: {e}")),
+                    }),
                 }
+            } else {
+                Ok(StepResult {
+                    step_index: 0,
+                    success: false,
+                    output: None,
+                    error: Some("未注册 Agent 执行器，无法委托 AgentTool".into()),
+                })
             }
-            FlowStep::QualityCheck { criteria } => Ok(StepResult {
-                step_index: 0,
-                success: true,
-                output: Some(serde_json::json!({
-                    "criteria": criteria,
-                    "passed": true
-                })),
-                error: None,
-            }),
-            FlowStep::HumanApproval { title, description } => Ok(StepResult {
-                step_index: 0,
-                success: true,
-                output: Some(serde_json::json!({
-                    "type": "human_approval_required",
-                    "title": title,
-                    "description": description,
-                    "suspended": true,
-                })),
-                error: None,
-            }),
-            FlowStep::ToolCall { tool_name, input } => {
-                if let Some(ref executor) = self.tool_executor {
+        }
+        FlowStep::QualityCheck { criteria } => Ok(StepResult {
+            step_index: 0,
+            success: true,
+            output: Some(serde_json::json!({
+                "criteria": criteria,
+                "passed": true
+            })),
+            error: None,
+        }),
+        FlowStep::HumanApproval { title, description } => Ok(StepResult {
+            step_index: 0,
+            success: true,
+            output: Some(serde_json::json!({
+                "type": "human_approval_required",
+                "title": title,
+                "description": description,
+                "suspended": true,
+            })),
+            error: None,
+        }),
+        FlowStep::ToolCall { tool_name, input } => {
+            if let Some(ref executor) = tool_executor {
+                let mut last_error = String::new();
+
+                for attempt in 0..=max_retries {
+                    if attempt > 0 {
+                        let delay_ms = 500u64 * 2u64.pow(attempt - 1);
+                        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                    }
+
+                    let start = Instant::now();
                     match executor(tool_name, input) {
-                        Ok(output) => Ok(StepResult {
-                            step_index: 0,
-                            success: true,
-                            output: Some(serde_json::json!({ "output": output })),
-                            error: None,
-                        }),
-                        Err(e) => Ok(StepResult {
-                            step_index: 0,
-                            success: false,
-                            output: None,
-                            error: Some(e),
-                        }),
+                        Ok(output) => {
+                            let elapsed_ms = start.elapsed().as_millis();
+                            tracing::info!(
+                                tool = %tool_name,
+                                elapsed_ms = %elapsed_ms,
+                                output_len = output.len(),
+                                attempt = attempt + 1,
+                                "工具调用成功"
+                            );
+                            return Ok(StepResult {
+                                step_index: 0,
+                                success: true,
+                                output: Some(serde_json::json!({ "output": output })),
+                                error: None,
+                            });
+                        }
+                        Err(e) => {
+                            let elapsed_ms = start.elapsed().as_millis();
+                            last_error = e.clone();
+
+                            if matches!(classify_tool_error(&e), ErrorKind::Fatal) {
+                                tracing::error!(
+                                    tool = %tool_name,
+                                    elapsed_ms = %elapsed_ms,
+                                    error = %e,
+                                    "工具调用失败(致命错误，不重试)"
+                                );
+                                break;
+                            }
+
+                            if attempt < max_retries {
+                                tracing::warn!(
+                                    tool = %tool_name,
+                                    attempt = attempt + 1,
+                                    elapsed_ms = %elapsed_ms,
+                                    error = %e,
+                                    "工具调用失败，将重试"
+                                );
+                            } else {
+                                tracing::error!(
+                                    tool = %tool_name,
+                                    attempt = attempt + 1,
+                                    elapsed_ms = %elapsed_ms,
+                                    error = %e,
+                                    "工具调用失败(已达最大重试次数)"
+                                );
+                            }
+                        }
                     }
-                } else {
-                    Ok(StepResult {
-                        step_index: 0,
-                        success: false,
-                        output: None,
-                        error: Some(format!("未注册 Tool 执行器: {tool_name}")),
-                    })
                 }
+
+                Ok(StepResult {
+                    step_index: 0,
+                    success: false,
+                    output: None,
+                    error: Some(last_error),
+                })
+            } else {
+                Ok(StepResult {
+                    step_index: 0,
+                    success: false,
+                    output: None,
+                    error: Some(format!("未注册 Tool 执行器: {tool_name}")),
+                })
             }
-            FlowStep::CodeBlock { language, code } => {
-                if let Some(ref mut exec) = self.code_executor {
-                    match exec.execute(language, code) {
-                        Ok(result) => Ok(StepResult {
-                            step_index: 0,
-                            success: result.success,
-                            output: Some(serde_json::json!({
-                                "output": result.output,
-                                "language": result.language,
-                            })),
-                            error: result.error,
-                        }),
-                        Err(e) => Ok(StepResult {
-                            step_index: 0,
-                            success: false,
-                            output: None,
-                            error: Some(format!("代码执行失败: {e}")),
-                        }),
-                    }
-                } else {
-                    Ok(StepResult {
+        }
+        FlowStep::CodeBlock { language, code } => {
+            if let Some(ref exec) = code_executor {
+                match exec
+                    .lock()
+                    .map_err(|e| format!("Code executor lock error: {e}"))?
+                    .execute(language, code)
+                {
+                    Ok(result) => Ok(StepResult {
+                        step_index: 0,
+                        success: result.success,
+                        output: Some(serde_json::json!({
+                            "output": result.output,
+                            "language": result.language,
+                        })),
+                        error: result.error,
+                    }),
+                    Err(e) => Ok(StepResult {
                         step_index: 0,
                         success: false,
                         output: None,
-                        error: Some("未注册代码执行器".into()),
-                    })
+                        error: Some(format!("代码执行失败: {e}")),
+                    }),
                 }
+            } else {
+                Ok(StepResult {
+                    step_index: 0,
+                    success: false,
+                    output: None,
+                    error: Some("未注册代码执行器".into()),
+                })
             }
         }
     }
@@ -302,6 +477,37 @@ fn node_matches_step(node_step: &FlowStep, target: &FlowStep) -> bool {
             FlowStep::HumanApproval { .. }
         )
     )
+}
+
+enum ErrorKind {
+    Retryable,
+    Fatal,
+}
+
+fn classify_tool_error(msg: &str) -> ErrorKind {
+    let lower = msg.to_lowercase();
+    if lower.contains("timeout")
+        || lower.contains("timed out")
+        || lower.contains("connection")
+        || lower.contains("network")
+        || lower.contains("temporary")
+        || lower.contains("rate limit")
+        || lower.contains("429")
+        || lower.contains("503")
+        || lower.contains("502")
+        || lower.contains("gateway")
+        || lower.contains("unavailable")
+        || lower.contains("eof")
+        || lower.contains("reset")
+        || lower.contains("refused")
+        || lower.contains("broken pipe")
+        || lower.contains("io error")
+        || lower.contains("interrupted")
+    {
+        ErrorKind::Retryable
+    } else {
+        ErrorKind::Fatal
+    }
 }
 
 pub trait CodeExecutor: Send {
@@ -411,10 +617,9 @@ mod tests {
     #[test]
     fn test_execute_parallel_graph() {
         let (_file, store) = temp_db();
-        let mut executor =
-            GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
-                label: "test".into(),
-            }));
+        let executor = GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
+            label: "test".into(),
+        }));
 
         let graph = parallel_graph();
         let result = executor.execute(&graph).unwrap();
@@ -437,10 +642,9 @@ mod tests {
     #[test]
     fn test_graph_with_agent_tool_delegation() {
         let (_file, store) = temp_db();
-        let mut executor =
-            GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
-                label: "test".into(),
-            }));
+        let executor = GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
+            label: "test".into(),
+        }));
 
         let graph = FlowGraph {
             id: "delegate".into(),
@@ -480,14 +684,13 @@ mod tests {
     #[test]
     fn test_conditional_routing_on_failure() {
         let (_file, store) = temp_db();
-        let mut executor =
-            GraphExecutor::new(store).with_tool_executor(Box::new(|name, _input| {
-                if name == "failing_tool" {
-                    Err("模拟失败".into())
-                } else {
-                    Ok("成功".into())
-                }
-            }));
+        let executor = GraphExecutor::new(store).with_tool_executor(Box::new(|name, _input| {
+            if name == "failing_tool" {
+                Err("模拟失败".into())
+            } else {
+                Ok("成功".into())
+            }
+        }));
 
         let graph = FlowGraph {
             id: "conditional".into(),
@@ -549,10 +752,9 @@ mod tests {
     #[test]
     fn test_hitl_suspension_in_graph() {
         let (_file, store) = temp_db();
-        let mut executor =
-            GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
-                label: "test".into(),
-            }));
+        let executor = GraphExecutor::new(store).with_agent_executor(Box::new(NoopAgentExecutor {
+            label: "test".into(),
+        }));
 
         let graph = FlowGraph {
             id: "hitl".into(),

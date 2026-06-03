@@ -2,9 +2,33 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct PatentManageInput {
+    #[serde(default = "default_pm_action")]
     pub action: String,
     pub patent_id: Option<String>,
     pub data: Option<serde_json::Value>,
+}
+fn default_pm_action() -> String {
+    "list".into()
+}
+#[derive(Debug, Deserialize)]
+pub struct TemplateManagerInput {
+    #[serde(default = "default_template_type")]
+    pub template_type: String,
+}
+fn default_template_type() -> String {
+    "patent_application".into()
+}
+#[derive(Debug, Deserialize)]
+pub struct ProcessChartInput {
+    #[serde(default = "default_process_type")]
+    pub process_type: String,
+}
+fn default_process_type() -> String {
+    "application".into()
+}
+#[derive(Debug, Deserialize)]
+pub struct TrademarkAnalysisInput {
+    pub mark: String,
 }
 
 pub struct ManagementTools;
@@ -101,39 +125,30 @@ pub fn register_management_tools() -> std::collections::HashMap<String, super::T
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
     t.insert("PatentManager".into(), |input| {
         Box::pin(async move {
-            let action = input
-                .get("action")
-                .and_then(|v| v.as_str())
-                .unwrap_or("list");
-            ManagementTools::patent_manager(PatentManageInput {
-                action: action.into(),
-                patent_id: None,
-                data: None,
-            })
+            let parsed: PatentManageInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::patent_manager(parsed)
         })
     });
     t.insert("TemplateManager".into(), |input| {
         Box::pin(async move {
-            let ttype = input
-                .get("template_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("patent_application");
-            ManagementTools::template_library(ttype)
+            let parsed: TemplateManagerInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::template_library(&parsed.template_type)
         })
     });
     t.insert("ProcessChart".into(), |input| {
         Box::pin(async move {
-            let ptype = input
-                .get("process_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("application");
-            ManagementTools::process_chart(ptype)
+            let parsed: ProcessChartInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::process_chart(&parsed.process_type)
         })
     });
     t.insert("TrademarkAnalysis".into(), |input| {
         Box::pin(async move {
-            let mark = input.get("mark").and_then(|v| v.as_str()).unwrap_or("");
-            ManagementTools::trademark_analysis(mark)
+            let parsed: TrademarkAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::trademark_analysis(&parsed.mark)
         })
     });
     t

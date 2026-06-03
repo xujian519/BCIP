@@ -1936,6 +1936,9 @@ dependencies = [
  "codex-git-utils",
  "codex-guardian",
  "codex-hooks",
+ "codex-im-bridge",
+ "codex-im-feishu",
+ "codex-im-telegram",
  "codex-login",
  "codex-mcp",
  "codex-memories-extension",
@@ -3531,6 +3534,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
+ "tracing",
 ]
 
 [[package]]
@@ -3581,6 +3585,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -3636,6 +3641,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

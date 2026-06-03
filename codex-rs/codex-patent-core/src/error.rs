@@ -1,5 +1,45 @@
 use thiserror::Error;
 
+/// 工具错误分类：决定是否应该重试。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolErrorKind {
+    /// 可重试：网络超时、连接拒绝、服务暂不可用等临时性错误
+    Retryable,
+    /// 致命错误：参数错误、权限不足、资源不存在等不可恢复错误
+    Fatal,
+}
+
+/// 根据工具错误消息的文本模式进行分类。
+///
+/// 匹配常见的超时、网络、限流等可重试错误关键字。
+/// 未匹配任何模式时默认为 `Fatal`（保守策略：不重试未知错误）。
+pub fn classify_tool_error(msg: &str) -> ToolErrorKind {
+    let lower = msg.to_lowercase();
+    if lower.contains("timeout")
+        || lower.contains("timed out")
+        || lower.contains("connection")
+        || lower.contains("network")
+        || lower.contains("temporary")
+        || lower.contains("rate limit")
+        || lower.contains("429")
+        || lower.contains("503")
+        || lower.contains("502")
+        || lower.contains("gateway")
+        || lower.contains("unavailable")
+        || lower.contains("eof")
+        || lower.contains("reset")
+        || lower.contains("refused")
+        || lower.contains("broken pipe")
+        || lower.contains("io error")
+        || lower.contains("interrupted")
+        || lower.contains("try again")
+    {
+        ToolErrorKind::Retryable
+    } else {
+        ToolErrorKind::Fatal
+    }
+}
+
 /// API key 解析错误。
 ///
 /// 用于阻断"代理 URL 被误当作 API key"这类典型故障。
@@ -71,5 +111,19 @@ impl From<serde_json::Error> for PatentError {
 impl From<ApiKeyError> for PatentError {
     fn from(e: ApiKeyError) -> Self {
         PatentError::ApiKey(e.to_string())
+    }
+}
+
+impl PatentError {
+    /// 根据错误类别判断是否可重试。
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self,
+            PatentError::KnowledgeGraph(_)
+                | PatentError::LawDb(_)
+                | PatentError::Search(_)
+                | PatentError::Io(_)
+                | PatentError::Provider(_)
+        )
     }
 }

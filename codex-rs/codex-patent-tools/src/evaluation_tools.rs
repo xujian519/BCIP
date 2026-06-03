@@ -1,3 +1,44 @@
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct ActionReviewInput {
+    pub action: String,
+    pub expected: String,
+    pub actual: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LlmReflectionInput {
+    pub output: String,
+    #[serde(default)]
+    pub criteria: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FaithfulnessEvalInput {
+    pub source: String,
+    pub output: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SelfConsistencyEvalInput {
+    #[serde(default)]
+    pub results: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RubricItem {
+    pub name: String,
+    pub weight: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GEvalInput {
+    pub output: String,
+    #[serde(default)]
+    pub rubric: Vec<RubricItem>,
+}
+
 pub struct EvaluationTools;
 
 impl EvaluationTools {
@@ -88,61 +129,42 @@ pub fn register_evaluation_tools() -> std::collections::HashMap<String, super::T
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
     t.insert("ActionReview".into(), |input| {
         Box::pin(async move {
-            let action = input.get("action").and_then(|v| v.as_str()).unwrap_or("");
-            let expected = input.get("expected").and_then(|v| v.as_str()).unwrap_or("");
-            let actual = input.get("actual").and_then(|v| v.as_str()).unwrap_or("");
-            EvaluationTools::action_review(action, expected, actual)
+            let parsed: ActionReviewInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            EvaluationTools::action_review(&parsed.action, &parsed.expected, &parsed.actual)
         })
     });
     t.insert("LlmReflection".into(), |input| {
         Box::pin(async move {
-            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
-            let criteria = input
-                .get("criteria")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
-                .unwrap_or_default();
-            EvaluationTools::llm_reflection(output, &criteria)
+            let parsed: LlmReflectionInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let criteria: Vec<&str> = parsed.criteria.iter().map(|s| s.as_str()).collect();
+            EvaluationTools::llm_reflection(&parsed.output, &criteria)
         })
     });
     t.insert("FaithfulnessEval".into(), |input| {
         Box::pin(async move {
-            let source = input.get("source").and_then(|v| v.as_str()).unwrap_or("");
-            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
-            EvaluationTools::faithfulness_eval(source, output)
+            let parsed: FaithfulnessEvalInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            EvaluationTools::faithfulness_eval(&parsed.source, &parsed.output)
         })
     });
     t.insert("SelfConsistencyEval".into(), |input| {
         Box::pin(async move {
-            let results = input
-                .get("results")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            EvaluationTools::self_consistency_eval(&results)
+            let parsed: SelfConsistencyEvalInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            EvaluationTools::self_consistency_eval(&parsed.results)
         })
     });
     t.insert("GEval".into(), |input| {
         Box::pin(async move {
-            let output = input.get("output").and_then(|v| v.as_str()).unwrap_or("");
-            let rubric = input
-                .get("rubric")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| {
-                            let name = v.get("name")?.as_str()?;
-                            let weight = v.get("weight")?.as_f64()?;
-                            Some((name, weight))
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            EvaluationTools::g_eval(output, &rubric)
+            let parsed: GEvalInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let rubric: Vec<(&str, f64)> = parsed
+                .rubric
+                .iter()
+                .map(|r| (r.name.as_str(), r.weight))
+                .collect();
+            EvaluationTools::g_eval(&parsed.output, &rubric)
         })
     });
     t

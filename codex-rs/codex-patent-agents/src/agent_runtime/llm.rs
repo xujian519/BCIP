@@ -129,6 +129,8 @@ fn call_openai_compatible(
     let json: serde_json::Value =
         serde_json::from_str(&text).map_err(|e| format!("parse JSON: {e}"))?;
 
+    log_token_usage(&json, model);
+
     json.get("choices")
         .and_then(|c| c.get(0))
         .and_then(|c| c.get("message"))
@@ -192,6 +194,8 @@ fn call_anthropic(
     let json: serde_json::Value =
         serde_json::from_str(&text).map_err(|e| format!("parse JSON: {e}"))?;
 
+    log_token_usage(&json, model);
+
     json.get("content")
         .and_then(|c| c.get(0))
         .and_then(|c| c.get("text"))
@@ -203,6 +207,32 @@ fn call_anthropic(
                 truncate_error_body(&text, 300)
             )
         })
+}
+
+fn log_token_usage(json: &serde_json::Value, model: &str) {
+    if let Some(usage) = json.get("usage") {
+        let prompt_tokens = usage
+            .get("input_tokens")
+            .or_else(|| usage.get("prompt_tokens"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let completion_tokens = usage
+            .get("output_tokens")
+            .or_else(|| usage.get("completion_tokens"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let total_tokens = usage
+            .get("total_tokens")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(prompt_tokens + completion_tokens);
+        tracing::info!(
+            model = %model,
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            "LLM token usage"
+        );
+    }
 }
 
 pub(crate) fn truncate_error_body(text: &str, max_len: usize) -> String {

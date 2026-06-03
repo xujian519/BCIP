@@ -233,6 +233,17 @@ impl PatentAgentRole {
         }
     }
 
+    /// 返回此角色可见的全部工具域（主域 + 辅助域）。
+    pub fn all_domains(&self) -> Vec<ToolDomain> {
+        let mut domains: Vec<ToolDomain> = self.primary_domains().to_vec();
+        for &d in self.secondary_domains() {
+            if !domains.contains(&d) {
+                domains.push(d);
+            }
+        }
+        domains
+    }
+
     /// 此角色的辅助工具域（可通过 ToolSearch 发现）。
     pub fn secondary_domains(&self) -> &'static [ToolDomain] {
         match self {

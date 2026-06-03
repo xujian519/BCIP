@@ -1,5 +1,6 @@
 pub mod advanced_analysis;
 pub mod analysis_tools;
+pub mod common;
 pub mod council_tools;
 pub mod document_tools;
 pub mod drafting_tools;
@@ -36,22 +37,36 @@ pub struct ToolMeta {
     pub handler: ToolHandler,
 }
 
-/// 注册全部专利工具
-pub fn register_all_tools() -> HashMap<String, ToolHandler> {
-    let mut tools = search_tools::register_search_tools();
-    tools.extend(web_search_tools::register_web_search_tools());
-    tools.extend(drafting_tools::register_drafting_tools());
-    tools.extend(oa_tools::register_oa_tools());
-    tools.extend(quality_tools::register_quality_tools());
-    tools.extend(analysis_tools::register_analysis_tools());
-    tools.extend(document_tools::register_document_tools());
-    tools.extend(legal_tools::register_legal_tools());
-    tools.extend(management_tools::register_management_tools());
-    tools.extend(review_tools::register_review_tools());
-    tools.extend(evaluation_tools::register_evaluation_tools());
-    tools.extend(council_tools::register_council_tools());
-    tools.extend(simulator_tools::register_simulator_tools());
+/// 按角色域过滤工具集，减少每个 Agent 可见的工具噪音。
+///
+/// 仅保留主域（primary_domains）和辅助域（secondary_domains）中的工具，
+/// 排除与当前角色无关的工具域。
+pub fn filter_tools_by_role(
+    tools: &HashMap<String, ToolMeta>,
+    role: &codex_patent_agents::roles::PatentAgentRole,
+) -> HashMap<String, ToolMeta> {
+    let visible_domains: Vec<ToolDomain> = role.all_domains();
     tools
+        .iter()
+        .filter(|(_, meta)| visible_domains.contains(&meta.domain))
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                ToolMeta {
+                    domain: v.domain,
+                    handler: v.handler,
+                },
+            )
+        })
+        .collect()
+}
+
+/// 注册全部专利工具，委托给 [`register_all_tools_with_domains`] 并剥离域元数据。
+pub fn register_all_tools() -> HashMap<String, ToolHandler> {
+    register_all_tools_with_domains()
+        .into_iter()
+        .map(|(name, meta)| (name, meta.handler))
+        .collect()
 }
 
 /// 注册全部专利工具并附带域分类元数据。
