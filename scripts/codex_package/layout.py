@@ -13,6 +13,30 @@ from .zsh import ZSH_RESOURCE_PATH
 
 LAYOUT_VERSION = 1
 
+ASSETS_FILES = [
+    "patent_kg.db",
+    "laws.db",
+    "card-index.json",
+]
+ASSETS_DIRS = [
+    "cards",
+    "constitutional",
+    "rules",
+]
+
+
+def copy_assets(assets_dir: Path, resources_dir: Path) -> None:
+    dest = resources_dir / "codex-patent-assets"
+    dest.mkdir(exist_ok=True)
+    for fname in ASSETS_FILES:
+        src = assets_dir / fname
+        if src.is_file():
+            shutil.copy2(src, dest / fname)
+    for dname in ASSETS_DIRS:
+        src = assets_dir / dname
+        if src.is_dir():
+            shutil.copytree(src, dest / dname, dirs_exist_ok=True)
+
 
 def prepare_package_dir(package_dir: Path, *, force: bool) -> None:
     if package_dir.exists():
@@ -75,6 +99,9 @@ def build_package_dir(
             is_windows=True,
         )
 
+    if inputs.assets_dir is not None:
+        copy_assets(inputs.assets_dir, resources_dir)
+
     metadata = {
         "layoutVersion": LAYOUT_VERSION,
         "version": version,
@@ -84,6 +111,8 @@ def build_package_dir(
         "resourcesDir": "codex-resources",
         "pathDir": "codex-path",
     }
+    if inputs.assets_dir is not None:
+        metadata["assetsDir"] = "codex-resources/codex-patent-assets"
     write_json(package_dir / "codex-package.json", metadata)
 
 

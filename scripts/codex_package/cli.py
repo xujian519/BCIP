@@ -118,6 +118,15 @@ def parse_args() -> argparse.Namespace:
             "scripts/codex_package/rg."
         ),
     )
+    parser.add_argument(
+        "--assets-dir",
+        type=Path,
+        default=argparse.SUPPRESS,
+        help=(
+            "Optional path to codex-patent-assets directory to bundle into "
+            "the package."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -166,6 +175,7 @@ def main() -> int:
         bwrap_bin=source_outputs.bwrap_bin,
         codex_command_runner_bin=source_outputs.codex_command_runner_bin,
         codex_windows_sandbox_setup_bin=source_outputs.codex_windows_sandbox_setup_bin,
+        assets_dir=resolve_optional_assets_dir(args),
     )
     prepare_package_dir(package_dir, force=args.force)
     build_package_dir(package_dir, version, variant, spec, inputs)
@@ -189,3 +199,13 @@ def resolve_optional_input_path(
         return None
 
     return resolve_input_path(explicit_path, description, flag_name)
+
+
+def resolve_optional_assets_dir(args: argparse.Namespace) -> Path | None:
+    explicit = getattr(args, "assets_dir", None)
+    if explicit is not None:
+        path = explicit.resolve()
+        if not path.is_dir():
+            raise RuntimeError(f"Assets directory does not exist: {path}")
+        return path
+    return None

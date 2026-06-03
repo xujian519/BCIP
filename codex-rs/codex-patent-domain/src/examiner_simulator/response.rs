@@ -21,7 +21,11 @@ impl ExaminerSimulator {
         let key_points: Option<Vec<String>> = argument_analysis
             .get("keyPoints")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
 
         let output = RespondOutput {
             round_number,

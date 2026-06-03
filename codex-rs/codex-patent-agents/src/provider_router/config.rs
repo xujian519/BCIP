@@ -1,6 +1,7 @@
 //! 配置辅助函数：BCIP 路径、环境变量映射、base URL 解析。
 
-use super::registry::{build_provider_registry, model_to_provider_name};
+use super::registry::build_provider_registry;
+use super::registry::model_to_provider_name;
 
 /// 返回 `$BCIP_HOME`（或 `$CODEX_HOME`）路径，默认 `~/.bcip`。
 pub(crate) fn bcip_home() -> std::path::PathBuf {

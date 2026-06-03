@@ -2,7 +2,8 @@
 
 use codex_patent_core::ApiKeyError;
 
-use super::config::{bcip_home, env_var_to_provider_name};
+use super::config::bcip_home;
+use super::config::env_var_to_provider_name;
 
 /// 从环境变量解析 API key，遇到代理 URL/占位值时拒绝并返回错误。
 ///
