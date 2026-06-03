@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use codex_patent_core::PatentError;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -68,32 +69,39 @@ impl LearningStore {
         Self { feedback_dir }
     }
 
-    pub fn record_feedback(&self, data: FeedbackData) -> Result<(), String> {
+    pub fn record_feedback(&self, data: FeedbackData) -> Result<(), PatentError> {
         let path = self.feedback_dir.join("feedback.jsonl");
         let mut file = std::fs::OpenOptions::new()
             .append(true)
             .create(true)
             .open(&path)
-            .map_err(|e| format!("open feedback file: {e}"))?;
-        let line = serde_json::to_string(&data).map_err(|e| format!("serialize feedback: {e}"))?;
+            .map_err(|e| PatentError::Learning(format!("open feedback file: {e}")))?;
+        let line = serde_json::to_string(&data)?;
         use std::io::Write;
-        writeln!(file, "{line}").map_err(|e| format!("write feedback: {e}"))
+        writeln!(file, "{line}").map_err(|e| PatentError::Learning(format!("write feedback: {e}")))
     }
 
-    pub fn load_all(&self) -> Result<Vec<FeedbackData>, String> {
+    pub fn load_all(&self) -> Result<Vec<FeedbackData>, PatentError> {
         let path = self.feedback_dir.join("feedback.jsonl");
         if !path.exists() {
             return Ok(Vec::new());
         }
-        let content = std::fs::read_to_string(&path).map_err(|e| format!("read feedback: {e}"))?;
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| PatentError::Learning(format!("read feedback: {e}")))?;
         content
             .lines()
             .filter(|l| !l.trim().is_empty())
-            .map(|line| serde_json::from_str(line).map_err(|e| format!("parse feedback: {e}")))
+            .map(|line| {
+                serde_json::from_str(line)
+                    .map_err(|e| PatentError::Learning(format!("parse feedback: {e}")))
+            })
             .collect()
     }
 
-    pub fn get_stats(&self, group_by: GroupBy) -> Result<HashMap<String, LearningStats>, String> {
+    pub fn get_stats(
+        &self,
+        group_by: GroupBy,
+    ) -> Result<HashMap<String, LearningStats>, PatentError> {
         let records = self.load_all()?;
         let mut stats: HashMap<String, LearningStats> = HashMap::new();
 
@@ -124,7 +132,7 @@ impl LearningStore {
         Ok(stats)
     }
 
-    pub fn get_recent_failures(&self, limit: usize) -> Result<Vec<FeedbackData>, String> {
+    pub fn get_recent_failures(&self, limit: usize) -> Result<Vec<FeedbackData>, PatentError> {
         let mut records = self.load_all()?;
         records.retain(|r| !r.success);
         records.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));

@@ -2,6 +2,7 @@
 //!
 //! 提供agent元数据的持久化存储和查询功能。
 
+use codex_patent_core::PatentError;
 use serde::Deserialize;
 use serde::Serialize;
 use std::cell::RefCell;
@@ -32,7 +33,7 @@ pub fn set_test_store_dir(path: PathBuf) {
 }
 
 /// 获取 agent 存储目录
-pub fn agent_store_dir() -> Result<PathBuf, String> {
+pub fn agent_store_dir() -> Result<PathBuf, PatentError> {
     let test_dir = TEST_STORE_DIR.with(|cell| cell.borrow().clone());
     if let Some(path) = test_dir {
         return Ok(path);
@@ -42,7 +43,7 @@ pub fn agent_store_dir() -> Result<PathBuf, String> {
         return Ok(PathBuf::from(path));
     }
 
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+    let cwd = std::env::current_dir()?;
     if let Some(workspace_root) = cwd.ancestors().nth(2) {
         return Ok(workspace_root.join(".bcip-agents"));
     }
@@ -69,35 +70,33 @@ pub fn iso8601_now() -> String {
 }
 
 /// 持久化 manifest 到文件
-pub fn persist_manifest(manifest: &AgentManifest) -> Result<(), String> {
+pub fn persist_manifest(manifest: &AgentManifest) -> Result<(), PatentError> {
     std::fs::create_dir_all(
         manifest
             .manifest_file
             .parent()
-            .ok_or("manifest_file has no parent")?,
-    )
-    .map_err(|error| error.to_string())?;
+            .ok_or_else(|| PatentError::Config("manifest_file has no parent".to_string()))?,
+    )?;
 
-    std::fs::write(
-        &manifest.manifest_file,
-        serde_json::to_string_pretty(manifest).map_err(|error| error.to_string())?,
-    )
-    .map_err(|error| error.to_string())
+    let json = serde_json::to_string_pretty(manifest)?;
+    std::fs::write(&manifest.manifest_file, json)?;
+    Ok(())
 }
 
 /// 根据 agent_id 加载 manifest
-pub fn load_manifest(agent_id: &str) -> Result<AgentManifest, String> {
+pub fn load_manifest(agent_id: &str) -> Result<AgentManifest, PatentError> {
     let store_dir = agent_store_dir()?;
     let manifest_file = store_dir.join(format!("{agent_id}.json"));
 
     let content = std::fs::read_to_string(&manifest_file)
-        .map_err(|error| format!("read manifest: {error}"))?;
+        .map_err(|e| PatentError::NotFound(format!("read manifest: {e}")))?;
 
-    serde_json::from_str(&content).map_err(|error| format!("parse manifest: {error}"))
+    serde_json::from_str(&content)
+        .map_err(|e| PatentError::Serialization(format!("parse manifest: {e}")))
 }
 
 /// 列出所有 agent manifest
-pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, String> {
+pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, PatentError> {
     let store_dir = match agent_store_dir() {
         Ok(dir) => dir,
         Err(_) => return Ok(Vec::new()),
@@ -107,20 +106,19 @@ pub fn list_agent_manifests() -> Result<Vec<AgentManifest>, String> {
         return Ok(Vec::new());
     }
 
-    let entries = std::fs::read_dir(&store_dir).map_err(|error| error.to_string())?;
+    let entries = std::fs::read_dir(&store_dir)?;
 
     let mut manifests = Vec::new();
 
     for entry in entries {
-        let entry = entry.map_err(|error| error.to_string())?;
+        let entry = entry?;
         let path = entry.path();
 
         if path.extension().and_then(|s| s.to_str()) != Some("json") {
             continue;
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|error| format!("read {}: {error}", path.display()))?;
+        let content = std::fs::read_to_string(&path).map_err(|e| PatentError::Io(e))?;
 
         if let Ok(manifest) = serde_json::from_str::<AgentManifest>(&content) {
             manifests.push(manifest);

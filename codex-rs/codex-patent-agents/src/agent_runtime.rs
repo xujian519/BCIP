@@ -19,6 +19,7 @@ use crate::provider_router::resolve_base_url;
 use crate::provider_router::resolve_provider_api_key;
 use crate::reflection;
 use crate::roles::PatentAgentRole;
+use codex_patent_core::PatentError;
 
 #[derive(Debug, Clone)]
 pub struct AgentSpawnInput {
@@ -32,17 +33,21 @@ pub struct AgentSpawnInput {
 pub struct PatentAgentRuntime;
 
 impl PatentAgentRuntime {
-    pub fn spawn_agent(input: AgentSpawnInput) -> Result<AgentManifest, String> {
+    pub fn spawn_agent(input: AgentSpawnInput) -> Result<AgentManifest, PatentError> {
         if input.description.trim().is_empty() {
-            return Err("description must not be empty".to_string());
+            return Err(PatentError::Validation(
+                "description must not be empty".to_string(),
+            ));
         }
         if input.prompt.trim().is_empty() {
-            return Err("prompt must not be empty".to_string());
+            return Err(PatentError::Validation(
+                "prompt must not be empty".to_string(),
+            ));
         }
 
         let agent_id = make_agent_id();
         let output_dir = agent_store_dir()?;
-        std::fs::create_dir_all(&output_dir).map_err(|error| error.to_string())?;
+        std::fs::create_dir_all(&output_dir)?;
 
         let output_file = output_dir.join(format!("{agent_id}.md"));
         let manifest_file = output_dir.join(format!("{agent_id}.json"));
@@ -83,7 +88,7 @@ impl PatentAgentRuntime {
             input.prompt
         );
 
-        std::fs::write(&output_file, output_contents).map_err(|error| error.to_string())?;
+        std::fs::write(&output_file, output_contents)?;
 
         let manifest = AgentManifest {
             agent_id: agent_id.clone(),
@@ -105,19 +110,22 @@ impl PatentAgentRuntime {
         Ok(manifest)
     }
 
-    pub fn get_agent_status(agent_id: &str) -> Result<AgentManifest, String> {
+    pub fn get_agent_status(agent_id: &str) -> Result<AgentManifest, PatentError> {
         load_manifest(agent_id)
     }
 
-    pub fn list_agents() -> Result<Vec<AgentManifest>, String> {
+    pub fn list_agents() -> Result<Vec<AgentManifest>, PatentError> {
         list_agent_manifests()
     }
 
-    pub fn cancel_agent(agent_id: &str) -> Result<(), String> {
+    pub fn cancel_agent(agent_id: &str) -> Result<(), PatentError> {
         let mut manifest = load_manifest(agent_id)?;
 
         if manifest.status == "completed" || manifest.status == "failed" {
-            return Err(format!("agent {agent_id} is already {}", manifest.status));
+            return Err(PatentError::Agent(format!(
+                "agent {agent_id} is already {}",
+                manifest.status
+            )));
         }
 
         manifest.status = "cancelled".to_string();
@@ -194,7 +202,7 @@ fn spawn_agent_thread(
     manifest: &AgentManifest,
     prompt: String,
     provider: crate::provider_router::AgentProvider,
-) -> Result<(), String> {
+) -> Result<(), PatentError> {
     let thread_name = format!("bcip-agent-{}", manifest.agent_id);
     let manifest_clone = manifest.clone();
 
@@ -233,7 +241,7 @@ fn spawn_agent_thread(
             }
         })
         .map(|_| ())
-        .map_err(|error| error.to_string())
+        .map_err(|e| PatentError::Agent(e.to_string()))
 }
 
 fn run_agent_job(
@@ -304,7 +312,7 @@ fn persist_agent_terminal_state(
     next_manifest.completed_at = Some(iso8601_now());
     next_manifest.error = error;
 
-    persist_manifest(&next_manifest)
+    persist_manifest(&next_manifest).map_err(|e| e.to_string())
 }
 
 fn append_agent_output(path: &std::path::Path, suffix: &str) -> Result<(), String> {
@@ -313,10 +321,9 @@ fn append_agent_output(path: &std::path::Path, suffix: &str) -> Result<(), Strin
     let mut file = std::fs::OpenOptions::new()
         .append(true)
         .open(path)
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| e.to_string())?;
 
-    file.write_all(suffix.as_bytes())
-        .map_err(|error| error.to_string())
+    file.write_all(suffix.as_bytes()).map_err(|e| e.to_string())
 }
 
 fn build_system_prompt(subagent_type: &str, model: &str, knowledge_prefix: &str) -> String {

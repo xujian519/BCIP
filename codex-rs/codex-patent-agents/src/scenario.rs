@@ -1,3 +1,4 @@
+use codex_patent_core::PatentError;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -142,9 +143,9 @@ impl ScenarioRegistry {
     }
 
     /// 批量注册（从 TOML 文件内容）
-    pub fn register_from_toml(&mut self, toml_content: &str) -> Result<(), String> {
-        let rule: ScenarioRule =
-            toml::from_str(toml_content).map_err(|e| format!("TOML 解析失败: {e}"))?;
+    pub fn register_from_toml(&mut self, toml_content: &str) -> Result<(), PatentError> {
+        let rule: ScenarioRule = toml::from_str(toml_content)
+            .map_err(|e| PatentError::Config(format!("TOML 解析失败: {e}")))?;
         self.register(rule);
         Ok(())
     }

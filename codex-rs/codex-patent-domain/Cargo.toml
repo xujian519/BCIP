@@ -12,4 +12,3 @@ serde_json = { workspace = true }
 serde_yaml = { version = "0.9", default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 strsim = "0.11"
-thiserror = "2"

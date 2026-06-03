@@ -232,7 +232,9 @@ impl ScenarioDispatchTools {
             include_str!("../../codex-patent-agents/assets/scenario-rules/quality_review.toml"),
         ];
         for rule_content in &rules {
-            registry.register_from_toml(rule_content)?;
+            registry
+                .register_from_toml(rule_content)
+                .map_err(|e| e.to_string())?;
         }
         Ok(())
     }

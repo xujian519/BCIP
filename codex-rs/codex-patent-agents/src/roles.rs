@@ -1,5 +1,6 @@
 use crate::knowledge_context::AutoKnowledgeConfig;
 use crate::knowledge_context::KnowledgeContext;
+use codex_patent_core::PatentError;
 use codex_patent_core::ToolDomain;
 use serde::Deserialize;
 use serde::Serialize;
@@ -328,16 +329,18 @@ impl PatentAgentRole {
         prompt
     }
 
-    pub fn load_config(role_dir: &str) -> Result<HashMap<String, AgentRoleConfig>, String> {
+    pub fn load_config(role_dir: &str) -> Result<HashMap<String, AgentRoleConfig>, PatentError> {
         let dir = Path::new(role_dir);
         let mut configs = HashMap::new();
         for role in Self::all() {
             let file_path = dir.join(format!("{}.toml", role.role_id()));
             if file_path.exists() {
-                let content = std::fs::read_to_string(&file_path)
-                    .map_err(|e| format!("read {}: {e}", file_path.display()))?;
-                let config: AgentRoleConfig = toml::from_str(&content)
-                    .map_err(|e| format!("parse {}: {e}", file_path.display()))?;
+                let content = std::fs::read_to_string(&file_path).map_err(|e| {
+                    PatentError::Config(format!("read {}: {e}", file_path.display()))
+                })?;
+                let config: AgentRoleConfig = toml::from_str(&content).map_err(|e| {
+                    PatentError::Config(format!("parse {}: {e}", file_path.display()))
+                })?;
                 configs.insert(role.role_id().to_string(), config);
             }
         }
@@ -350,7 +353,7 @@ pub struct AgentRegistry {
 }
 
 impl AgentRegistry {
-    pub fn new(role_dir: &str) -> Result<Self, String> {
+    pub fn new(role_dir: &str) -> Result<Self, PatentError> {
         Ok(Self {
             configs: PatentAgentRole::load_config(role_dir)?,
         })

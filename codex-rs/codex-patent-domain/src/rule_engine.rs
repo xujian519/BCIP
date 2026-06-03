@@ -3,17 +3,10 @@
 //! 基于专利审查实践的规则系统,支持新颖性分析、创造性分析、OA 答复策略建议。
 //! 规则以纯 Rust 逻辑实现,无需外部 LLM 调用。
 
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum RuleEngineError {
-    #[error("规则引擎错误: {0}")]
-    EvaluationFailed(String),
-}
-
 use codex_patent_core::AnalysisResult;
 use codex_patent_core::AppliedRule;
 use codex_patent_core::CaseContext;
+use codex_patent_core::PatentError;
 
 /// 定性规则推理引擎
 pub struct QualitativeRuleEngine {
@@ -44,10 +37,7 @@ impl QualitativeRuleEngine {
     }
 
     /// 新颖性分析
-    pub fn analyze_novelty(
-        &mut self,
-        ctx: &CaseContext,
-    ) -> Result<AnalysisResult, RuleEngineError> {
+    pub fn analyze_novelty(&mut self, ctx: &CaseContext) -> Result<AnalysisResult, PatentError> {
         let mut applied = Vec::new();
         let mut total_score = 0.0;
         let mut total_confidence = 0.0;
@@ -98,7 +88,7 @@ impl QualitativeRuleEngine {
     pub fn analyze_inventiveness(
         &mut self,
         ctx: &CaseContext,
-    ) -> Result<AnalysisResult, RuleEngineError> {
+    ) -> Result<AnalysisResult, PatentError> {
         let mut applied = Vec::new();
         let mut total_score = 0.0;
         let mut total_confidence = 0.0;
@@ -149,7 +139,7 @@ impl QualitativeRuleEngine {
     pub fn suggest_oa_strategy(
         &mut self,
         ctx: &CaseContext,
-    ) -> Result<AnalysisResult, RuleEngineError> {
+    ) -> Result<AnalysisResult, PatentError> {
         let mut applied = Vec::new();
         let mut total_score = 0.0;
         let mut total_confidence = 0.0;

@@ -5,7 +5,8 @@
 //! 的 `[providers.*]` 段覆盖。
 
 use std::collections::HashMap;
-use std::fmt;
+
+use codex_patent_core::ApiKeyError;
 
 /// 一个 provider 的可配置条目。
 ///
@@ -144,36 +145,6 @@ fn build_provider_registry() -> HashMap<String, ProviderEntry> {
 
     registry
 }
-
-/// API key 解析错误。
-///
-/// 主要用于阻断"代理 URL 被误当作 API key"这类典型故障：当环境变量值
-/// 形如 `http://127.0.0.1:56186` 或 `Proxy` 等占位字符串时，直接向 LLM
-/// 服务发送会触发 401，且日志只显示 `****roxy` 后缀，难以排查。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ApiKeyError {
-    /// 环境变量未设置。
-    Missing(String),
-    /// 环境变量值为空或仅空白。
-    Empty(String),
-    /// 环境变量值看起来是代理 URL（含 `http://` / `https://` / `proxy` 字面）。
-    SuspectedProxyValue { env_var: String, len: usize },
-}
-
-impl fmt::Display for ApiKeyError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ApiKeyError::Missing(name) => write!(f, "environment variable `{name}` is not set"),
-            ApiKeyError::Empty(name) => write!(f, "environment variable `{name}` is empty"),
-            ApiKeyError::SuspectedProxyValue { env_var, len } => write!(
-                f,
-                "environment variable `{env_var}` (len={len}) looks like a proxy URL/placeholder, refusing to send as API key"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for ApiKeyError {}
 
 #[derive(Debug, Clone)]
 pub enum AgentProvider {

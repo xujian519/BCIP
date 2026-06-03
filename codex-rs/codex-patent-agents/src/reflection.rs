@@ -5,6 +5,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use codex_patent_core::PatentError;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -70,12 +71,12 @@ impl ReflectionEngine {
         }
     }
 
-    pub fn save_reflection(&self, result: &ReflectionResult) -> Result<(), String> {
+    pub fn save_reflection(&self, result: &ReflectionResult) -> Result<(), PatentError> {
         let path = self
             .reflection_dir
             .join(format!("{}.json", result.agent_id));
-        let json = serde_json::to_string_pretty(result).map_err(|e| format!("serialize: {e}"))?;
-        std::fs::write(&path, json).map_err(|e| format!("write: {e}"))
+        let json = serde_json::to_string_pretty(result)?;
+        std::fs::write(&path, json).map_err(|e| PatentError::Reflection(format!("write: {e}")))
     }
 
     pub fn load_reflection(&self, agent_id: &str) -> Option<ReflectionResult> {
