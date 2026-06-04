@@ -84,5 +84,6 @@ pub(crate) struct SessionServices {
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     /// AgentBus for cross-agent messaging.
     pub(crate) agent_bus: Arc<crate::agent::AgentBus>,
+    #[allow(dead_code)] // 会话级熔断注册表；弹性调用路径接入后使用
     pub(crate) circuit_breaker_registry: Arc<CircuitBreakerRegistry>,
 }

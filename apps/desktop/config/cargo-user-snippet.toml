@@ -1,0 +1,14 @@
+# 建议合并到 ~/.cargo/config.toml，避免 tuna Git 索引排队与 sccache 远程编译。
+# 合并后执行: cargo --version 确认无误，再 npm run tauri:build:local
+
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+
+[registries.rsproxy-sparse]
+index = "sparse+https://rsproxy.cn/index/"
+
+# 本地桌面/全仓库编译时若遇 remote: Waiting in queue，可注释下一行：
+# rustc-wrapper = "sccache"

@@ -83,9 +83,9 @@ where
         MarketplaceSource::Git { url, ref_name } => {
             clone_source(url, ref_name.as_deref(), sparse_paths, staged_root)
         }
-        MarketplaceSource::Local { .. } => panic!(
-            "local marketplace sources are added without staging a copied install root"
-        ),
+        MarketplaceSource::Local { .. } => {
+            panic!("local marketplace sources are added without staging a copied install root")
+        }
     }
 }
 

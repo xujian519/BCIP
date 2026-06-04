@@ -8,9 +8,10 @@
 //! - Bounded message history for debugging
 //! - Heartbeat-based liveness monitoring
 
+#![allow(dead_code)] // 总线 API 在测试中完整覆盖；release 路径当前仅 send/publish
+
 use codex_protocol::AgentPath;
 use codex_protocol::agent_bus::AgentBusMessage;
-use codex_protocol::agent_bus::AgentBusMessageType;
 use codex_protocol::agent_bus::AgentBusRecipient;
 use codex_protocol::agent_bus::AgentLiveness;
 use codex_protocol::agent_bus::HeartbeatConfig;
@@ -23,7 +24,6 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
-use tokio::sync::broadcast;
 use tokio::sync::broadcast::Receiver;
 
 const DEFAULT_BUFFER_SIZE: usize = 256;

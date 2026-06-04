@@ -40,6 +40,7 @@ pub(crate) struct AgentMetadata {
     pub(crate) agent_nickname: Option<String>,
     pub(crate) agent_role: Option<String>,
     pub(crate) last_task_message: Option<String>,
+    #[allow(dead_code)] // 故障恢复元数据；重启策略接线后读取
     pub(crate) recovery_context: RecoveryContext,
 }
 

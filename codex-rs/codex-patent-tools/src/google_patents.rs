@@ -240,10 +240,14 @@ async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String,
 fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, String> {
     static PN_RE: OnceLock<Regex> = OnceLock::new();
     static BLOCK_RE: OnceLock<Regex> = OnceLock::new();
-    let pn_re = PN_RE
-        .get_or_init(|| Regex::new(r#"(CN|US|EP|WO|JP|KR|DE|GB|FR)\d{6,12}[A-Z]?\d?"#).expect("regex: PN_RE 静态字符串"));
-    let block_re = BLOCK_RE
-        .get_or_init(|| Regex::new(r"(?is)<search-result[^>]*>(.*?)</search-result>").expect("regex: BLOCK_RE 静态字符串"));
+    let pn_re = PN_RE.get_or_init(|| {
+        Regex::new(r#"(CN|US|EP|WO|JP|KR|DE|GB|FR)\d{6,12}[A-Z]?\d?"#)
+            .expect("regex: PN_RE 静态字符串")
+    });
+    let block_re = BLOCK_RE.get_or_init(|| {
+        Regex::new(r"(?is)<search-result[^>]*>(.*?)</search-result>")
+            .expect("regex: BLOCK_RE 静态字符串")
+    });
 
     let mut results = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -288,12 +292,16 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
 fn extract_title(block: &str) -> String {
     static H3_RE: OnceLock<Regex> = OnceLock::new();
     static TITLE_RE: OnceLock<Regex> = OnceLock::new();
-    let h3_re = H3_RE.get_or_init(|| Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").expect("regex: H3_RE 静态字符串"));
+    let h3_re = H3_RE.get_or_init(|| {
+        Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").expect("regex: H3_RE 静态字符串")
+    });
     if let Some(cap) = h3_re.captures(block) {
         return clean_html_text(cap.get(1).expect("h3 标题捕获组应存在").as_str());
     }
-    let re =
-        TITLE_RE.get_or_init(|| Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#).expect("regex: TITLE_RE 静态字符串"));
+    let re = TITLE_RE.get_or_init(|| {
+        Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#)
+            .expect("regex: TITLE_RE 静态字符串")
+    });
     if let Some(cap) = re.captures(block) {
         return clean_html_text(cap.get(1).expect("title 类内容捕获组应存在").as_str());
     }
@@ -303,13 +311,17 @@ fn extract_title(block: &str) -> String {
 fn extract_abstract(segment: &str) -> String {
     static ABSTRACT_RE: OnceLock<Regex> = OnceLock::new();
     static SNIPPET_RE: OnceLock<Regex> = OnceLock::new();
-    let re = ABSTRACT_RE
-        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*abstract[^"]*"[^>]*>(.*?)<"#).expect("regex: ABSTRACT_RE 静态字符串"));
+    let re = ABSTRACT_RE.get_or_init(|| {
+        Regex::new(r#"(?is)class="[^"]*abstract[^"]*"[^>]*>(.*?)<"#)
+            .expect("regex: ABSTRACT_RE 静态字符串")
+    });
     if let Some(cap) = re.captures(segment) {
         return clean_html_text(cap.get(1).expect("abstract 类内容捕获组应存在").as_str());
     }
-    let re2 = SNIPPET_RE
-        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#).expect("regex: SNIPPET_RE 静态字符串"));
+    let re2 = SNIPPET_RE.get_or_init(|| {
+        Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#)
+            .expect("regex: SNIPPET_RE 静态字符串")
+    });
     if let Some(cap) = re2.captures(segment) {
         return clean_html_text(cap.get(1).expect("snippet 类内容捕获组应存在").as_str());
     }
@@ -318,8 +330,10 @@ fn extract_abstract(segment: &str) -> String {
 
 fn extract_assignee(segment: &str) -> Option<String> {
     static ASSIGNEE_RE: OnceLock<Regex> = OnceLock::new();
-    let re = ASSIGNEE_RE
-        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*assignee[^"]*"[^>]*>(.*?)<"#).expect("regex: ASSIGNEE_RE 静态字符串"));
+    let re = ASSIGNEE_RE.get_or_init(|| {
+        Regex::new(r#"(?is)class="[^"]*assignee[^"]*"[^>]*>(.*?)<"#)
+            .expect("regex: ASSIGNEE_RE 静态字符串")
+    });
     re.captures(segment)
         .map(|cap| clean_html_text(cap.get(1).expect("assignee 类内容捕获组应存在").as_str()))
         .filter(|s| !s.is_empty())
@@ -327,7 +341,9 @@ fn extract_assignee(segment: &str) -> Option<String> {
 
 fn extract_date(segment: &str) -> Option<String> {
     static DATE_RE: OnceLock<Regex> = OnceLock::new();
-    let re = DATE_RE.get_or_init(|| Regex::new(r"\b(\d{4})-(\d{2})-(\d{2})\b").expect("regex: DATE_RE 静态字符串"));
+    let re = DATE_RE.get_or_init(|| {
+        Regex::new(r"\b(\d{4})-(\d{2})-(\d{2})\b").expect("regex: DATE_RE 静态字符串")
+    });
     re.captures(segment).map(|cap| {
         format!(
             "{}-{}-{}",

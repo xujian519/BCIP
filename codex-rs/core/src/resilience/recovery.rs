@@ -1,3 +1,5 @@
+#![allow(dead_code)] // RecoveryContext 已写入注册表；策略方法待接线
+
 use std::time::Duration;
 
 use chrono::Utc;

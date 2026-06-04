@@ -1311,9 +1311,7 @@ fn turn_permissions_overrides(
             let policy = legacy_profile
                 .to_legacy_sandbox_policy(cwd)
                 .unwrap_or_else(|err| {
-                    panic!(
-                        "legacy-compatible permissions must project to legacy policy: {err}"
-                    )
+                    panic!("legacy-compatible permissions must project to legacy policy: {err}")
                 });
             (Some(policy.into()), None)
         }

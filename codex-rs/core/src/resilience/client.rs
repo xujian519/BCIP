@@ -3,6 +3,8 @@
 //! 提供带熔断器保护的调用辅助函数，减少每个外部 API 调用点的样板代码。
 //! 支持同步（blocking）和异步两种调用模式。
 
+#![allow(dead_code)] // 供外部 API/LLM 调用接入；release 构建暂未全部接线
+
 use std::sync::Arc;
 
 use super::backoff::ExponentialBackoff;

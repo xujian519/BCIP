@@ -3,10 +3,13 @@
 //! 整合熔断器状态、Agent活性、DLQ深度、恢复状态等信息，
 //! 提供统一的 `HealthReport` 供监控和诊断使用。
 
-use std::collections::HashMap;
+#![allow(dead_code)] // 健康聚合 API 供后续监控接线；当前仅单测覆盖
+
 use std::sync::Arc;
 
 use crate::resilience::circuit_breaker::CircuitBreakerRegistry;
+use crate::resilience::circuit_breaker::CircuitBreakerStats;
+use crate::resilience::circuit_breaker::CircuitState;
 use crate::resilience::recovery::AgentRecoveryState;
 
 /// 单个组件的健康状态。
@@ -57,7 +60,7 @@ pub struct CircuitBreakerHealth {
     /// 当前状态 (Closed/Open/HalfOpen)。
     pub state: String,
     /// 统计信息。
-    pub stats: crate::resilience::CircuitBreakerStats,
+    pub stats: CircuitBreakerStats,
     /// 健康评估。
     pub health: ComponentHealth,
 }
@@ -104,11 +107,9 @@ impl HealthReport {
         for (name, stats) in &all_cb_stats {
             let state_str = format!("{:?}", stats.state);
             let health = match stats.state {
-                crate::resilience::CircuitState::Closed => ComponentHealth::Healthy,
-                crate::resilience::CircuitState::HalfOpen => {
-                    ComponentHealth::Degraded("熔断器半开，探测中".into())
-                }
-                crate::resilience::CircuitState::Open => ComponentHealth::Unhealthy(format!(
+                CircuitState::Closed => ComponentHealth::Healthy,
+                CircuitState::HalfOpen => ComponentHealth::Degraded("熔断器半开，探测中".into()),
+                CircuitState::Open => ComponentHealth::Unhealthy(format!(
                     "熔断器打开，连续失败 {}",
                     stats.consecutive_failures
                 )),

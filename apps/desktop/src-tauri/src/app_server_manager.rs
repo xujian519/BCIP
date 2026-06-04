@@ -46,26 +46,48 @@ impl AppServerManager {
         }
     }
 
+    fn lock_inner(&self) -> Result<std::sync::MutexGuard<'_, Inner>, String> {
+        Ok(self
+            .inner
+            .lock()
+            .unwrap_or_else(|e| {
+                eprintln!("[app_server_manager] mutex poisoned, recovering: {e}");
+                e.into_inner()
+            }))
+    }
+
     pub fn status(&self) -> AppServerStatus {
-        let guard = self.inner.lock().expect("app_server lock");
-        AppServerStatus {
-            connected: guard.connected,
-            transport: guard.transport.clone(),
-            error: guard.last_error.clone(),
+        let guard = self.lock_inner();
+        match guard {
+            Ok(g) => AppServerStatus {
+                connected: g.connected,
+                transport: g.transport.clone(),
+                error: g.last_error.clone(),
+            },
+            Err(_) => AppServerStatus {
+                connected: false,
+                transport: String::new(),
+                error: Some("内部锁错误".to_string()),
+            },
         }
     }
 
     pub fn connect(&self, app: AppHandle) -> Result<AppServerStatus, String> {
         // 如果已有活跃连接且子进程仍在运行，复用
         {
-            let mut guard = self.inner.lock().expect("app_server lock");
+            let mut guard = self.lock_inner()?;
             if let Some(ref mut child) = guard.child {
                 if let Ok(status) = child.try_wait() {
                     if status.is_none() {
                         eprintln!("[app_server_manager] reusing existing connection (pid={})", child.id());
                         guard.connected = true;
                         guard.last_error = None;
-                        return Ok(self.status());
+                        // 不要调用 self.status()——当前仍持有 guard
+                        return Ok(AppServerStatus {
+                            connected: true,
+                            transport: guard.transport.clone(),
+                            error: None,
+                        });
                     }
                 }
             }
@@ -100,7 +122,7 @@ impl AppServerManager {
             .ok_or_else(|| "app-server stderr 不可用".to_string())?;
 
         {
-            let mut guard = self.inner.lock().expect("app_server lock");
+            let mut guard = self.lock_inner()?;
             guard.child = Some(child);
             guard.connected = true;
             guard.transport = transport.to_string();
@@ -114,7 +136,7 @@ impl AppServerManager {
     }
 
     pub fn disconnect(&self) -> Result<(), String> {
-        let mut guard = self.inner.lock().expect("app_server lock");
+        let mut guard = self.lock_inner()?;
         if let Some(mut child) = guard.child.take() {
             let _ = child.kill();
             let _ = child.wait();
@@ -125,7 +147,7 @@ impl AppServerManager {
     }
 
     pub fn send_line(&self, line: String) -> Result<(), String> {
-        let mut guard = self.inner.lock().expect("app_server lock");
+        let mut guard = self.lock_inner()?;
         let child = guard
             .child
             .as_mut()
@@ -191,7 +213,10 @@ impl AppServerManager {
                     Ok(_) => {}
                     Err(err) => {
                         eprintln!("[app_server_manager] stdout read error: {err}");
-                        let mut guard = inner.lock().expect("app_server lock");
+                        let mut guard = inner.lock().unwrap_or_else(|e| {
+                            eprintln!("[app_server_manager] stdout reader: mutex poisoned, recovering: {e}");
+                            e.into_inner()
+                        });
                         guard.connected = false;
                         guard.last_error = Some(format!("读取 app-server 输出失败: {err}"));
                         let _ = app.emit(
@@ -208,7 +233,10 @@ impl AppServerManager {
                 }
             }
             eprintln!("[app_server_manager] stdout reader exiting (child exited or error)");
-            let mut guard = inner.lock().expect("app_server lock");
+            let mut guard = inner.lock().unwrap_or_else(|e| {
+                eprintln!("[app_server_manager] stdout reader exit: mutex poisoned, recovering: {e}");
+                e.into_inner()
+            });
             guard.connected = false;
         });
     }

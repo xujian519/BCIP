@@ -614,7 +614,8 @@ mod tests {
     #[test]
     fn format_rules_claims_counts_independent() {
         let content = "1. 一种装置，包括特征A\n2. 根据权利要求1所述的装置，还包括特征B\n3. 根据权利要求1所述的装置，还包括特征C";
-        let result = QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
+        let result =
+            QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
         assert_eq!(result["total_claims"], 3);
         assert_eq!(result["independent"], 1);
     }
@@ -622,7 +623,8 @@ mod tests {
     #[test]
     fn format_rules_claims_all_independent() {
         let content = "1. 一种方法\n2. 一种装置\n3. 一种系统";
-        let result = QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
+        let result =
+            QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
         assert_eq!(result["total_claims"], 3);
         assert_eq!(result["independent"], 3);
     }
@@ -630,7 +632,8 @@ mod tests {
     #[test]
     fn format_rules_non_claims_doc_type() {
         let content = "这是一段描述性文字";
-        let result = QualityTools::format_rules(content, "specification").expect("test tool call should succeed");
+        let result = QualityTools::format_rules(content, "specification")
+            .expect("test tool call should succeed");
         assert_eq!(result["word_count"], content.len());
         assert_eq!(result["doc_type"], "specification");
     }
@@ -638,7 +641,8 @@ mod tests {
     #[test]
     fn format_rules_empty_claims() {
         let content = "";
-        let result = QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
+        let result =
+            QualityTools::format_rules(content, "claims").expect("test tool call should succeed");
         assert_eq!(result["total_claims"], 0);
         assert_eq!(result["independent"], 0);
     }
@@ -652,10 +656,17 @@ mod tests {
             claims: vec!["一种数据分析的方法，包括统计和推理的步骤".into()],
             patent_type: Some("invention".into()),
         };
-        let result = QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
         assert!(
-            !result["blocking_issues"].as_array().expect("test fixture field should be an array").is_empty()
-                || !result["warnings"].as_array().expect("test fixture field should be an array").is_empty()
+            !result["blocking_issues"]
+                .as_array()
+                .expect("test fixture field should be an array")
+                .is_empty()
+                || !result["warnings"]
+                    .as_array()
+                    .expect("test fixture field should be an array")
+                    .is_empty()
         );
     }
 
@@ -666,9 +677,15 @@ mod tests {
             claims: vec!["一种传感器装置，包括检测模块和信号处理电路".into()],
             patent_type: Some("utility_model".into()),
         };
-        let result = QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
         assert_eq!(result["is_patentable"], true);
-        assert!(result["blocking_issues"].as_array().expect("test fixture field should be an array").is_empty());
+        assert!(
+            result["blocking_issues"]
+                .as_array()
+                .expect("test fixture field should be an array")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -678,13 +695,16 @@ mod tests {
             claims: vec!["一种疾病诊断的方法，包括对病情的检测步骤".into()],
             patent_type: None,
         };
-        let result = QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
-        let warns = result["warnings"].as_array().expect("test fixture field should be an array");
-        assert!(
-            warns
-                .iter()
-                .any(|w| w.as_str().expect("test fixture field should be a string").contains("医疗诊断"))
-        );
+        let result =
+            QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
+        let warns = result["warnings"]
+            .as_array()
+            .expect("test fixture field should be an array");
+        assert!(warns.iter().any(|w| {
+            w.as_str()
+                .expect("test fixture field should be a string")
+                .contains("医疗诊断")
+        }));
     }
 
     #[test]
@@ -694,9 +714,16 @@ mod tests {
             claims: vec!["一种赌博装置".into()],
             patent_type: Some("invention".into()),
         };
-        let result = QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
-        let blocks = result["blocking_issues"].as_array().expect("test fixture field should be an array");
-        assert!(blocks.iter().any(|b| b.as_str().expect("test fixture field should be a string").contains("第5条")));
+        let result =
+            QualityTools::subject_matter_checker(input).expect("test tool call should succeed");
+        let blocks = result["blocking_issues"]
+            .as_array()
+            .expect("test fixture field should be an array");
+        assert!(blocks.iter().any(|b| {
+            b.as_str()
+                .expect("test fixture field should be a string")
+                .contains("第5条")
+        }));
     }
 
     // --- unity_checker tests ---
@@ -725,7 +752,12 @@ mod tests {
         };
         let result = QualityTools::unity_checker(input).expect("test tool call should succeed");
         assert_eq!(result["has_unity"], true);
-        assert!(result["common_terms"].as_u64().expect("test fixture field should be a number") >= 2);
+        assert!(
+            result["common_terms"]
+                .as_u64()
+                .expect("test fixture field should be a number")
+                >= 2
+        );
     }
 
     #[test]
@@ -774,7 +806,9 @@ mod tests {
         };
         let result = QualityTools::quality_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], false);
-        let issues = result["issues"].as_array().expect("test fixture field should be an array");
+        let issues = result["issues"]
+            .as_array()
+            .expect("test fixture field should be an array");
         assert!(issues.len() >= 2);
     }
 
@@ -792,7 +826,9 @@ mod tests {
             patent_type: None,
         };
         let result = QualityTools::unified_quality(input).expect("test tool call should succeed");
-        let issues = result["issues"].as_array().expect("test fixture field should be an array");
+        let issues = result["issues"]
+            .as_array()
+            .expect("test fixture field should be an array");
         let all_text: String = issues
             .iter()
             .map(|i| i["description"].as_str().unwrap_or(""))
@@ -816,7 +852,8 @@ mod tests {
             claims: vec!["一种装置".into()],
             patent_type: None,
         };
-        let result = QualityTools::spec_formality_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::spec_formality_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], true);
     }
 
@@ -833,9 +870,12 @@ mod tests {
             claims: vec![],
             patent_type: None,
         };
-        let result = QualityTools::spec_formality_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::spec_formality_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], false);
-        let missing = result["missing_sections"].as_array().expect("test fixture field should be an array");
+        let missing = result["missing_sections"]
+            .as_array()
+            .expect("test fixture field should be an array");
         assert!(missing.contains(&serde_json::json!("技术领域")));
         assert!(missing.contains(&serde_json::json!("背景技术")));
         assert!(missing.contains(&serde_json::json!("发明内容")));
@@ -850,7 +890,8 @@ mod tests {
             claims: vec!["一种装置，包括特征A".into()],
             check_level: None,
         };
-        let result = QualityTools::legal_language_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::legal_language_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], true);
     }
 
@@ -860,19 +901,22 @@ mod tests {
             claims: vec!["一种世界领先的装置".into(), "独一无二的方法".into()],
             check_level: None,
         };
-        let result = QualityTools::legal_language_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::legal_language_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], false);
-        let issues = result["issues"].as_array().expect("test fixture field should be an array");
-        assert!(
-            issues
-                .iter()
-                .any(|i| i.as_str().expect("test fixture field should be a string").contains("世界领先"))
-        );
-        assert!(
-            issues
-                .iter()
-                .any(|i| i.as_str().expect("test fixture field should be a string").contains("独一无二"))
-        );
+        let issues = result["issues"]
+            .as_array()
+            .expect("test fixture field should be an array");
+        assert!(issues.iter().any(|i| {
+            i.as_str()
+                .expect("test fixture field should be a string")
+                .contains("世界领先")
+        }));
+        assert!(issues.iter().any(|i| {
+            i.as_str()
+                .expect("test fixture field should be a string")
+                .contains("独一无二")
+        }));
     }
 
     #[test]
@@ -881,7 +925,8 @@ mod tests {
             claims: vec!["一种革命性的装置".into()],
             check_level: None,
         };
-        let result = QualityTools::legal_language_checker(input).expect("test tool call should succeed");
+        let result =
+            QualityTools::legal_language_checker(input).expect("test tool call should succeed");
         assert_eq!(result["passed"], false);
     }
 }

@@ -32,11 +32,23 @@ impl Clone for SharedWriter {
 
 impl Write for SharedWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.inner.lock().unwrap().write(buf)
+        self.inner
+            .lock()
+            .unwrap_or_else(|e| {
+                eprintln!("[pty] SharedWriter mutex poisoned, recovering: {e}");
+                e.into_inner()
+            })
+            .write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.lock().unwrap().flush()
+        self.inner
+            .lock()
+            .unwrap_or_else(|e| {
+                eprintln!("[pty] SharedWriter mutex poisoned, recovering: {e}");
+                e.into_inner()
+            })
+            .flush()
     }
 }
 
@@ -122,8 +134,13 @@ impl PtyManager {
             writer: shared_writer,
         };
 
-        self.sessions.lock().unwrap().push(session);
-        
+        self.sessions
+            .lock()
+            .unwrap_or_else(|e| {
+                eprintln!("[pty] sessions mutex poisoned, recovering: {e}");
+                e.into_inner()
+            })
+            .push(session);        
         Ok(PtySessionInfo {
             id: session_id,
             websocket_url,
@@ -136,8 +153,10 @@ impl PtyManager {
         session_id: &str,
         data: &str,
     ) -> Result<(), String> {
-        let sessions = self.sessions.lock().unwrap();
-        let session = sessions
+        let sessions = self.sessions.lock().unwrap_or_else(|e| {
+            eprintln!("[pty] sessions mutex poisoned, recovering: {e}");
+            e.into_inner()
+        });        let session = sessions
             .iter()
             .find(|s| s.id == session_id)
             .ok_or_else(|| "会话不存在".to_string())?;
@@ -164,8 +183,10 @@ impl PtyManager {
     }
 
     pub fn kill(&self, session_id: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().unwrap();
-        let index = sessions
+        let mut sessions = self.sessions.lock().unwrap_or_else(|e| {
+            eprintln!("[pty] sessions mutex poisoned, recovering: {e}");
+            e.into_inner()
+        });        let index = sessions
             .iter()
             .position(|s| s.id == session_id)
             .ok_or_else(|| "会话不存在".to_string())?;
@@ -225,8 +246,13 @@ impl PtyManager {
         shared_writer: SharedWriter,
     ) -> Result<(), String> {
         thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async {
+            let rt = match tokio::runtime::Runtime::new() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    eprintln!("无法创建 Tokio runtime: {e}");
+                    return;
+                }
+            };            rt.block_on(async {
                 let listener = match TcpListener::bind(format!("127.0.0.1:{}", port)).await {
                     Ok(l) => l,
                     Err(e) => {

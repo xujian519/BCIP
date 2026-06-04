@@ -1,4 +1,6 @@
-# 本 workspace 使用 sparse 索引，避免全局 tuna Git index 远程排队。
+# 桌面端 Tauri 包专用：覆盖用户全局 tuna Git 索引，避免镜像站排队。
+# 仅在本 crate 目录生效；全仓库 bcip 编译仍使用 ~/.cargo/config.toml。
+
 [source.crates-io]
 replace-with = "rsproxy-sparse"
 

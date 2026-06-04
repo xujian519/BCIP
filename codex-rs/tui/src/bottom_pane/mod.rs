@@ -1373,9 +1373,9 @@ impl BottomPane {
                         AppLinkSuggestionType::Enable => {
                             "Enable this app to use it for the current request.".to_string()
                         }
-                        AppLinkSuggestionType::Auth => panic!(
-                            "auth uses URL mode elicitation, not tool suggestion forms"
-                        ),
+                        AppLinkSuggestionType::Auth => {
+                            panic!("auth uses URL mode elicitation, not tool suggestion forms")
+                        }
                         AppLinkSuggestionType::ExternalAction => panic!(
                             "external actions use URL mode elicitation, not tool suggestion forms"
                         ),

@@ -3,17 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/hooks/useAppStore';
 import SettingsNav from './SettingsNav';
 import GeneralSettings from './pages/GeneralSettings';
-import ModelSettings from './pages/ModelSettings';
-import ApprovalSandboxSettings from './pages/ApprovalSandboxSettings';
-import McpServersSettings from './pages/McpServersSettings';
-import SkillsSettings from './pages/SkillsSettings';
-import PluginsSettings from './pages/PluginsSettings';
-import AppearanceSettings from './pages/AppearanceSettings';
-import ShortcutsSettings from './pages/ShortcutsSettings';
-import AboutDiagnostics from './pages/AboutDiagnostics';
 import type { SettingsPage } from '@/types';
 import { settingsTheme } from './settingsTheme';
 import { easePanel } from '@/lib/animations';
+
+const pageComponents: Partial<Record<SettingsPage, ComponentType>> = {
+  model: () => null,
+  approval: () => null,
+  mcp: () => null,
+  skills: () => null,
+  plugins: () => null,
+  appearance: () => null,
+  shortcuts: () => null,
+};
 
 export default function SettingsLayout() {
   const { state, dispatch } = useAppStore();

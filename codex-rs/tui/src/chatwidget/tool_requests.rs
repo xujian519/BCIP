@@ -198,10 +198,14 @@ impl ChatWidget {
                         )
                     }
                     GuardianAssessmentAction::Command { .. } => {
-                        panic!("GuardianAssessmentAction::Command should not appear at this display stage")
+                        panic!(
+                            "GuardianAssessmentAction::Command should not appear at this display stage"
+                        )
                     }
                     GuardianAssessmentAction::Execve { .. } => {
-                        panic!("GuardianAssessmentAction::Execve should not appear at this display stage")
+                        panic!(
+                            "GuardianAssessmentAction::Execve should not appear at this display stage"
+                        )
                     }
                 }
             };
@@ -247,10 +251,14 @@ impl ChatWidget {
                     ))
                 }
                 GuardianAssessmentAction::Command { .. } => {
-                    panic!("GuardianAssessmentAction::Command should not appear at this display stage")
+                    panic!(
+                        "GuardianAssessmentAction::Command should not appear at this display stage"
+                    )
                 }
                 GuardianAssessmentAction::Execve { .. } => {
-                    panic!("GuardianAssessmentAction::Execve should not appear at this display stage")
+                    panic!(
+                        "GuardianAssessmentAction::Execve should not appear at this display stage"
+                    )
                 }
             }
         };

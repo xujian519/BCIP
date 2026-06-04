@@ -8,6 +8,12 @@ export interface WorkspaceSearchHit {
   snippet?: string;
 }
 
+export function rankFilenameMatch(filename: string, query: string): boolean {
+  const lowerFilename = filename.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  return lowerFilename.includes(lowerQuery);
+}
+
 export interface WorkspaceSearchOptions {
   maxResults?: number;
   maxDepth?: number;

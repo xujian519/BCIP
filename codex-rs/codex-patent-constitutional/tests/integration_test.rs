@@ -1,6 +1,7 @@
-use codex_patent_constitutional::{
-    ConstitutionalEngine, RuleAction, RuleLoader, RuleSeverity,
-};
+use codex_patent_constitutional::ConstitutionalEngine;
+use codex_patent_constitutional::RuleAction;
+use codex_patent_constitutional::RuleLoader;
+use codex_patent_constitutional::RuleSeverity;
 use pretty_assertions::assert_eq;
 
 /// 构造一个包含关键词+模式分析+结构分析规则的完整 YAML 规则集，

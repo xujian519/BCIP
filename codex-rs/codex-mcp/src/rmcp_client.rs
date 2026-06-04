@@ -596,9 +596,7 @@ async fn make_rmcp_client(
                 )) as Arc<dyn StdioServerLauncher>
             } else {
                 let Some(environment) = resolved_environment.as_ref() else {
-                    panic!(
-                        "non-local stdio MCP servers resolve an environment before launch"
-                    );
+                    panic!("non-local stdio MCP servers resolve an environment before launch");
                 };
                 Arc::new(ExecutorStdioServerLauncher::new(
                     environment.get_exec_backend(),

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """从 src-tauri/icons/logo.png 生成 macOS / Windows / Tauri 全套桌面图标。
 
-- 去除 logo 源图黑边/白底，仅保留品牌图形
-- 1024 画布铺满 macOS 风格渐变背景（Big Sur 全出血图标）
-- 图形主体缩放到约 824px 安全区并居中
+- 人像/插画源图：居中裁切为正方形后「铺满」1024 画布（cover），避免黑边小图
+- 裁掉底部常见 AI 水印条
 - 不预烘焙圆角；由系统在 Dock/Finder 套用 squircle 遮罩
 - 所有 PNG 统一 72 DPI，iconset / 外层 PNG / icns / ico 同源
 """
@@ -15,11 +14,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageCms
+from PIL import Image, ImageCms
 
-# Apple macOS 图标：1024 画布上约 824×824 内容区
 CANVAS = 1024
-SAFE = 824
 PNG_DPI = (72, 72)
 
 DESKTOP_ROOT = Path(__file__).resolve().parents[1]
@@ -27,11 +24,6 @@ DEFAULT_SOURCE = DESKTOP_ROOT / "src-tauri" / "icons" / "logo.png"
 ICONS_DIR = DESKTOP_ROOT / "src-tauri" / "icons"
 ICONSET_DIR = ICONS_DIR / "icon.iconset"
 
-# 与 YunPat 品牌色一致的深色渐变背景
-BG_TOP = (34, 34, 48)
-BG_BOTTOM = (8, 8, 12)
-
-# macOS iconset 标准尺寸（用于 iconutil 生成 .icns）
 ICONSET_SIZES: list[tuple[str, int]] = [
     ("icon_16x16.png", 16),
     ("icon_16x16@2x.png", 32),
@@ -45,7 +37,6 @@ ICONSET_SIZES: list[tuple[str, int]] = [
     ("icon_512x512@2x.png", 1024),
 ]
 
-# Tauri bundle.icon 引用（tauri.conf.json）
 TAURI_BUNDLE_PNGS: list[str] = [
     "icon.png",
     "icon_32x32.png",
@@ -55,7 +46,6 @@ TAURI_BUNDLE_PNGS: list[str] = [
     "icon_512x512.png",
 ]
 
-# 历史错误命名，生成后清理
 LEGACY_ICON_FILES: list[str] = [
     "32x32.png",
     "128x128.png",
@@ -65,7 +55,6 @@ LEGACY_ICON_FILES: list[str] = [
     "512x512.png",
 ]
 
-# Windows Store 遗留资源（Tauri bundle 未引用）
 LEGACY_WINDOWS_STORE_FILES: list[str] = [
     "Square30x30Logo.png",
     "Square44x44Logo.png",
@@ -102,8 +91,25 @@ def save_png(image: Image.Image, path: Path) -> None:
     )
 
 
+def trim_watermark_strip(image: Image.Image) -> Image.Image:
+    """去掉竖版插画底部水印条（豆包 AI 等）。"""
+    w, h = image.size
+    if h <= w * 1.02:
+        return image
+    strip = max(40, int(h * 0.045))
+    return image.crop((0, 0, w, h - strip))
+
+
+def center_crop_square(image: Image.Image) -> Image.Image:
+    w, h = image.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    return image.crop((left, top, left + side, top + side))
+
+
 def is_logo_pixel(r: int, g: int, b: int, a: int) -> bool:
-    """识别品牌图形像素，排除透明、黑边与白底。"""
+    """识别品牌图形像素，排除透明、黑边与白底（旧版 logo 抠图用）。"""
     if a < 16:
         return False
     if r < 40 and g < 40 and b < 40:
@@ -130,18 +136,6 @@ def logo_bbox(image: Image.Image) -> tuple[int, int, int, int]:
     return min(xs), min(ys), max(xs) + 1, max(ys) + 1
 
 
-def make_background(size: int) -> Image.Image:
-    bg = Image.new("RGBA", (size, size))
-    draw = ImageDraw.Draw(bg)
-    for y in range(size):
-        t = y / max(size - 1, 1)
-        r = int(BG_TOP[0] + (BG_BOTTOM[0] - BG_TOP[0]) * t)
-        g = int(BG_TOP[1] + (BG_BOTTOM[1] - BG_TOP[1]) * t)
-        b = int(BG_TOP[2] + (BG_BOTTOM[2] - BG_TOP[2]) * t)
-        draw.line([(0, y), (size, y)], fill=(r, g, b, 255))
-    return bg
-
-
 def extract_logo_mark(source: Image.Image) -> Image.Image:
     left, top, right, bottom = logo_bbox(source)
     mark = source.convert("RGBA").crop((left, top, right, bottom))
@@ -155,19 +149,57 @@ def extract_logo_mark(source: Image.Image) -> Image.Image:
     return mark
 
 
-def compose_macos_icon(source: Path) -> Image.Image:
-    src = Image.open(source)
-    mark = extract_logo_mark(src)
-    cw, ch = mark.size
-    scale = min(SAFE / cw, SAFE / ch) * 0.92
-    nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
-    resized = mark.resize((nw, nh), Image.Resampling.LANCZOS)
-
-    canvas = make_background(CANVAS)
+def compose_cover_icon(source: Image.Image) -> Image.Image:
+    """铺满画布，适合竖版插画 / 上传原图。"""
+    src = trim_watermark_strip(source.convert("RGBA"))
+    square = center_crop_square(src)
+    sw, sh = square.size
+    scale = max(CANVAS / sw, CANVAS / sh)
+    nw, nh = max(1, int(sw * scale)), max(1, int(sh * scale))
+    resized = square.resize((nw, nh), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (CANVAS, CANVAS))
     ox = (CANVAS - nw) // 2
     oy = (CANVAS - nh) // 2
     canvas.paste(resized, (ox, oy), resized)
     return canvas
+
+
+def compose_extracted_icon(source: Image.Image) -> Image.Image:
+    """抠图 + 深色渐变底（适合带白底/黑边的旧 logo）。"""
+    from PIL import ImageDraw
+
+    bg_top = (34, 34, 48)
+    bg_bottom = (8, 8, 12)
+    safe = 824
+    mark = extract_logo_mark(source)
+    cw, ch = mark.size
+    scale = min(safe / cw, safe / ch) * 0.92
+    nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
+    resized = mark.resize((nw, nh), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (CANVAS, CANVAS))
+    draw = ImageDraw.Draw(canvas)
+    for y in range(CANVAS):
+        t = y / max(CANVAS - 1, 1)
+        r = int(bg_top[0] + (bg_bottom[0] - bg_top[0]) * t)
+        g = int(bg_top[1] + (bg_bottom[1] - bg_top[1]) * t)
+        b = int(bg_top[2] + (bg_bottom[2] - bg_top[2]) * t)
+        draw.line([(0, y), (CANVAS, y)], fill=(r, g, b, 255))
+    ox = (CANVAS - nw) // 2
+    oy = (CANVAS - nh) // 2
+    canvas.paste(resized, (ox, oy), resized)
+    return canvas
+
+
+def compose_macos_icon(source: Path) -> Image.Image:
+    src = Image.open(source)
+    w, h = src.size
+    # 竖版插画或近方形：直接 cover，避免 DMG 里「黑框套小图」
+    if h >= w * 0.9:
+        return compose_cover_icon(src)
+    try:
+        return compose_extracted_icon(src)
+    except SystemExit:
+        return compose_cover_icon(src)
 
 
 def write_iconset(master: Image.Image, iconset_dir: Path) -> None:
@@ -180,7 +212,6 @@ def write_iconset(master: Image.Image, iconset_dir: Path) -> None:
 
 
 def sync_iconset_to_bundle(iconset_dir: Path, icons_dir: Path) -> None:
-    """将 iconset 内全部尺寸同步到 icons/，保证 icns 与外层 PNG 同源。"""
     for name, _ in ICONSET_SIZES:
         shutil.copy2(iconset_dir / name, icons_dir / name)
     save_png(Image.open(iconset_dir / "icon_512x512@2x.png"), icons_dir / "icon.png")
@@ -194,7 +225,6 @@ def run_iconutil(iconset_dir: Path, icns_path: Path) -> None:
 
 
 def write_ico(master: Image.Image, ico_path: Path) -> None:
-    """Windows ICO：嵌入多尺寸以满足任务栏 / 资源管理器 / NSIS 安装器。"""
     sizes = (16, 24, 32, 48, 64, 128, 256)
     master.save(
         ico_path,
@@ -210,11 +240,11 @@ def remove_legacy_files(icons_dir: Path) -> None:
             path.unlink()
 
 
-def sync_public_assets(icons_dir: Path) -> None:
+def sync_public_assets(icons_dir: Path, source: Path) -> None:
     public_dir = DESKTOP_ROOT / "public"
     public_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(icons_dir / "icon.png", public_dir / "app-icon.png")
-    shutil.copy2(DEFAULT_SOURCE, public_dir / "logo.png")
+    shutil.copy2(source, public_dir / "logo.png")
 
 
 def main() -> None:
@@ -230,7 +260,7 @@ def main() -> None:
     sync_iconset_to_bundle(ICONSET_DIR, ICONS_DIR)
     run_iconutil(ICONSET_DIR, ICONS_DIR / "icon.icns")
     write_ico(master, ICONS_DIR / "icon.ico")
-    sync_public_assets(ICONS_DIR)
+    sync_public_assets(ICONS_DIR, source)
 
     icns_size = (ICONS_DIR / "icon.icns").stat().st_size
     print(f"源图: {source}")

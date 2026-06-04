@@ -1,3 +1,5 @@
+#![allow(dead_code)] // 注册表已接入 Session；熔断调用路径逐步落地中
+
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;

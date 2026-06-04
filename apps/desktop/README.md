@@ -80,6 +80,26 @@ npm run prepare-sidecar   # 生成 src-tauri/binaries/bcip-<triple>
 npm run tauri:build:bundle
 ```
 
+**本机全量打包（推荐）**：避免全局 `tuna` Git 索引排队、`sccache` 远程编译等待：
+
+```bash
+npm run tauri:build:local
+# 仅预拉 Tauri 依赖：npm run cargo:fetch:desktop
+# 跳过 UPX 压缩（默认已跳过）；要压缩：BCIP_SKIP_UPX=0 npm run tauri:build:local
+```
+
+`src-tauri/.cargo/config.toml` 与 `codex-rs/.cargo/config.toml` 使用 **sparse 索引**（rsproxy）。建议把 `config/cargo-user-snippet.toml` 合并进 `~/.cargo/config.toml`，并注释掉 `rustc-wrapper = "sccache"`（若出现 `remote: Waiting in queue`）。
+
+**Updater 签名（本地打包）**：未配置私钥时会自动跳过 `createUpdaterArtifacts`。需要签名更新包时：
+
+```bash
+npm run updater:keygen    # 生成 ~/.bcip/updater-key
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.bcip/updater-key)"
+npm run tauri:build
+```
+
+CI 发布使用 GitHub Secrets `TAURI_UPDATER_PRIVATE_KEY`，与 `tauri.conf.json` 中的 `pubkey` 配对。
+
 Agent 修改工作区文件后，侧栏文件树与当前预览会自动刷新（`item/fileChange/patchUpdated`）。
 
 ## 根目录转发
