@@ -34,8 +34,11 @@ impl RuleLoader {
                 let key = path
                     .file_stem()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| {
+                        // 无法从文件名获取有效的 UTF-8 字符串，使用序号
+                        format!("file_{}", all_rules.len())
+                    });
                 all_rules.insert(key, file_rules);
             }
         }
@@ -55,8 +58,11 @@ impl RuleLoader {
                 let key = path
                     .file_stem()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| {
+                        // 无法从文件名获取有效的 UTF-8 字符串，使用序号
+                        format!("file_{}", rules_map.len())
+                    });
                 rules_map.insert(key, file_rules);
             }
         }

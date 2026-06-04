@@ -94,7 +94,11 @@ impl RemoteTransport {
             .await
             .map_err(|e| TransportError::ReceiveFailed(format!("header read: {e}")))?;
 
-        let payload_len = u32::from_be_bytes([header[0], header[1], header[2], header[3]]) as usize;
+        let payload_len = u32::from_be_bytes(
+            header[..4]
+                .try_into()
+                .expect("header is FRAME_HEADER_SIZE bytes from read_exact"),
+        ) as usize;
         if FRAME_HEADER_SIZE + payload_len > MAX_FRAME_SIZE {
             return Err(TransportError::ReceiveFailed(
                 "frame exceeds max size".to_string(),

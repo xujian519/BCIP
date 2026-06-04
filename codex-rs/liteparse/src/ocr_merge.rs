@@ -147,11 +147,11 @@ pub(crate) async fn ocr_and_merge_rendered(
             Ok(Err(e)) => {
                 failed_tasks += 1;
                 failed_sparse_text_page |= page_has_sparse_native_text(&pages[idx]);
-                // Only log the first failure to avoid flooding stderr with an
+                // Only log the first failure to avoid flooding with an
                 // identical message for every page.
                 if first_error.is_none() {
                     let msg = e.to_string();
-                    eprintln!("[ocr] failed for page {}: {}", page_number, msg);
+                    tracing::warn!("[ocr] failed for page {}: {}", page_number, msg);
                     first_error = Some(msg);
                 }
                 continue;
@@ -161,7 +161,7 @@ pub(crate) async fn ocr_and_merge_rendered(
                 failed_sparse_text_page |= page_has_sparse_native_text(&pages[idx]);
                 if first_error.is_none() {
                     let msg = e.to_string();
-                    eprintln!("[ocr] task panicked for page {}: {}", page_number, msg);
+                    tracing::warn!("[ocr] task panicked for page {}: {}", page_number, msg);
                     first_error = Some(msg);
                 }
                 continue;
@@ -248,9 +248,9 @@ pub(crate) async fn ocr_and_merge_rendered(
         )));
     }
 
-    // Surface a concise summary for partial failures without flooding stderr.
+    // Surface a concise summary for partial failures without flooding logs.
     if failed_tasks > 0 {
-        eprintln!(
+        tracing::warn!(
             "[ocr] {}/{} page(s) failed OCR; continuing with partial results",
             failed_tasks, total_tasks
         );

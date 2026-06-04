@@ -67,7 +67,7 @@ pub(crate) fn spawn_agent_thread(
 
                 attempt += 1;
                 if attempt >= MAX_AGENT_RESTARTS {
-                    eprintln!(
+                    tracing::warn!(
                         "[bcip-agent] agent {} exceeded max restarts ({MAX_AGENT_RESTARTS})",
                         manifest_clone.agent_id
                     );
@@ -75,7 +75,7 @@ pub(crate) fn spawn_agent_thread(
                 }
 
                 let delay_ms = RESTART_BASE_DELAY_MS * 2u64.pow(attempt - 1);
-                eprintln!(
+                tracing::info!(
                     "[bcip-agent] restarting agent {} (attempt {attempt}/{MAX_AGENT_RESTARTS}, delay {delay_ms}ms)",
                     manifest_clone.agent_id
                 );
@@ -192,13 +192,13 @@ fn load_bcip_role_config(role_id: &str) -> AgentRoleConfig {
         match toml::from_str::<AgentRoleConfig>(content) {
             Ok(config) => return config,
             Err(e) => {
-                eprintln!(
+                tracing::warn!(
                     "[bcip-agent] WARN: 解析角色配置 patent/{role_id}.toml 失败: {e}，使用回退配置"
                 );
             }
         }
     } else {
-        eprintln!("[bcip-agent] WARN: 角色 patent/{role_id}.toml 未找到，使用回退配置");
+        tracing::warn!("[bcip-agent] WARN: 角色 patent/{role_id}.toml 未找到，使用回退配置");
     }
     AgentRoleConfig {
         role_id: role_id.to_string(),

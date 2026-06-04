@@ -19,7 +19,9 @@ use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
 use codex_patent_knowledge::UnifiedSearch;
+use regex::Regex;
 use serde::Deserialize;
+use std::sync::LazyLock;
 
 /// 权利要求解析输入。
 ///
@@ -195,6 +197,18 @@ pub struct ResearcherInput {
     /// 研究的递归深度（默认 2）。
     pub depth: u64,
 }
+
+/// 功能性特征正则：匹配"用于..."、"配置为..."等模式
+static FUNCTIONAL_FEATURE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:用于|配置为|配置成|适于|适用于|被配置为|被配置成)[^，。；]+")
+        .expect("FUNCTIONAL_FEATURE_RE 正则字面量有效")
+});
+
+/// 参数范围正则：匹配数字+单位的模式
+static PARAM_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\d+[\.\d]*\s*(?:%|度|mm|cm|m|kg|Hz|MHz|GHz|V|A|W|Pa)")
+        .expect("PARAM_RANGE_RE 正则字面量有效")
+});
 
 /// 专利分析工具集。
 ///
@@ -791,13 +805,9 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
             let claim = &parsed.claim_text;
 
             // 1. 功能性特征识别（"用于..."、"配置为..."、"适于..."、"配置成..."）
-            let functional_re = regex::Regex::new(
-                r"(?:用于|配置为|配置成|适于|适用于|被配置为|被配置成)[^，。；]+",
-            )
-            .unwrap();
-            let functional_features: Vec<String> = functional_re
+            let functional_features: Vec<String> = FUNCTIONAL_FEATURE_RE
                 .captures_iter(claim)
-                .map(|cap| cap.get(0).unwrap().as_str().to_string())
+                .filter_map(|cap| cap.get(0).map(|m| m.as_str().to_string()))
                 .collect();
 
             // 2. 最宽合理解释分析
@@ -812,10 +822,7 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
 
             // 3. 等同原则适用性判断
             let has_means_plus_function = claim.contains("用于") || claim.contains("装置用于");
-            let has_parameter_range =
-                regex::Regex::new(r"\d+[\.\d]*\s*(?:%|度|mm|cm|m|kg|Hz|MHz|GHz|V|A|W|Pa)")
-                    .unwrap()
-                    .is_match(claim);
+            let has_parameter_range = PARAM_RANGE_RE.is_match(claim);
             let has_method_steps = claim.contains("步骤") || claim.contains("包括以下步骤");
 
             let equivalence_applicable =

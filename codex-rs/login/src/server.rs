@@ -176,7 +176,7 @@ pub fn run_login_server(opts: ServerOptions) -> io::Result<LoginServer> {
                 match tx.blocking_send(request) {
                     Ok(()) => {}
                     Err(error) => {
-                        eprintln!("Failed to send request to channel: {error}");
+                        tracing::error!("Failed to send request to channel: {error}");
                         return Err(io::Error::other("Failed to send request to channel"));
                     }
                 }
@@ -271,7 +271,7 @@ async fn process_request(
     let parsed_url = match url::Url::parse(&format!("http://localhost{url_raw}")) {
         Ok(u) => u,
         Err(e) => {
-            eprintln!("URL parse error: {e}");
+            tracing::warn!("URL parse error: {e}");
             return HandledRequest::Response(
                 Response::from_string("Bad Request").with_status_code(400),
             );
@@ -310,7 +310,7 @@ async fn process_request(
             if let Some(error_code) = params.get("error") {
                 let error_description = params.get("error_description").map(String::as_str);
                 let message = oauth_callback_error_message(error_code, error_description);
-                eprintln!("OAuth callback error: {message}");
+                tracing::warn!("OAuth callback error: {message}");
                 warn!(
                     error_code,
                     has_error_description = error_description.is_some_and(|s| !s.trim().is_empty()),
@@ -343,7 +343,7 @@ async fn process_request(
                         opts.forced_chatgpt_workspace_id.as_deref(),
                         &tokens.id_token,
                     ) {
-                        eprintln!("Workspace restriction error: {message}");
+                        tracing::warn!("Workspace restriction error: {message}");
                         return login_error_response(
                             &message,
                             io::ErrorKind::PermissionDenied,
@@ -365,7 +365,7 @@ async fn process_request(
                     )
                     .await
                     {
-                        eprintln!("Persist error: {err}");
+                        tracing::error!("Persist error: {err}");
                         return login_error_response(
                             "Sign-in completed but credentials could not be saved locally.",
                             io::ErrorKind::Other,
@@ -392,7 +392,7 @@ async fn process_request(
                     }
                 }
                 Err(err) => {
-                    eprintln!("Token exchange error: {err}");
+                    tracing::error!("Token exchange error: {err}");
                     error!("login callback token exchange failed");
                     login_error_response(
                         &format!("Token exchange failed: {err}"),
@@ -567,7 +567,7 @@ fn bind_server(port: u16) -> io::Result<Server> {
                     if !cancel_attempted && !using_fallback_port {
                         cancel_attempted = true;
                         if let Err(cancel_err) = send_cancel_request(port) {
-                            eprintln!("Failed to cancel previous login server: {cancel_err}");
+                            tracing::warn!("Failed to cancel previous login server: {cancel_err}");
                         }
                     }
 
@@ -900,7 +900,7 @@ fn jwt_auth_claims(jwt: &str) -> serde_json::Map<String, serde_json::Value> {
     let (_h, payload_b64, _s) = match (parts.next(), parts.next(), parts.next()) {
         (Some(h), Some(p), Some(s)) if !h.is_empty() && !p.is_empty() && !s.is_empty() => (h, p, s),
         _ => {
-            eprintln!("Invalid JWT format while extracting claims");
+            tracing::warn!("Invalid JWT format while extracting claims");
             return serde_json::Map::new();
         }
     };
@@ -913,14 +913,14 @@ fn jwt_auth_claims(jwt: &str) -> serde_json::Map<String, serde_json::Value> {
                 {
                     return obj.clone();
                 }
-                eprintln!("JWT payload missing expected 'https://api.openai.com/auth' object");
+                tracing::warn!("JWT payload missing expected 'https://api.openai.com/auth' object");
             }
             Err(e) => {
-                eprintln!("Failed to parse JWT JSON payload: {e}");
+                tracing::warn!("Failed to parse JWT JSON payload: {e}");
             }
         },
         Err(e) => {
-            eprintln!("Failed to base64url-decode JWT payload: {e}");
+            tracing::warn!("Failed to base64url-decode JWT payload: {e}");
         }
     }
     serde_json::Map::new()

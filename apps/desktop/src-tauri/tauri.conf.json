@@ -10,6 +10,7 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
+    "macOSPrivateApi": true,
     "withGlobalTauri": true,
     "windows": [
       {
@@ -22,16 +23,12 @@
         "resizable": true,
         "fullscreen": false,
         "focus": true,
-        "transparent": true,
-        "backgroundColor": "#FFFFFF",
-        "titleBarStyle": "Transparent",
-        "hiddenTitle": true,
+        "transparent": false,
+        "backgroundColor": "#1C1A18",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": false,
         "acceptFirstMouse": true,
-        "tabbingIdentifier": "YunXi",
-        "windowEffects": {
-          "effects": ["sidebar", "acrylic"],
-          "state": "followsWindowActiveState"
-        }
+        "tabbingIdentifier": "YunXi"
       }
     ],
     "security": {
@@ -63,7 +60,7 @@
     "externalBin": ["binaries/bcip"],
     "resources": ["target/codex-patent-assets/"],
     "targets": ["dmg", "app"],
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/icon.png",
       "icons/icon_32x32.png",

@@ -253,7 +253,7 @@ pub fn reflect_agent_result(manifest: &AgentManifest, output: &str) {
     let engine = ReflectionEngine::new(&bcip_home());
     let result = engine.reflect_on_output(manifest, output);
     if let Err(e) = engine.save_reflection(&result) {
-        eprintln!("[bcip-reflection] failed to save: {e}");
+        tracing::warn!("[bcip-reflection] failed to save: {e}");
     }
 }
 

@@ -6,7 +6,7 @@ use crate::provider_router::resolve_base_url;
 
 pub(crate) const MAX_RETRIES: u32 = 3;
 pub(crate) const REQUEST_TIMEOUT_SECS: u64 = 120;
-#[allow(dead_code)]
+#[allow(dead_code)] // 预留给温度参数配置
 pub(crate) const DEFAULT_TEMPERATURE: f32 = 0.7;
 
 const CB_FAILURE_THRESHOLD: u32 = 5;
@@ -185,7 +185,7 @@ pub(crate) fn call_llm_with_retry_and_temperature(
 
                 if attempt < MAX_RETRIES {
                     let delay_ms = backoff_delay_ms(attempt);
-                    eprintln!(
+                    tracing::debug!(
                         "[bcip-agent] LLM call attempt {}/{} failed, retrying in {delay_ms}ms: {last_error}",
                         attempt + 1,
                         MAX_RETRIES + 1

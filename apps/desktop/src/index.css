@@ -148,15 +148,15 @@
   }
 
   .dark {
-    /* 暗色 — 规范暖深色调 */
+    /* 暗色 — 统一暖深底，避免 base/surface 色差导致「漂移」感 */
     --bg-base: #1C1A18;
-    --bg-surface: #1A1816;
-    --bg-elevated: #201E1B;
-    --bg-sidebar: #1A1816;
-    --bg-sidebar-solid: #1A1816;
+    --bg-surface: #1C1A18;
+    --bg-elevated: #242220;
+    --bg-sidebar: #1C1A18;
+    --bg-sidebar-solid: #1C1A18;
     --bg-sidebar-active: #2A2622;
-    --bg-titlebar: #1A1816;
-    --bg-composer: #1A1816;
+    --bg-titlebar: #1C1A18;
+    --bg-composer: #1C1A18;
     --bg-hover: rgba(255, 255, 255, 0.06);
     --bg-active: rgba(74, 124, 111, 0.12);
     --bg-overlay: rgba(0, 0, 0, 0.72);
@@ -293,7 +293,9 @@
   }
 
   .dark body::before {
-    opacity: 0.025;
+    opacity: 0.018;
+    /* 暗色下禁用噪点位移动画，避免背景「漂移」 */
+    animation: none;
   }
 
   #root {

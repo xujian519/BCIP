@@ -23,11 +23,19 @@ interface ProviderInfo {
 
 const providers: ProviderInfo[] = [
   {
+    id: 'local',
+    name: '本地代理 (8788)',
+    model: 'glm-5.1',
+    apiBase: 'http://127.0.0.1:8788/v1',
+    modelProvider: 'LocalProxy',
+    description: '经 LiteLLM 本地代理，推荐默认',
+  },
+  {
     id: 'deepseek',
     name: 'DeepSeek',
-    model: 'deepseek-v4-pro',
+    model: 'deepseek-chat',
     apiBase: 'https://api.deepseek.com/v1',
-    modelProvider: 'deepseek',
+    modelProvider: 'DeepSeek',
     description: '高性价比，中文能力强',
   },
   {
@@ -35,7 +43,7 @@ const providers: ProviderInfo[] = [
     name: '智谱 GLM',
     model: 'glm-4-flash',
     apiBase: 'https://open.bigmodel.cn/api/paas/v4',
-    modelProvider: 'zhipu',
+    modelProvider: 'ZhiPu',
     description: '国产模型，专利领域表现优异',
   },
   {
@@ -43,16 +51,8 @@ const providers: ProviderInfo[] = [
     name: 'Kimi',
     model: 'moonshot-v1-8k',
     apiBase: 'https://api.moonshot.cn/v1',
-    modelProvider: 'moonshot',
+    modelProvider: 'Kimi',
     description: '长文本处理能力强',
-  },
-  {
-    id: 'local',
-    name: '本地模式',
-    model: 'local',
-    apiBase: '',
-    modelProvider: 'local',
-    description: '无需 API Key，部分 AI 功能受限',
   },
 ]
 
@@ -148,8 +148,8 @@ const OnboardingWizard: FC = () => {
       await invoke('write_config', {
         params: {
           api_key: 'local',
-          model: 'local',
-          model_provider: 'local',
+          model: 'glm-5.1',
+          model_provider: 'LocalProxy',
         },
       })
       goToStep('done')

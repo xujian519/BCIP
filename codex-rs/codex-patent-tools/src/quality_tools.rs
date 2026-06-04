@@ -169,7 +169,7 @@ impl QualityTools {
             ..assessment
         };
 
-        serde_json::to_value(merged).map_err(|e| format!("{e}"))
+        serde_json::to_value(merged).map_err(|e| format!("序列化质量评估结果失败: {e}"))
     }
 
     /// 基础质量检查器。
@@ -464,35 +464,36 @@ pub fn register_quality_tools() -> std::collections::HashMap<String, super::Tool
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
     t.insert("UnifiedQuality".into(), |input| {
         Box::pin(async move {
-            let parsed: QualityCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: QualityCheckInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 UnifiedQuality 输入失败: {e}"))?;
             QualityTools::unified_quality(parsed)
         })
     });
     t.insert("SubjectMatterChecker".into(), |input| {
         Box::pin(async move {
-            let parsed: SubjectMatterInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: SubjectMatterInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 SubjectMatterChecker 输入失败: {e}"))?;
             QualityTools::subject_matter_checker(parsed)
         })
     });
     t.insert("UnityChecker".into(), |input| {
         Box::pin(async move {
-            let parsed: UnityInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: UnityInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 UnityChecker 输入失败: {e}"))?;
             QualityTools::unity_checker(parsed)
         })
     });
     t.insert("SpecFormalityChecker".into(), |input| {
         Box::pin(async move {
-            let parsed: SpecFormalityInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: SpecFormalityInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 SpecFormalityChecker 输入失败: {e}"))?;
             QualityTools::spec_formality_checker(parsed)
         })
     });
     t.insert("LegalLanguageChecker".into(), |input| {
         Box::pin(async move {
-            let parsed: LegalLanguageInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: LegalLanguageInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 LegalLanguageChecker 输入失败: {e}"))?;
             QualityTools::legal_language_checker(parsed)
         })
     });
@@ -508,8 +509,8 @@ pub fn register_quality_tools() -> std::collections::HashMap<String, super::Tool
     });
     t.insert("ClaimDependencyValidator".into(), |input| {
         Box::pin(async move {
-            let parsed: ClaimDependencyInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: ClaimDependencyInput = serde_json::from_value(input)
+                .map_err(|e| format!("解析 ClaimDependencyValidator 输入失败: {e}"))?;
             QualityTools::claim_dependency_validator(parsed)
         })
     });

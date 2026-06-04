@@ -15,12 +15,14 @@ pub fn is_error_retryable(
 }
 
 /// 构建降级工具的替换错误消息。
+/// 待降级链功能接线后移除 #[allow(dead_code)]。
 #[allow(dead_code)]
 pub fn fallback_exhausted_message(tool_name: &str, original_error: &str) -> String {
     format!("工具 {tool_name} 执行失败且重试/降级均已用尽: {original_error}")
 }
 
 /// 构建降级工具调用时使用的提示信息。
+/// 待降级链功能接线后移除 #[allow(dead_code)]。
 #[allow(dead_code)]
 pub fn fallback_notice(original_tool: &str, fallback_tool: &str, reason: &str) -> String {
     format!("[降级] {original_tool} 失败({reason})，自动切换至 {fallback_tool}")

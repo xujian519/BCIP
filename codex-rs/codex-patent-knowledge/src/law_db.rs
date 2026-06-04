@@ -169,7 +169,7 @@ impl LawDatabase {
         for result in rows {
             match result {
                 Ok(law) => laws.push(law),
-                Err(e) => eprintln!("Warning: skipping invalid law entry: {e}"),
+                Err(e) => tracing::warn!("Skipping invalid law entry: {e}"),
             }
         }
         Ok(laws)

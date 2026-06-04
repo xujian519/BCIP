@@ -48,7 +48,7 @@ pub enum SchedulerError {
 pub struct CronScheduler {
     tasks: Vec<CronTask>,
     task_file: PathBuf,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // 预留给进程锁机制
     lock_file: PathBuf,
     watcher: Option<notify::RecommendedWatcher>,
 }

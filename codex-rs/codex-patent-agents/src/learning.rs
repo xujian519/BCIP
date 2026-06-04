@@ -219,7 +219,7 @@ pub fn record_agent_feedback(
         timestamp: manifest.created_at.clone(),
     };
     if let Err(e) = store.record_feedback(data) {
-        eprintln!("[bcip-learning] failed to record feedback: {e}");
+        tracing::warn!("[bcip-learning] failed to record feedback: {e}");
     }
 }
 

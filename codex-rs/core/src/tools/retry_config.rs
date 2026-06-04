@@ -4,7 +4,7 @@ use std::time::Duration;
 
 /// 可重试的错误类别。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(dead_code)]
+#[allow(dead_code)] // RateLimit/Transient variants reserved for future retry policies
 pub enum RetryableError {
     Timeout,
     Network,
@@ -19,7 +19,7 @@ pub struct ToolRetryPolicy {
     pub base_delay: Duration,
     pub retry_on: Vec<RetryableError>,
     /// 降级链：主工具失败后依次尝试的替代工具名。
-    #[allow(dead_code)]
+    #[allow(dead_code)] // 待降级链功能接线后移除
     pub fallback_chain: Vec<String>,
 }
 

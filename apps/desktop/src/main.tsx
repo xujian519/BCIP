@@ -5,11 +5,15 @@ import './index.css'
 import App from './App.tsx'
 import RootErrorBoundary from './components/RootErrorBoundary.tsx'
 
-/** Tauri / 静态资源加载时保证 Hash 路由落在主壳 */
+/** Tauri / 静态资源加载时保证 Hash 路由落在主壳（避免 location.replace 导致 WKWebView 崩溃） */
 function ensureHashRouterBootstrap() {
-  const { hash, pathname, search } = window.location
-  if (!hash || hash === '#' || hash.startsWith('#/settings')) {
-    window.location.replace(`${pathname}${search}#/`)
+  const { hash } = window.location;
+  if (!hash || hash === '#') {
+    window.location.hash = '#/';
+    return;
+  }
+  if (hash.startsWith('#/settings')) {
+    window.location.hash = '#/';
   }
 }
 

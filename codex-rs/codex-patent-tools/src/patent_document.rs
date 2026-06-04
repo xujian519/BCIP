@@ -2,7 +2,9 @@
 //!
 //! 提供审查意见（OA）解析、文档类型识别、附图理解等文档处理能力。
 
+use regex::Regex;
 use serde::Deserialize;
+use std::sync::LazyLock;
 
 /// OA（Office Action）解析输入参数。
 #[derive(Debug, Deserialize)]
@@ -30,6 +32,19 @@ pub struct DrawingUnderstandingInput {
 /// 专利文档解析工具集。
 pub struct PatentDocumentTools;
 
+/// 专利号引用正则：匹配 CN/US/EP 专利号
+static PATENT_CITE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(CN|US|EP)\d{6,12}[A-Z]?\d?").expect("PATENT_CITE_RE 正则字面量有效")
+});
+
+/// 附图编号正则：匹配"图 数字"模式
+static FIGURE_NUMBER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"图\s*(\d+)").expect("FIGURE_NUMBER_RE 正则字面量有效"));
+
+/// 附图标记正则：匹配"图 数字"（用于检测是否存在）
+static FIGURE_MARK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"图\s*\d+").expect("FIGURE_MARK_RE 正则字面量有效"));
+
 impl PatentDocumentTools {
     pub fn oa_parse(input: OaParseInput) -> Result<serde_json::Value, String> {
         let rejection_type =
@@ -40,8 +55,7 @@ impl PatentDocumentTools {
         let has_claims_analysis = input.oa_text.contains("权利要求");
         let has_conclusion = input.oa_text.contains("驳回") || input.oa_text.contains("授权");
 
-        let re = regex::Regex::new(r"(CN|US|EP)\d{6,12}[A-Z]?\d?").unwrap();
-        let cited_patents: Vec<String> = re
+        let cited_patents: Vec<String> = PATENT_CITE_RE
             .find_iter(&input.oa_text)
             .map(|m| m.as_str().to_string())
             .collect();
@@ -88,9 +102,7 @@ impl PatentDocumentTools {
     pub fn drawing_understanding(
         input: DrawingUnderstandingInput,
     ) -> Result<serde_json::Value, String> {
-        let has_numbering = regex::Regex::new(r"图\s*\d+")
-            .unwrap()
-            .is_match(&input.description);
+        let has_numbering = FIGURE_MARK_RE.is_match(&input.description);
         let has_components = input.description.contains("包括")
             || input.description.contains("包含")
             || input.description.contains("设有");
@@ -98,10 +110,9 @@ impl PatentDocumentTools {
             || input.description.contains("固定")
             || input.description.contains("安装");
 
-        let re = regex::Regex::new(r"图\s*(\d+)").unwrap();
-        let figures: Vec<String> = re
+        let figures: Vec<String> = FIGURE_NUMBER_RE
             .captures_iter(&input.description)
-            .map(|c| c.get(1).unwrap().as_str().to_string())
+            .filter_map(|c| c.get(1).map(|m| m.as_str().to_string()))
             .collect();
 
         Ok(serde_json::json!({

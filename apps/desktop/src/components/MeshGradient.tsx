@@ -2,6 +2,7 @@ import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import React from 'react';
+import { isTauri } from '@/api/tauri';
 
 // Vertex shader — simple pass-through with UV
 const vertexShader = `
@@ -128,7 +129,33 @@ const prefersReducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const CssGradientFallback: React.FC = () => {
+  const isDark =
+    typeof document !== 'undefined'
+    && document.documentElement.classList.contains('dark');
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: isDark
+          ? 'radial-gradient(ellipse 80% 60% at 20% 30%, rgba(95,160,143,0.12) 0%, transparent 60%),'
+            + 'radial-gradient(ellipse 70% 50% at 80% 70%, rgba(74,175,176,0.08) 0%, transparent 55%),'
+            + 'linear-gradient(160deg, #1C1A18 0%, #1C1A18 100%)'
+          : 'radial-gradient(ellipse 80% 60% at 20% 30%, rgba(74,124,111,0.35) 0%, transparent 60%),'
+            + 'radial-gradient(ellipse 70% 50% at 80% 70%, rgba(58,139,140,0.25) 0%, transparent 55%),'
+            + 'linear-gradient(160deg, #F5F5F7 0%, #E8EEEC 45%, #F0F0F2 100%)',
+      }}
+    />
+  );
+};
+
 const MeshGradient: React.FC = () => {
+  // Tauri WKWebView + 透明窗口下 WebGL 易触发进程崩溃，改用 CSS 渐变
+  if (isTauri()) {
+    return <CssGradientFallback />;
+  }
+
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <Canvas

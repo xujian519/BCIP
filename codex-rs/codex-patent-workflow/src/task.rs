@@ -71,7 +71,7 @@ mod tests {
     fn test_task_serialize() {
         let task = Task::new("task-3", "质量检查", TaskType::QualityCheck);
         let json = serde_json::to_string(&task).unwrap();
-        println!("Serialized: {}", json);
+        tracing::debug!("Serialized: {}", json);
         assert!(json.contains("task-3"));
         assert!(json.contains("quality_check"));
     }

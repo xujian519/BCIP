@@ -51,7 +51,7 @@ impl CardIndex {
                     card.file_path = filename;
                     cards.push(card);
                 }
-                Err(e) => eprintln!("Warning: skipping invalid card entry: {e}"),
+                Err(e) => tracing::warn!("Skipping invalid card entry: {e}"),
             }
         }
 

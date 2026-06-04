@@ -4,9 +4,12 @@ import { defineConfig } from "vitest/config"
 import { inspectAttr } from 'plugin-inspect-react-code'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: './',
-  plugins: [inspectAttr(), react()],
+  plugins: [
+    ...(command === 'serve' ? [inspectAttr()] : []),
+    react(),
+  ],
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
@@ -33,4 +36,4 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@eigenpal/docx-editor-react'],
   },
-});
+}));

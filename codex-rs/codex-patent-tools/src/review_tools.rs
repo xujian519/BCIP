@@ -3,7 +3,9 @@
 //! 提供形式审查（FormalCheck）和质量评估（QualityAssess）功能，
 //! 用于检查专利申请文件的形式合规性和整体质量。
 
+use regex::Regex;
 use serde::Deserialize;
+use std::sync::LazyLock;
 
 /// 形式审查输入参数。
 #[derive(Debug, Deserialize)]
@@ -28,6 +30,10 @@ pub struct QualityAssessInput {
 /// 专利评审工具集。
 pub struct ReviewTools;
 
+/// 权利要求引用正则：匹配"根据权利要求\d+"
+static CLAIM_REF_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"根据权利要求(\d+)").expect("CLAIM_REF_RE 正则字面量有效"));
+
 impl ReviewTools {
     pub fn formal_check(input: FormalCheckInput) -> Result<serde_json::Value, String> {
         let mut issues = Vec::new();
@@ -42,11 +48,12 @@ impl ReviewTools {
             }
         }
         // Reference validity check
-        use regex::Regex;
-        let re = Regex::new(r"根据权利要求(\d+)").unwrap();
         for claim in &input.claims {
-            for cap in re.captures_iter(claim) {
-                let ref_num: usize = cap.get(1).unwrap().as_str().parse().unwrap_or(0);
+            for cap in CLAIM_REF_RE.captures_iter(claim) {
+                let ref_num: usize = cap
+                    .get(1)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
                 if ref_num == 0 || ref_num > input.claims.len() {
                     issues.push(format!("无效引用: 引用不存在的权利要求{}", ref_num));
                 }
@@ -150,12 +157,13 @@ impl ReviewTools {
         // 维度4: 引用完整性 (0-100)
         let reference_score = {
             let mut score: f64 = 100.0;
-            use regex::Regex;
-            let re = Regex::new(r"根据权利要求(\d+)").unwrap();
             for (i, claim) in claims.iter().enumerate() {
                 if claim.contains("根据权利要求") {
-                    for cap in re.captures_iter(claim) {
-                        let ref_num: usize = cap.get(1).unwrap().as_str().parse().unwrap_or(0);
+                    for cap in CLAIM_REF_RE.captures_iter(claim) {
+                        let ref_num: usize = cap
+                            .get(1)
+                            .and_then(|m| m.as_str().parse().ok())
+                            .unwrap_or(0);
                         if ref_num == 0 || ref_num > claims.len() || ref_num > i {
                             score -= 20.0;
                         }

@@ -12,6 +12,7 @@ serde_json = { workspace = true }
 serde_yaml = { version = "0.9", default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 strsim = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

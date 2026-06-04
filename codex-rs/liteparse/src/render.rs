@@ -85,8 +85,8 @@ pub fn screenshot(
 
     std::fs::write(output_path, &page.png_bytes)?;
 
-    eprintln!(
-        "[rust-bin] rendered page {} at {dpi} DPI → {output_path} ({}×{})",
+    tracing::info!(
+        "rendered page {} at {dpi} DPI → {output_path} ({}×{})",
         page_num, page.width, page.height
     );
 

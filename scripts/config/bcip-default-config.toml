@@ -1,12 +1,20 @@
 # BCIP Agent 专用配置（~/.bcip）
-# 与本地 Codex 桌面版（~/.codex）完全隔离。按需修改 model / env_key。
+# 与本地 Codex 桌面版（~/.codex）完全隔离。
+# 默认经本地 LiteLLM 代理 (8788) 使用 GLM / Kimi 编程套餐；如需直连第三方，请改 base_url / env_key。
 
-model_provider = "DeepSeek"
-model = "deepseek-v4-pro"
+model_provider = "LocalProxy"
+model = "glm-5.1"
 model_reasoning_effort = "medium"
 disable_response_storage = true
-model_context_window = 1000000
-model_auto_compact_token_limit = 900000
+model_context_window = 200000
+model_auto_compact_token_limit = 180000
+prevent_idle_sleep = true
+
+[model_providers.LocalProxy]
+name = "本地代理 (GLM + Kimi 编程套餐)"
+wire_api = "chat"
+base_url = "http://127.0.0.1:8788/v1/"
+env_key = "OPENAI_API_KEY"
 
 [model_providers.DeepSeek]
 name = "DeepSeek"

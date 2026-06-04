@@ -39,8 +39,8 @@ struct Category {
 struct Patterns {
     #[serde(default)]
     prohibited_references: PatternEntry,
-    #[allow(dead_code)]
     #[serde(default)]
+    #[allow(dead_code)] // 预留给后续术语提取检查
     term_extraction: PatternEntry,
 }
 
@@ -52,8 +52,8 @@ struct PatternEntry {
 
 #[derive(Debug, Deserialize, Default)]
 struct Thresholds {
-    #[allow(dead_code)]
     #[serde(default)]
+    #[allow(dead_code)] // 预留给后续术语一致性检查
     term_consistency_ratio: Threshold,
     #[serde(default)]
     enablement_min_words: Threshold,

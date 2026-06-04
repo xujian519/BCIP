@@ -16,6 +16,7 @@ pub fn run() {
     .plugin(tauri_plugin_updater::Builder::new().build())
     .setup(|app| {
       if let Ok(home) = config::find_bcip_home() {
+        let _ = std::fs::create_dir_all(&home);
         let _ = std::fs::create_dir_all(home.join("skills"));
         let config_path = home.join("config.toml");
         if !config_path.exists() {

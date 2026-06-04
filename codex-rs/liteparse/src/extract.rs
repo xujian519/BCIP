@@ -176,7 +176,7 @@ fn extract_page_text_items(
     let skip_invisible = should_skip_invisible(text_page, char_count);
 
     if debug {
-        eprintln!("[extract-debug] char_count={char_count}, skip_invisible={skip_invisible}");
+        tracing::debug!("[extract-debug] char_count={char_count}, skip_invisible={skip_invisible}");
     }
 
     let page_rotation = page.rotation();
@@ -192,7 +192,7 @@ fn extract_page_text_items(
         // Skip null / invalid sentinels
         if unicode == 0 || unicode == 0xFFFE || unicode == 0xFFFF {
             if debug {
-                eprintln!("[extract-debug] i={i} SKIP sentinel unicode=0x{unicode:04X}");
+                tracing::debug!("[extract-debug] i={i} SKIP sentinel unicode=0x{unicode:04X}");
             }
             continue;
         }
@@ -202,7 +202,7 @@ fn extract_page_text_items(
         if skip_invisible && ch.text_render_mode() == Some(3) {
             if debug {
                 let c_display = char::from_u32(unicode).unwrap_or('?');
-                eprintln!(
+                tracing::debug!(
                     "[extract-debug] i={i} SKIP invisible char='{c_display}' unicode=0x{unicode:04X}"
                 );
             }
@@ -224,7 +224,7 @@ fn extract_page_text_items(
                 Some(ch_mapped) => (ch_mapped, ""),
                 None => {
                     if debug {
-                        eprintln!("[extract-debug] i={i} SKIP invalid unicode=0x{unicode:04X}");
+                        tracing::debug!("[extract-debug] i={i} SKIP invalid unicode=0x{unicode:04X}");
                     }
                     continue;
                 }
@@ -246,7 +246,7 @@ fn extract_page_text_items(
         // Skip non-space generated characters (synthetic glyphs)
         if is_generated {
             if debug {
-                eprintln!(
+                tracing::debug!(
                     "[extract-debug] i={i} SKIP generated char='{c}' unicode=0x{unicode:04X}"
                 );
             }
@@ -256,7 +256,7 @@ fn extract_page_text_items(
         // Get loose bounds in viewport space for the item bounding box
         let Some(loose_box) = ch.loose_char_box() else {
             if debug {
-                eprintln!("[extract-debug] i={i} SKIP no loose_char_box char='{c}'");
+                tracing::debug!("[extract-debug] i={i} SKIP no loose_char_box char='{c}'");
             }
             continue;
         };
@@ -265,7 +265,7 @@ fn extract_page_text_items(
         // Skip zero-height characters (phantom dots from dot leader decorations)
         if vp_loose.bottom - vp_loose.top < 0.5 {
             if debug {
-                eprintln!(
+                tracing::debug!(
                     "[extract-debug] i={i} SKIP zero-height char='{c}' height={:.2} vp=({:.1},{:.1})-({:.1},{:.1})",
                     vp_loose.bottom - vp_loose.top,
                     vp_loose.left,
@@ -280,7 +280,7 @@ fn extract_page_text_items(
         // Also get strict char box for gap calculation (stays in viewport space)
         let Some(strict_box) = ch.char_box() else {
             if debug {
-                eprintln!("[extract-debug] i={i} SKIP no char_box char='{c}'");
+                tracing::debug!("[extract-debug] i={i} SKIP no char_box char='{c}'");
             }
             continue;
         };
@@ -356,7 +356,7 @@ fn extract_page_text_items(
     seg.flush(&mut items);
 
     if debug {
-        eprintln!("[extract-debug] items before dedup: {}", items.len());
+        tracing::debug!("[extract-debug] items before dedup: {}", items.len());
     }
 
     // Dedup: remove items with identical text and overlapping bounding boxes.
@@ -366,7 +366,7 @@ fn extract_page_text_items(
     dedup_overlapping_items(&mut items, debug);
 
     if debug && items.len() < pre_dedup_count {
-        eprintln!(
+        tracing::debug!(
             "[extract-debug] dedup removed {} items ({} → {})",
             pre_dedup_count - items.len(),
             pre_dedup_count,
@@ -416,7 +416,7 @@ fn dedup_overlapping_items(items: &mut Vec<TextItem>, debug: bool) {
                 // Exact text match: any overlap → drop the earlier item
                 // (later items are rendered on top in PDF paint order)
                 if debug {
-                    eprintln!(
+                    tracing::debug!(
                         "[extract-debug] DEDUP exact-match drop i={i} text='{}' at ({:.1},{:.1}) in favor of j={j} at ({:.1},{:.1})",
                         items[i].text, items[i].x, items[i].y, items[j].x, items[j].y
                     );
@@ -435,7 +435,7 @@ fn dedup_overlapping_items(items: &mut Vec<TextItem>, debug: bool) {
                 let larger_area = area_a.max(area_b);
                 if larger_area / smaller_area > 5.0 {
                     if debug {
-                        eprintln!(
+                        tracing::debug!(
                             "[extract-debug] DEDUP skip (area ratio {:.1}x) i={i} text='{}' j={j} text='{}'",
                             larger_area / smaller_area,
                             items[i].text,
@@ -445,7 +445,7 @@ fn dedup_overlapping_items(items: &mut Vec<TextItem>, debug: bool) {
                     continue;
                 }
                 if debug {
-                    eprintln!(
+                    tracing::debug!(
                         "[extract-debug] DEDUP overlap drop i={i} text='{}' at ({:.1},{:.1} {}x{}) in favor of j={j} text='{}' at ({:.1},{:.1} {}x{}) overlap_ratio={:.2}",
                         items[i].text,
                         items[i].x,

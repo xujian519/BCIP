@@ -15,10 +15,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       setStatus('authed')
       return
     }
-    invoke<{ config: { api_key?: string; model?: string } }>('read_config')
+    invoke<{ config: { api_key?: string; model?: string; model_provider?: string } }>('read_config')
       .then((res) => {
         if (cancelled) return
-        if (res.config?.api_key?.trim() || res.config?.model === 'local') {
+        const model = res.config?.model?.trim()
+        const provider = res.config?.model_provider?.trim()
+        if (
+          res.config?.api_key?.trim()
+          || model === 'local'
+          || (model && model.length > 0)
+          || provider === 'LocalProxy'
+        ) {
           setStatus('authed')
         } else {
           setStatus('guest')

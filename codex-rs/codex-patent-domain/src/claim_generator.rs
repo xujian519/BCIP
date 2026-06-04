@@ -75,7 +75,6 @@ impl ClaimGenerator {
         format!("一种{title}，")
     }
 
-    /// 构建特征部分
     /// 构建特征部分（预留：供生成完整权利要求文本使用）
     #[allow(dead_code)]
     fn build_feature_clause(features: &[TechnicalFeature]) -> String {

@@ -79,12 +79,24 @@ const Login: FC = () => {
     }
   }, [form.apiKey, navigate]);
 
-  const handleLocalMode = useCallback(() => {
-    setForm((prev) => ({ ...prev, isLoading: true }));
-    setTimeout(() => {
-      setForm((prev) => ({ ...prev, isLoading: false }));
+  const handleLocalMode = useCallback(async () => {
+    setForm((prev) => ({ ...prev, isLoading: true, error: '' }));
+    try {
+      await invoke('write_config', {
+        params: {
+          api_key: 'local',
+          model: 'glm-5.1',
+          model_provider: 'LocalProxy',
+        },
+      });
       navigate('/');
-    }, 800);
+    } catch (err) {
+      setForm((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: `保存失败：${err instanceof Error ? err.message : String(err)}`,
+      }));
+    }
   }, [navigate]);
 
   const toggleMode = useCallback((newMode: LoginMode) => {

@@ -22,13 +22,13 @@ pub fn parse_guiding_judgments(dir: &Path) -> Result<Vec<JudgmentEntry>> {
             Err(e) => {
                 errors += 1;
                 if errors <= 5 {
-                    eprintln!("      警告: 解析失败 {}: {}", path.display(), e);
+                    tracing::warn!("      警告: 解析失败 {}: {}", path.display(), e);
                 }
             }
         }
     }
 
-    println!("      指导性判决: {} 份, 失败: {}", judgments.len(), errors);
+    tracing::info!("      指导性判决: {} 份, 失败: {}", judgments.len(), errors);
     Ok(judgments)
 }
 
@@ -48,13 +48,13 @@ pub fn parse_general_judgments(dir: &Path) -> Result<Vec<JudgmentEntry>> {
             Err(e) => {
                 errors += 1;
                 if errors <= 5 {
-                    eprintln!("      警告: 解析失败 {}: {}", path.display(), e);
+                    tracing::warn!("      警告: 解析失败 {}: {}", path.display(), e);
                 }
             }
         }
     }
 
-    println!("      一般判决: {} 份, 失败: {}", judgments.len(), errors);
+    tracing::info!("      一般判决: {} 份, 失败: {}", judgments.len(), errors);
     Ok(judgments)
 }
 

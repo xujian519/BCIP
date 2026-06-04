@@ -10,6 +10,7 @@ pub const BCIP_HOME_DIR_NAME: &str = ".bcip";
 pub struct BcipConfig {
     pub api_key: Option<String>,
     pub model: Option<String>,
+    pub model_provider: Option<String>,
     pub app_server: Option<AppServerConfig>,
     pub assets: Option<AssetsConfig>,
     pub embedding: Option<EmbeddingConfig>,
@@ -47,6 +48,7 @@ pub fn read_bcip_config() -> Result<BcipConfig, String> {
         return Ok(BcipConfig {
             api_key: None,
             model: None,
+            model_provider: None,
             app_server: None,
             assets: None,
             embedding: None,
@@ -86,7 +88,9 @@ pub fn get_bcip_project_path() -> Result<PathBuf, String> {
 
 fn default_bcip_home_path() -> Result<PathBuf, String> {
     let home = dirs::home_dir().ok_or_else(|| "无法获取用户主目录".to_string())?;
-    Ok(home.join(BCIP_HOME_DIR_NAME))
+    let path = home.join(BCIP_HOME_DIR_NAME);
+    std::fs::create_dir_all(&path).map_err(|e| format!("无法创建 BCIP 配置目录: {e}"))?;
+    Ok(path)
 }
 
 /// BCIP 专用配置目录。
@@ -164,15 +168,21 @@ pub fn write_bcip_config(partial: PartialBcipConfig) -> Result<(), String> {
     let mut table: toml::Value = toml::from_str(&content)
         .map_err(|e| format!("无法解析配置文件: {}", e))?;
 
-    // 合并 partial 中的非 None 字段
+    // 合并 partial 中的非 None 字段（必须用 insert：HashMap 索引在键不存在时会 panic）
+    let root = table
+        .as_table_mut()
+        .ok_or_else(|| "配置文件根节点不是 TOML 表".to_string())?;
     if let Some(api_key) = &partial.api_key {
-        table["api_key"] = toml::Value::String(api_key.clone());
+        root.insert("api_key".to_string(), toml::Value::String(api_key.clone()));
     }
     if let Some(model) = &partial.model {
-        table["model"] = toml::Value::String(model.clone());
+        root.insert("model".to_string(), toml::Value::String(model.clone()));
     }
     if let Some(model_provider) = &partial.model_provider {
-        table["model_provider"] = toml::Value::String(model_provider.clone());
+        root.insert(
+            "model_provider".to_string(),
+            toml::Value::String(model_provider.clone()),
+        );
     }
 
     // 序列化回 TOML 并写入
@@ -398,5 +408,26 @@ mod tests {
     fn default_embedding_model_is_bge_m3_mlx_8bit() {
         assert_eq!(DEFAULT_MLX_MODEL, "bge-m3-mlx-8bit");
         assert_eq!(DEFAULT_MLX_URL, "http://127.0.0.1:8009");
+    }
+
+    #[test]
+    fn write_bcip_config_inserts_missing_top_level_keys() {
+        let content = r#"model_provider = "LocalProxy"
+model = "glm-5.1"
+"#;
+        let mut table: toml::Value = toml::from_str(content).expect("parse fixture");
+        let root = table.as_table_mut().expect("root table");
+        root.insert(
+            "api_key".to_string(),
+            toml::Value::String("local".to_string()),
+        );
+        assert_eq!(
+            table.get("api_key").and_then(|v| v.as_str()),
+            Some("local")
+        );
+        assert_eq!(
+            table.get("model").and_then(|v| v.as_str()),
+            Some("glm-5.1")
+        );
     }
 }

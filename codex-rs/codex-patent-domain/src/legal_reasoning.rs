@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn test_novelty_three_step() {
         let Some(kg) = open_kg() else {
-            eprintln!("Skipping: patent_kg.db not found");
+            tracing::warn!("Skipping: patent_kg.db not found");
             return;
         };
         let engine = LegalReasoningEngine::new(&kg);
@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn test_inventiveness() {
         let Some(kg) = open_kg() else {
-            eprintln!("Skipping: patent_kg.db not found");
+            tracing::warn!("Skipping: patent_kg.db not found");
             return;
         };
         let engine = LegalReasoningEngine::new(&kg);
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn test_infringement_analysis() {
         let Some(kg) = open_kg() else {
-            eprintln!("Skipping: patent_kg.db not found");
+            tracing::warn!("Skipping: patent_kg.db not found");
             return;
         };
         let engine = LegalReasoningEngine::new(&kg);
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn test_find_reasoning_paths() {
         let Some(kg) = open_kg() else {
-            eprintln!("Skipping: patent_kg.db not found");
+            tracing::warn!("Skipping: patent_kg.db not found");
             return;
         };
         let engine = LegalReasoningEngine::new(&kg);

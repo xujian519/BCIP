@@ -168,7 +168,7 @@ impl LMStudioClient {
 
     pub async fn download_model(&self, model: &str) -> std::io::Result<()> {
         let lms = Self::find_lms()?;
-        eprintln!("Downloading model: {model}");
+        tracing::info!("Downloading model: {model}");
 
         let status = std::process::Command::new(&lms)
             .args(["get", "--yes", model])

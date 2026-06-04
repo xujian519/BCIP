@@ -27,13 +27,13 @@ pub fn parse_decisions(dir: &Path) -> Result<Vec<InvalidDecision>> {
             Err(e) => {
                 errors += 1;
                 if errors <= 5 {
-                    eprintln!("      警告: 解析失败 {}: {}", path.display(), e);
+                    tracing::warn!("      警告: 解析失败 {}: {}", path.display(), e);
                 }
             }
         }
     }
 
-    println!("      解析成功: {}, 失败: {}", decisions.len(), errors);
+    tracing::info!("      解析成功: {}, 失败: {}", decisions.len(), errors);
     Ok(decisions)
 }
 
