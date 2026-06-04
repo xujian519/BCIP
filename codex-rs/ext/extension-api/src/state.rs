@@ -80,7 +80,7 @@ where
     T: Any + Send + Sync,
 {
     let Ok(value) = value.downcast::<T>() else {
-        unreachable!("typed extension data stored an incompatible value");
+        panic!("typed extension data stored an incompatible value");
     };
     value
 }

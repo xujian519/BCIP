@@ -425,7 +425,7 @@ async fn collect_compaction_output(
     }
 
     let Some(compaction_output) = compaction_output else {
-        unreachable!("compaction output must exist when count is exactly one");
+        panic!("compaction output must exist when count is exactly one");
     };
     Ok((compaction_output, response_id))
 }

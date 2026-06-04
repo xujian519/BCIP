@@ -448,7 +448,7 @@ fn merge_into_namespaces(specs: Vec<ToolSpec>) -> Vec<ToolSpec> {
             ToolSpec::Namespace(mut namespace) => {
                 if let Some(index) = namespace_indices.get(&namespace.name).copied() {
                     let ToolSpec::Namespace(existing_namespace) = &mut merged_specs[index] else {
-                        unreachable!("namespace index must point to a namespace spec");
+                        panic!("namespace index must point to a namespace spec");
                     };
                     if existing_namespace.description.trim().is_empty()
                         && !namespace.description.trim().is_empty()

@@ -445,7 +445,7 @@ pub fn item_event_to_server_notification(
                 completed_at_ms: exec_command_end_event.completed_at_ms,
             })
         }
-        _ => unreachable!("unsupported item event"),
+        _ => panic!("unsupported item event"),
     }
 }
 

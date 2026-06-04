@@ -910,13 +910,13 @@ mod tests {
             question: "什么是新颖性？".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
         assert_eq!(result["domain"], "patent");
-        let answer = result["answer"].as_str().unwrap();
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第22条第2款"));
-            let related = result["related_articles"].as_array().unwrap();
+            let related = result["related_articles"].as_array().expect("test fixture field should be an array");
             assert!(related.contains(&serde_json::json!("新颖性")));
         }
     }
@@ -927,8 +927,8 @@ mod tests {
             question: "创造性的判断标准是什么？".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第22条第3款"));
@@ -942,8 +942,8 @@ mod tests {
             question: "实用性要求是什么".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第22条第4款"));
@@ -956,8 +956,8 @@ mod tests {
             question: "如何判断充分公开？".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第26条第3款"));
@@ -970,8 +970,8 @@ mod tests {
             question: "修改超范围的限制".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第33条"));
@@ -984,8 +984,8 @@ mod tests {
             question: "优先权如何行使？".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第29条"));
@@ -999,8 +999,8 @@ mod tests {
             question: "单一性要求".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第31条"));
@@ -1013,8 +1013,8 @@ mod tests {
             question: "保护范围怎么确定".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("第59条"));
@@ -1027,8 +1027,8 @@ mod tests {
             question: "专利年费缴纳".into(),
             domain: None,
         };
-        let result = LegalTools::legal_qa(input).unwrap();
-        let answer = result["answer"].as_str().unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
+        let answer = result["answer"].as_str().expect("test fixture field should be a string");
         assert!(!answer.is_empty());
         if result["fallback"].as_bool().unwrap_or(false) {
             assert!(answer.contains("查阅《专利法》"));
@@ -1041,7 +1041,7 @@ mod tests {
             question: "新颖性".into(),
             domain: Some("trademark".into()),
         };
-        let result = LegalTools::legal_qa(input).unwrap();
+        let result = LegalTools::legal_qa(input).expect("test tool call should succeed");
         assert_eq!(result["domain"], "trademark");
     }
 
@@ -1054,10 +1054,10 @@ mod tests {
             limit: Some(5),
             category: Some("novelty".into()),
         };
-        let result = LegalTools::legal_knowledge_search(input).unwrap();
-        let results = result["results"].as_array().unwrap();
+        let result = LegalTools::legal_knowledge_search(input).expect("test tool call should succeed");
+        let results = result["results"].as_array().expect("test fixture field should be an array");
         assert!(!results.is_empty());
-        assert!(results[0]["title"].as_str().unwrap().contains("22条"));
+        assert!(results[0]["title"].as_str().expect("test fixture field should be a string").contains("22条"));
     }
 
     #[test]
@@ -1067,9 +1067,9 @@ mod tests {
             limit: Some(5),
             category: Some("inventive".into()),
         };
-        let result = LegalTools::legal_knowledge_search(input).unwrap();
-        let results = result["results"].as_array().unwrap();
-        assert!(results[0]["title"].as_str().unwrap().contains("22条第3款"));
+        let result = LegalTools::legal_knowledge_search(input).expect("test tool call should succeed");
+        let results = result["results"].as_array().expect("test fixture field should be an array");
+        assert!(results[0]["title"].as_str().expect("test fixture field should be a string").contains("22条第3款"));
     }
 
     #[test]
@@ -1079,7 +1079,7 @@ mod tests {
             limit: Some(2),
             category: None,
         };
-        let result = LegalTools::legal_knowledge_search(input).unwrap();
+        let result = LegalTools::legal_knowledge_search(input).expect("test tool call should succeed");
         assert_eq!(result["total"], 2);
     }
 
@@ -1090,7 +1090,7 @@ mod tests {
             limit: Some(1),
             category: None,
         };
-        let result = LegalTools::legal_knowledge_search(input).unwrap();
+        let result = LegalTools::legal_knowledge_search(input).expect("test tool call should succeed");
         assert_eq!(result["total"], 1);
     }
 
@@ -1101,8 +1101,8 @@ mod tests {
             limit: None,
             category: Some("specification".into()),
         };
-        let result = LegalTools::legal_knowledge_search(input).unwrap();
-        assert!(result["total"].as_u64().unwrap() <= 5);
+        let result = LegalTools::legal_knowledge_search(input).expect("test tool call should succeed");
+        assert!(result["total"].as_u64().expect("test fixture field should be a number") <= 5);
     }
 
     // --- legal_basis_refs tests ---
@@ -1113,13 +1113,13 @@ mod tests {
             legal_issue: "新颖性".into(),
             patent_type: None,
         };
-        let result = LegalTools::legal_basis_refs(input).unwrap();
-        let articles = result["related_articles"].as_array().unwrap();
+        let result = LegalTools::legal_basis_refs(input).expect("test tool call should succeed");
+        let articles = result["related_articles"].as_array().expect("test fixture field should be an array");
         assert!(!articles.is_empty());
         assert!(
             articles
                 .iter()
-                .any(|a| a["article"].as_str().unwrap().contains("22条第2款"))
+                .any(|a| a["article"].as_str().expect("test fixture field should be a string").contains("22条第2款"))
         );
     }
 
@@ -1129,12 +1129,12 @@ mod tests {
             legal_issue: "创造性".into(),
             patent_type: Some("invention".into()),
         };
-        let result = LegalTools::legal_basis_refs(input).unwrap();
-        let articles = result["related_articles"].as_array().unwrap();
+        let result = LegalTools::legal_basis_refs(input).expect("test tool call should succeed");
+        let articles = result["related_articles"].as_array().expect("test fixture field should be an array");
         assert!(
             articles
                 .iter()
-                .any(|a| a["article"].as_str().unwrap().contains("22条第3款"))
+                .any(|a| a["article"].as_str().expect("test fixture field should be a string").contains("22条第3款"))
         );
     }
 
@@ -1144,7 +1144,7 @@ mod tests {
             legal_issue: "完全不存在的法律问题XYZ".into(),
             patent_type: None,
         };
-        let result = LegalTools::legal_basis_refs(input).unwrap();
+        let result = LegalTools::legal_basis_refs(input).expect("test tool call should succeed");
         assert_eq!(result["total"], 0);
     }
 

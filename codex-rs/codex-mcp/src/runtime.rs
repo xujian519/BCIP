@@ -235,7 +235,7 @@ mod tests {
 
         let mut remote_stdio = stdio_server("remote");
         let McpServerTransportConfig::Stdio { cwd, .. } = &mut remote_stdio.transport else {
-            unreachable!("stdio helper should build stdio transport");
+            panic!("stdio helper should build stdio transport");
         };
         *cwd = Some(std::env::temp_dir());
         for resolved_runtime in [
@@ -280,7 +280,7 @@ mod tests {
         );
         let mut remote_stdio = stdio_server("remote");
         let McpServerTransportConfig::Stdio { cwd, .. } = &mut remote_stdio.transport else {
-            unreachable!("stdio helper should build stdio transport");
+            panic!("stdio helper should build stdio transport");
         };
         *cwd = Some(PathBuf::from("relative"));
 

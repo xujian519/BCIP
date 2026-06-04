@@ -299,7 +299,7 @@ fn build_logger(
 
     match crate::config::resolve_exporter(exporter) {
         OtelExporter::None => return Ok(builder.build()),
-        OtelExporter::Statsig => unreachable!("statsig exporter should be resolved"),
+        OtelExporter::Statsig => panic!("statsig exporter should be resolved"),
         OtelExporter::OtlpGrpc {
             endpoint,
             headers,
@@ -367,7 +367,7 @@ fn build_tracer_provider(
 ) -> Result<SdkTracerProvider, Box<dyn Error>> {
     let span_exporter = match crate::config::resolve_exporter(exporter) {
         OtelExporter::None => return Ok(tracer_provider_builder(resource, span_attributes).build()),
-        OtelExporter::Statsig => unreachable!("statsig exporter should be resolved"),
+        OtelExporter::Statsig => panic!("statsig exporter should be resolved"),
         OtelExporter::OtlpGrpc {
             endpoint,
             headers,

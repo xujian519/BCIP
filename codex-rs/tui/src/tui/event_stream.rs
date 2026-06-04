@@ -69,7 +69,9 @@ impl<S: EventSource + Default> EventBrokerState<S> {
                 *self = EventBrokerState::Running(S::default());
                 match self {
                     EventBrokerState::Running(events) => Some(events),
-                    EventBrokerState::Paused | EventBrokerState::Start => unreachable!(),
+                    EventBrokerState::Paused | EventBrokerState::Start => {
+                        panic!("invalid state transition: expected Running after Start")
+                    }
                 }
             }
             EventBrokerState::Running(events) => Some(events),

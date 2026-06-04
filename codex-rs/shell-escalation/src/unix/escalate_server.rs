@@ -444,7 +444,7 @@ mod tests {
             _cancel_rx: CancellationToken,
             _after_spawn: Option<Box<dyn FnOnce() + Send>>,
         ) -> anyhow::Result<ExecResult> {
-            unreachable!("run() is not used by handle_escalate_session_with_policy() tests")
+            panic!("run() is not used by handle_escalate_session_with_policy() tests")
         }
 
         async fn prepare_escalated_exec(
@@ -480,7 +480,7 @@ mod tests {
             _cancel_rx: CancellationToken,
             _after_spawn: Option<Box<dyn FnOnce() + Send>>,
         ) -> anyhow::Result<ExecResult> {
-            unreachable!("run() is not used by handle_escalate_session_with_policy() tests")
+            panic!("run() is not used by handle_escalate_session_with_policy() tests")
         }
 
         async fn prepare_escalated_exec(
@@ -569,7 +569,7 @@ mod tests {
             _env: HashMap<String, String>,
             _execution: EscalationExecution,
         ) -> anyhow::Result<PreparedExec> {
-            unreachable!("prepare_escalated_exec() is not used by exec() tests")
+            panic!("prepare_escalated_exec() is not used by exec() tests")
         }
     }
 

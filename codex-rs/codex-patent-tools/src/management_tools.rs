@@ -498,22 +498,22 @@ mod tests {
             patent_id: None,
             data: None,
         };
-        let result = ManagementTools::patent_manager(input).unwrap();
+        let result = ManagementTools::patent_manager(input).expect("test tool call should succeed");
         assert_eq!(result["action"], "list");
-        let states = result["valid_states"].as_array().unwrap();
+        let states = result["valid_states"].as_array().expect("test fixture field should be an array");
         assert!(states.len() >= 5);
     }
 
     #[test]
     fn template_library_oa_response() {
-        let result = ManagementTools::template_library("oa_response").unwrap();
+        let result = ManagementTools::template_library("oa_response").expect("test tool call should succeed");
         assert_eq!(result["template_name"], "审查意见答复模板");
-        assert!(result["structure"].as_str().unwrap().contains("修改说明"));
+        assert!(result["structure"].as_str().expect("test fixture field should be a string").contains("修改说明"));
     }
 
     #[test]
     fn template_library_unknown() {
-        let result = ManagementTools::template_library("nonexistent").unwrap();
+        let result = ManagementTools::template_library("nonexistent").expect("test tool call should succeed");
         assert_eq!(result["template_name"], "通用模板");
     }
 
@@ -526,30 +526,30 @@ mod tests {
 
     #[test]
     fn trademark_analysis_coinage_high_score() {
-        let result = ManagementTools::trademark_analysis("IBM").unwrap();
-        let score = result["registrability_score"].as_f64().unwrap();
+        let result = ManagementTools::trademark_analysis("IBM").expect("test tool call should succeed");
+        let score = result["registrability_score"].as_f64().expect("test fixture field should be a number");
         assert!(
             score >= 80.0,
             "coinage mark should score >= 80, got {score}"
         );
-        assert!(result["distinctiveness"].as_str().unwrap().contains("臆造"));
+        assert!(result["distinctiveness"].as_str().expect("test fixture field should be a string").contains("臆造"));
     }
 
     #[test]
     fn trademark_analysis_forbidden_words() {
-        let result = ManagementTools::trademark_analysis("中国XX品牌").unwrap();
-        let issues = result["issues"].as_array().unwrap();
+        let result = ManagementTools::trademark_analysis("中国XX品牌").expect("test tool call should succeed");
+        let issues = result["issues"].as_array().expect("test fixture field should be an array");
         assert!(
             issues
                 .iter()
-                .any(|i| i.as_str().unwrap().contains("禁用标志"))
+                .any(|i| i.as_str().expect("test fixture field should be a string").contains("禁用标志"))
         );
     }
 
     #[test]
     fn trademark_analysis_generic_low_score() {
-        let result = ManagementTools::trademark_analysis("电脑").unwrap();
-        let score = result["registrability_score"].as_f64().unwrap();
+        let result = ManagementTools::trademark_analysis("电脑").expect("test tool call should succeed");
+        let score = result["registrability_score"].as_f64().expect("test fixture field should be a number");
         assert!(
             score < 20.0,
             "generic word should score very low, got {score}"
@@ -563,7 +563,7 @@ mod tests {
             year: 1,
             applicant_type: None,
         };
-        let result = ManagementTools::fee_calculator(input).unwrap();
+        let result = ManagementTools::fee_calculator(input).expect("test tool call should succeed");
         assert_eq!(result["annual_fee"], 900);
         assert_eq!(result["original_fee"], 900);
     }
@@ -575,7 +575,7 @@ mod tests {
             year: 4,
             applicant_type: None,
         };
-        let result = ManagementTools::fee_calculator(input).unwrap();
+        let result = ManagementTools::fee_calculator(input).expect("test tool call should succeed");
         assert_eq!(result["annual_fee"], 900);
     }
 
@@ -586,7 +586,7 @@ mod tests {
             year: 1,
             applicant_type: Some("individual".into()),
         };
-        let result = ManagementTools::fee_calculator(input).unwrap();
+        let result = ManagementTools::fee_calculator(input).expect("test tool call should succeed");
         assert_eq!(result["annual_fee"], 135);
         assert_eq!(result["original_fee"], 900);
     }
@@ -628,8 +628,8 @@ mod tests {
             reference_date: "2025-01-01".into(),
             round: Some(1),
         };
-        let result = ManagementTools::deadline_tracker(input).unwrap();
-        assert!(result["description"].as_str().unwrap().contains("4个月"));
+        let result = ManagementTools::deadline_tracker(input).expect("test tool call should succeed");
+        assert!(result["description"].as_str().expect("test fixture field should be a string").contains("4个月"));
         assert_eq!(result["deadline"], "2025-05-01");
     }
 
@@ -640,8 +640,8 @@ mod tests {
             reference_date: "2025-01-01".into(),
             round: Some(2),
         };
-        let result = ManagementTools::deadline_tracker(input).unwrap();
-        assert!(result["description"].as_str().unwrap().contains("2个月"));
+        let result = ManagementTools::deadline_tracker(input).expect("test tool call should succeed");
+        assert!(result["description"].as_str().expect("test fixture field should be a string").contains("2个月"));
         assert_eq!(result["deadline"], "2025-03-01");
     }
 
@@ -652,7 +652,7 @@ mod tests {
             reference_date: "2025-01-01".into(),
             round: None,
         };
-        let result = ManagementTools::deadline_tracker(input).unwrap();
+        let result = ManagementTools::deadline_tracker(input).expect("test tool call should succeed");
         assert_eq!(result["deadline"], "2025-04-01");
     }
 
@@ -668,8 +668,8 @@ mod tests {
 
     #[test]
     fn process_chart_application() {
-        let result = ManagementTools::process_chart("application").unwrap();
-        assert!(result["mermaid"].as_str().unwrap().contains("graph LR"));
-        assert!(result["mermaid"].as_str().unwrap().contains("授权"));
+        let result = ManagementTools::process_chart("application").expect("test tool call should succeed");
+        assert!(result["mermaid"].as_str().expect("test fixture field should be a string").contains("graph LR"));
+        assert!(result["mermaid"].as_str().expect("test fixture field should be a string").contains("授权"));
     }
 }

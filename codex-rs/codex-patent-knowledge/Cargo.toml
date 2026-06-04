@@ -7,13 +7,13 @@ edition = "2024"
 codex-patent-core = { path = "../codex-patent-core" }
 codex-patent-text = { path = "../codex-patent-text" }
 tracing = { workspace = true }
-rusqlite = { version = "0.32", features = ["bundled"], default-features = false }
+rusqlite = { workspace = true, features = ["bundled"], default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = "2"
+thiserror = { workspace = true }
 reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }
 
 [dev-dependencies]
-pretty_assertions = "1"
-tempfile = "3"
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

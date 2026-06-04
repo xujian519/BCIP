@@ -1822,7 +1822,7 @@ fn resolve_prompt(prompt_arg: Option<String>) -> String {
                 StdinPromptBehavior::RequiredIfPiped
             };
             let Some(prompt) = read_prompt_from_stdin(behavior) else {
-                unreachable!("required stdin prompt should produce content");
+                panic!("required stdin prompt should produce content");
             };
             prompt
         }

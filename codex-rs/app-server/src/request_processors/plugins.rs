@@ -1715,7 +1715,7 @@ impl PluginRequestProcessor {
                 internal_error(format!("failed to uninstall plugin: {err}"))
             }
             CorePluginUninstallError::InvalidPluginId(_) => {
-                unreachable!("invalid plugin ids are handled above");
+                panic!("invalid plugin ids are handled above");
             }
         }
     }

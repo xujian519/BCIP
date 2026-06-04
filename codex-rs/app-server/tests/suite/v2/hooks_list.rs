@@ -61,7 +61,7 @@ fn command_hook_hash(
         },
     };
     let Ok(value) = codex_config::TomlValue::try_from(identity) else {
-        unreachable!("normalized hook identity should serialize to TOML");
+        panic!("normalized hook identity should serialize to TOML");
     };
     codex_config::version_for_toml(&value)
 }

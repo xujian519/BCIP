@@ -370,7 +370,7 @@ fn remote_control_start_human_message(
             output.server_name
         )),
         RemoteControlConnectionStatus::Errored | RemoteControlConnectionStatus::Disabled => {
-            unreachable!("errored and disabled statuses are rejected before formatting")
+            panic!("errored and disabled statuses are rejected before formatting")
         }
     }
 }

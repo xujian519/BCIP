@@ -200,7 +200,8 @@ export class AppServerClient {
     let parsed: WireMessage;
     try {
       parsed = JSON.parse(line) as WireMessage;
-    } catch {
+    } catch (err) {
+      console.warn('[appServerClient] 无法解析 wire 消息:', err instanceof Error ? err.message : String(err));
       return;
     }
 

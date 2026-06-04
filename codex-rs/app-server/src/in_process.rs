@@ -648,7 +648,7 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
                                 };
                                 let request_id = match inner {
                                     InProcessServerEvent::ServerRequest(req) => req.id().clone(),
-                                    _ => unreachable!("we just sent a ServerRequest variant"),
+                                    _ => panic!("we just sent a ServerRequest variant"),
                                 };
                                 outgoing_message_sender
                                     .notify_client_error(request_id, error)

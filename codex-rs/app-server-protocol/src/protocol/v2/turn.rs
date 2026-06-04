@@ -306,7 +306,7 @@ impl From<CoreUserInput> for UserInput {
             CoreUserInput::LocalImage { path, detail } => UserInput::LocalImage { path, detail },
             CoreUserInput::Skill { name, path } => UserInput::Skill { name, path },
             CoreUserInput::Mention { name, path } => UserInput::Mention { name, path },
-            _ => unreachable!("unsupported user input variant"),
+            _ => panic!("unsupported user input variant"),
         }
     }
 }

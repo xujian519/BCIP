@@ -1105,7 +1105,7 @@ fn remove_protected_create_target(target: &crate::bwrap::ProtectedCreateTarget) 
             }
         }
     }
-    unreachable!("protected create removal retry loop should return or panic")
+    panic!("protected create removal retry loop should return or panic")
 }
 
 fn remove_protected_create_target_best_effort(

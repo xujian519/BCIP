@@ -370,7 +370,7 @@ async fn persist_user_shell_output(
             content,
             phase,
         },
-        _ => unreachable!("user shell command output record should always be a message"),
+        _ => panic!("user shell command output record should always be a message"),
     };
 
     if let Err(items) = session

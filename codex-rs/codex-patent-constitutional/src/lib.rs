@@ -13,5 +13,7 @@ pub use engine::RuleSummary;
 pub use engine::ScannedToolResult;
 pub use loader::RuleLoader;
 pub use model::ConstitutionalRule;
+pub use model::ConstitutionalRules;
 pub use model::RuleAction;
+pub use model::RuleCheck;
 pub use model::RuleSeverity;

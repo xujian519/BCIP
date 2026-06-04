@@ -6,9 +6,9 @@ edition = "2024"
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-toml = "0.8"
-thiserror = "2"
+toml = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1"
-tempfile = "3"
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

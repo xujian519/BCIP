@@ -755,7 +755,7 @@ mod tests {
             differences: Some(vec!["特征A".into(), "特征B".into()]),
             ..Default::default()
         };
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         assert!(!result.applied_rules.is_empty());
         assert!(result.net_score > 0.5);
     }
@@ -770,7 +770,7 @@ mod tests {
             has_unexpected_effect: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         assert!(!result.applied_rules.is_empty());
         assert!(result.net_score > 0.5);
     }
@@ -806,13 +806,13 @@ mod tests {
             }]),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir01 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-01"));
         assert!(ir01.is_some(), "IR-01 应该触发");
-        assert!(ir01.unwrap().score > 0.3);
+        assert!(ir01.expect("test analysis result should be present").score > 0.3);
     }
 
     #[test]
@@ -823,13 +823,13 @@ mod tests {
             actual_problem_solved: Some("提高数据安全性".into()),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir02 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-02"));
         assert!(ir02.is_some());
-        assert!(ir02.unwrap().score > 0.5);
+        assert!(ir02.expect("test analysis result should be present").score > 0.5);
     }
 
     #[test]
@@ -839,13 +839,13 @@ mod tests {
             has_teaching_away: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir04 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-04"));
         assert!(ir04.is_some());
-        assert!(ir04.unwrap().score > 0.7);
+        assert!(ir04.expect("test analysis result should be present").score > 0.7);
     }
 
     #[test]
@@ -855,13 +855,13 @@ mod tests {
             is_combination: Some(CombinationType::Synergistic),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir05 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-05"));
         assert!(ir05.is_some());
-        assert!(ir05.unwrap().score > 0.7);
+        assert!(ir05.expect("test analysis result should be present").score > 0.7);
     }
 
     #[test]
@@ -872,13 +872,13 @@ mod tests {
             has_unexpected_effect: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir06 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-06"));
         assert!(ir06.is_some());
-        assert!(ir06.unwrap().score > 0.7);
+        assert!(ir06.expect("test analysis result should be present").score > 0.7);
     }
 
     #[test]
@@ -890,7 +890,7 @@ mod tests {
             has_long_felt_need: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         assert!(result.applied_rules.len() >= 3, "应触发 IR-07/08/09");
         assert!(result.net_score > 0.7);
     }
@@ -904,7 +904,7 @@ mod tests {
             technical_effects: Some(vec!["提高了效率".into()]),
             ..Default::default()
         };
-        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let result = engine.suggest_oa_strategy(&ctx).expect("test tool call should succeed");
         assert!(!result.applied_rules.is_empty());
     }
 
@@ -912,7 +912,7 @@ mod tests {
     fn test_novelty_empty_context_returns_insufficient_info() {
         let mut engine = QualitativeRuleEngine::new();
         let ctx = CaseContext::default();
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         assert_eq!(result.net_score, 0.0);
         assert!(result.applied_rules.is_empty());
         assert!(result.conclusion.contains("信息不足"));
@@ -925,14 +925,14 @@ mod tests {
             prior_art_contains_all: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         let nr01 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("NR-01"));
         assert!(nr01.is_some());
-        assert!(nr01.unwrap().score < 0.2);
-        assert!(nr01.unwrap().conclusion.contains("全部技术特征"));
+        assert!(nr01.expect("test analysis result should be present").score < 0.2);
+        assert!(nr01.expect("test analysis result should be present").conclusion.contains("全部技术特征"));
     }
 
     #[test]
@@ -942,13 +942,13 @@ mod tests {
             prior_art_contains_all: Some(false),
             ..Default::default()
         };
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         let nr01 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("NR-01"));
         assert!(nr01.is_some());
-        assert!(nr01.unwrap().score > 0.7);
+        assert!(nr01.expect("test analysis result should be present").score > 0.7);
     }
 
     #[test]
@@ -958,13 +958,13 @@ mod tests {
             differences: Some(vec![]),
             ..Default::default()
         };
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         let nr02 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("NR-02"));
         assert!(nr02.is_some());
-        assert!(nr02.unwrap().score < 0.1);
+        assert!(nr02.expect("test analysis result should be present").score < 0.1);
     }
 
     #[test]
@@ -975,21 +975,21 @@ mod tests {
             differences: Some(vec![]),
             ..Default::default()
         };
-        let result = engine.analyze_novelty(&ctx).unwrap();
+        let result = engine.analyze_novelty(&ctx).expect("test tool call should succeed");
         let nr03 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("NR-03"));
         assert!(nr03.is_some());
-        assert!(nr03.unwrap().conclusion.contains("实质相同"));
-        assert!(nr03.unwrap().score < 0.1);
+        assert!(nr03.expect("test analysis result should be present").conclusion.contains("实质相同"));
+        assert!(nr03.expect("test analysis result should be present").score < 0.1);
     }
 
     #[test]
     fn test_inventiveness_empty_context_returns_insufficient_info() {
         let mut engine = QualitativeRuleEngine::new();
         let ctx = CaseContext::default();
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         assert_eq!(result.net_score, 0.0);
         assert!(result.applied_rules.is_empty());
         assert!(result.conclusion.contains("信息不足"));
@@ -1002,14 +1002,14 @@ mod tests {
             distinguishing_features: Some(vec!["弹簧".into()]),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir03 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-03"));
         assert!(ir03.is_some());
-        assert!(ir03.unwrap().conclusion.contains("公知常识"));
-        assert!(ir03.unwrap().score < 0.3);
+        assert!(ir03.expect("test analysis result should be present").conclusion.contains("公知常识"));
+        assert!(ir03.expect("test analysis result should be present").score < 0.3);
     }
 
     #[test]
@@ -1021,13 +1021,13 @@ mod tests {
             ]),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir03 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-03"));
         assert!(ir03.is_some());
-        assert!(ir03.unwrap().score > 0.5);
+        assert!(ir03.expect("test analysis result should be present").score > 0.5);
     }
 
     #[test]
@@ -1037,14 +1037,14 @@ mod tests {
             is_combination: Some(CombinationType::SimpleStack),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir05 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-05"));
         assert!(ir05.is_some());
-        assert!(ir05.unwrap().score < 0.3);
-        assert!(ir05.unwrap().conclusion.contains("简单叠加"));
+        assert!(ir05.expect("test analysis result should be present").score < 0.3);
+        assert!(ir05.expect("test analysis result should be present").conclusion.contains("简单叠加"));
     }
 
     #[test]
@@ -1055,13 +1055,13 @@ mod tests {
             has_unexpected_effect: Some(false),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir06 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-06"));
         assert!(ir06.is_some());
-        assert!(ir06.unwrap().score < 0.4);
+        assert!(ir06.expect("test analysis result should be present").score < 0.4);
     }
 
     #[test]
@@ -1071,13 +1071,13 @@ mod tests {
             technical_effect: Some("显著提高了数据传输效率".into()),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir10 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-10"));
         assert!(ir10.is_some());
-        assert!(ir10.unwrap().score > 0.6);
+        assert!(ir10.expect("test analysis result should be present").score > 0.6);
     }
 
     #[test]
@@ -1087,14 +1087,14 @@ mod tests {
             performance_improvement: Some(0.8),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir11 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-11"));
         assert!(ir11.is_some());
-        assert!(ir11.unwrap().score > 0.8);
-        assert!(ir11.unwrap().conclusion.contains("80%"));
+        assert!(ir11.expect("test analysis result should be present").score > 0.8);
+        assert!(ir11.expect("test analysis result should be present").conclusion.contains("80%"));
     }
 
     #[test]
@@ -1104,13 +1104,13 @@ mod tests {
             performance_improvement: Some(0.05),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir11 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-11"));
         assert!(ir11.is_some());
-        assert!(ir11.unwrap().score < 0.35);
+        assert!(ir11.expect("test analysis result should be present").score < 0.35);
     }
 
     #[test]
@@ -1120,14 +1120,14 @@ mod tests {
             obviousness: Some(true),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir12 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-12"));
         assert!(ir12.is_some());
-        assert!(ir12.unwrap().score < 0.2);
-        assert!(ir12.unwrap().conclusion.contains("显而易见"));
+        assert!(ir12.expect("test analysis result should be present").score < 0.2);
+        assert!(ir12.expect("test analysis result should be present").conclusion.contains("显而易见"));
     }
 
     #[test]
@@ -1137,13 +1137,13 @@ mod tests {
             obviousness: Some(false),
             ..Default::default()
         };
-        let result = engine.analyze_inventiveness(&ctx).unwrap();
+        let result = engine.analyze_inventiveness(&ctx).expect("test tool call should succeed");
         let ir12 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("IR-12"));
         assert!(ir12.is_some());
-        assert!(ir12.unwrap().score > 0.7);
+        assert!(ir12.expect("test analysis result should be present").score > 0.7);
     }
 
     #[test]
@@ -1153,13 +1153,13 @@ mod tests {
             rejection_type: Some("新颖性".into()),
             ..Default::default()
         };
-        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let result = engine.suggest_oa_strategy(&ctx).expect("test tool call should succeed");
         let oa01 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("OA-01"));
         assert!(oa01.is_some());
-        assert!(oa01.unwrap().conclusion.contains("新颖性驳回"));
+        assert!(oa01.expect("test analysis result should be present").conclusion.contains("新颖性驳回"));
     }
 
     #[test]
@@ -1169,13 +1169,13 @@ mod tests {
             prior_art_different_field: Some(true),
             ..Default::default()
         };
-        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let result = engine.suggest_oa_strategy(&ctx).expect("test tool call should succeed");
         let oa03 = result
             .applied_rules
             .iter()
             .find(|r| r.rule_name.contains("OA-03"));
         assert!(oa03.is_some());
-        assert!(oa03.unwrap().conclusion.contains("不同技术领域"));
+        assert!(oa03.expect("test analysis result should be present").conclusion.contains("不同技术领域"));
     }
 
     #[test]
@@ -1185,7 +1185,7 @@ mod tests {
             rejection_type: Some("不清楚".into()),
             ..Default::default()
         };
-        let result = engine.suggest_oa_strategy(&ctx).unwrap();
+        let result = engine.suggest_oa_strategy(&ctx).expect("test tool call should succeed");
         assert!(result.applied_rules.is_empty());
         assert!(result.conclusion.contains("无法确定"));
     }
@@ -1198,8 +1198,8 @@ mod tests {
             prior_art_contains_all: Some(false),
             ..Default::default()
         };
-        let r1 = engine1.analyze_novelty(&ctx).unwrap();
-        let r2 = engine2.analyze_novelty(&ctx).unwrap();
+        let r1 = engine1.analyze_novelty(&ctx).expect("test tool call should succeed");
+        let r2 = engine2.analyze_novelty(&ctx).expect("test tool call should succeed");
         assert_eq!(r1.net_score, r2.net_score);
     }
 }

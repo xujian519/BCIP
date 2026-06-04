@@ -1043,7 +1043,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
     })
     .await;
     let EventMsg::TokenCount(large_token_count) = large_window_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
     assert_eq!(
         large_token_count
@@ -1083,7 +1083,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
     })
     .await;
     let EventMsg::TurnStarted(smaller_turn_started) = smaller_turn_started_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
     assert_eq!(
         smaller_turn_started.model_context_window,
@@ -1102,7 +1102,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
     })
     .await;
     let EventMsg::TokenCount(smaller_token_count) = smaller_window_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
     let smaller_window = smaller_token_count
         .info

@@ -273,7 +273,7 @@ impl McpProcess {
             })
             .await?;
         let JSONRPCMessage::Response(_) = initialized else {
-            unreachable!("expected JSONRPCMessage::Response for initialize, got {initialized:?}");
+            panic!("expected JSONRPCMessage::Response for initialize, got {initialized:?}");
         };
         Ok(())
     }
@@ -1336,7 +1336,7 @@ impl McpProcess {
             .await?;
 
         let JSONRPCMessage::Request(jsonrpc_request) = message else {
-            unreachable!("expected JSONRPCMessage::Request, got {message:?}");
+            panic!("expected JSONRPCMessage::Request, got {message:?}");
         };
         jsonrpc_request
             .try_into()
@@ -1356,7 +1356,7 @@ impl McpProcess {
             .await?;
 
         let JSONRPCMessage::Response(response) = message else {
-            unreachable!("expected JSONRPCMessage::Response, got {message:?}");
+            panic!("expected JSONRPCMessage::Response, got {message:?}");
         };
         Ok(response)
     }
@@ -1372,7 +1372,7 @@ impl McpProcess {
             .await?;
 
         let JSONRPCMessage::Error(err) = message else {
-            unreachable!("expected JSONRPCMessage::Error, got {message:?}");
+            panic!("expected JSONRPCMessage::Error, got {message:?}");
         };
         Ok(err)
     }
@@ -1393,7 +1393,7 @@ impl McpProcess {
             .await?;
 
         let JSONRPCMessage::Notification(notification) = message else {
-            unreachable!("expected JSONRPCMessage::Notification, got {message:?}");
+            panic!("expected JSONRPCMessage::Notification, got {message:?}");
         };
         Ok(notification)
     }
@@ -1418,7 +1418,7 @@ impl McpProcess {
             .await?;
 
         let JSONRPCMessage::Notification(notification) = message else {
-            unreachable!("expected JSONRPCMessage::Notification, got {message:?}");
+            panic!("expected JSONRPCMessage::Notification, got {message:?}");
         };
         Ok(notification)
     }

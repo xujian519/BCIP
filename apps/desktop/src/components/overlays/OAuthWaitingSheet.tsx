@@ -72,25 +72,25 @@ export default function OAuthWaitingSheet() {
           >
             <div className="p-7">
               <div className="flex items-center gap-2 mb-3">
-                <Lock size={20} className="text-[#4A7C6F]" />
+                <Lock size={20} className="text-[var(--accent-primary)]" />
                 <h2 className="text-lg font-semibold text-[#E8E8E8]">需要认证</h2>
               </div>
 
               <p className="text-sm text-[#9CA3AF] mb-5 leading-relaxed">
-                <span className="font-mono text-[#4A7C6F]">{serverName}</span> 需要 OAuth 认证。
+                <span className="font-mono text-[var(--accent-primary)]">{serverName}</span> 需要 OAuth 认证。
               </p>
 
               <div className="space-y-2 mb-6">
                 <div className="flex items-center gap-3">
-                  <span className="text-[13px] font-semibold text-[#4A7C6F] w-5">1</span>
+                  <span className="text-[13px] font-semibold text-[var(--accent-primary)] w-5">1</span>
                   <span className="text-[13px] text-[#E8E8E8]">点击「打开浏览器」</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[13px] font-semibold text-[#4A7C6F] w-5">2</span>
+                  <span className="text-[13px] font-semibold text-[var(--accent-primary)] w-5">2</span>
                   <span className="text-[13px] text-[#E8E8E8]">在浏览器中完成认证</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[13px] font-semibold text-[#4A7C6F] w-5">3</span>
+                  <span className="text-[13px] font-semibold text-[var(--accent-primary)] w-5">3</span>
                   <span className="text-[13px] text-[#E8E8E8]">返回应用，将自动收到完成通知</span>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function OAuthWaitingSheet() {
                   animate={{ opacity: 1 }}
                   onClick={handleOpenBrowser}
                   disabled={!oauthState.authUrl}
-                  className="w-full h-10 bg-[#4A7C6F] hover:bg-[#5A9A8C] text-white text-sm font-medium rounded-lg transition-colors duration-150 mb-3 disabled:opacity-50"
+                  className="w-full h-10 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-sm font-medium rounded-lg transition-colors duration-150 mb-3 disabled:opacity-50"
                 >
                   打开浏览器
                 </motion.button>
@@ -114,7 +114,7 @@ export default function OAuthWaitingSheet() {
                   animate={{ opacity: 1 }}
                   className="flex items-center justify-center gap-2 h-10 mb-3"
                 >
-                  <Loader2 size={16} className="animate-spin text-[#4A7C6F]" />
+                  <Loader2 size={16} className="animate-spin text-[var(--accent-primary)]" />
                   <span className="text-sm text-[#9CA3AF]">等待认证完成...</span>
                 </motion.div>
               )}
@@ -125,7 +125,7 @@ export default function OAuthWaitingSheet() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex items-center justify-center h-10 mb-3"
                 >
-                  <span className="text-sm font-medium text-[#4A7C6F]">认证成功</span>
+                  <span className="text-sm font-medium text-[var(--accent-primary)]">认证成功</span>
                 </motion.div>
               )}
 

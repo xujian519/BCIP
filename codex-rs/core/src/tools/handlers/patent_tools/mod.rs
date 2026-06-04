@@ -21,14 +21,12 @@ use std::sync::Arc;
 
 pub struct PatentToolHandler {
     name: String,
-    #[allow(dead_code)]
-    domain: ToolDomain,
     spec: ToolSpec,
     handler: ToolHandler,
 }
 
 impl PatentToolHandler {
-    fn new(name: String, domain: ToolDomain, handler: ToolHandler) -> Self {
+    fn new(name: String, _domain: ToolDomain, handler: ToolHandler) -> Self {
         let spec = ToolSpec::Function(ResponsesApiTool {
             name: name.clone(),
             description: tool_description(&name),
@@ -39,7 +37,6 @@ impl PatentToolHandler {
         });
         Self {
             name,
-            domain,
             spec,
             handler,
         }

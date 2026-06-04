@@ -309,7 +309,7 @@ impl ExecCell {
                     .iter()
                     .map(|parsed| match parsed {
                         ParsedCommand::Read { name, .. } => name.clone(),
-                        _ => unreachable!(),
+                        _ => panic!("unexpected ParsedCommand variant in read context"),
                     })
                     .unique();
                 vec![(

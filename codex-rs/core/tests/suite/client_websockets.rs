@@ -1327,10 +1327,8 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
     let token_event =
         wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let EventMsg::TokenCount(event) = token_event else {
-        unreachable!();
+        panic!("expected TokenCount event");
     };
-
-    let event_json = serde_json::to_value(&event).expect("serialize token count event");
     pretty_assertions::assert_eq!(
         event_json,
         json!({
@@ -1357,7 +1355,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
 
     let error_event = wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
-        unreachable!();
+        panic!("expected Error event");
     };
     assert!(
         error_event.message.to_lowercase().contains("usage limit"),
@@ -1415,7 +1413,7 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
 
     let error_event = wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
-        unreachable!();
+        panic!("expected Error event");
     };
     assert!(
         error_event

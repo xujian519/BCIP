@@ -1817,7 +1817,7 @@ async fn webrtc_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Result<(
     // Phase 2: observe the delegated background agent turn executing the requested shell command.
     let started_command = wait_for_started_command_execution(&mut harness.mcp).await?;
     let ThreadItem::CommandExecution { id, status, .. } = started_command.item else {
-        unreachable!("helper returns command execution items");
+        panic!("helper returns command execution items");
     };
     assert_eq!(
         (id.as_str(), status),
@@ -1832,7 +1832,7 @@ async fn webrtc_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Result<(
         ..
     } = completed_command.item
     else {
-        unreachable!("helper returns command execution items");
+        panic!("helper returns command execution items");
     };
     assert_eq!(id.as_str(), "shell_call");
     assert_eq!(status, CommandExecutionStatus::Completed);

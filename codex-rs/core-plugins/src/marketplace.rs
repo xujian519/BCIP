@@ -515,7 +515,7 @@ fn resolve_plugin_source(
             sha: normalize_optional_git_selector(&sha),
         }),
         RawMarketplaceManifestPluginSource::Unsupported(_) => {
-            unreachable!("unsupported plugin sources should be filtered before resolution")
+            panic!("unsupported plugin sources should be filtered before resolution")
         }
     }
 }

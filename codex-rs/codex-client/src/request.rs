@@ -107,7 +107,7 @@ impl Request {
                     let pre_compression_bytes = json.len();
                     let compression_start = std::time::Instant::now();
                     let (compressed, content_encoding) = match self.compression {
-                        RequestCompression::None => unreachable!("guarded by compression != None"),
+                        RequestCompression::None => panic!("guarded by compression != None"),
                         RequestCompression::Zstd => (
                             zstd::stream::encode_all(std::io::Cursor::new(json), 3)
                                 .map_err(|err| err.to_string())?,

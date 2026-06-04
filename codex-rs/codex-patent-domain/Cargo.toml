@@ -6,12 +6,12 @@ edition = "2024"
 [dependencies]
 codex-patent-core = { path = "../codex-patent-core" }
 codex-patent-knowledge = { path = "../codex-patent-knowledge" }
-rusqlite = { version = "0.32", features = ["bundled"], default-features = false }
+rusqlite = { workspace = true, features = ["bundled"], default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { version = "0.9", default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "perf", "unicode-perl", "unicode-case"] }
-strsim = "0.11"
+strsim = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = "1"
+pretty_assertions = { workspace = true }

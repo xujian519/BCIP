@@ -107,7 +107,7 @@ pub(super) fn search_check() -> DoctorCheck {
     let summary = match status {
         CheckStatus::Ok => format!("search is OK ({provider})"),
         CheckStatus::Warning => "search command could not be verified".to_string(),
-        CheckStatus::Fail => unreachable!(),
+        CheckStatus::Fail => panic!("search check: Fail status should never be reached"),
     };
     let mut check = DoctorCheck::new("runtime.search", "search", status, summary).details(details);
     if status != CheckStatus::Ok {

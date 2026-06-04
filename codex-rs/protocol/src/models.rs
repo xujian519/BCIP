@@ -276,7 +276,7 @@ impl ManagedFileSystemPermissions {
                     .and_then(NonZeroUsize::new),
             },
             FileSystemSandboxKind::Unrestricted => Self::Unrestricted,
-            FileSystemSandboxKind::ExternalSandbox => unreachable!(
+            FileSystemSandboxKind::ExternalSandbox => panic!(
                 "external filesystem policies are represented by PermissionProfile::External"
             ),
         }

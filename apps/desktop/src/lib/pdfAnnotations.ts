@@ -39,6 +39,7 @@ export async function loadPdfAnnotations(
     const parsed = JSON.parse(raw) as { annotations?: PdfAnnotationRecord[] };
     return Array.isArray(parsed.annotations) ? parsed.annotations : [];
   } catch {
+    // 注释文件缺失、不可读或格式损坏时静默返回空列表
     return [];
   }
 }

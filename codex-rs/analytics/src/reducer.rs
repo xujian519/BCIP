@@ -2420,7 +2420,7 @@ fn codex_turn_event_params(
         turn_state.resolved_config.clone(),
         turn_state.completed.clone(),
     ) else {
-        unreachable!("turn event params require a fully populated turn state");
+        panic!("turn event params require a fully populated turn state");
     };
     let started_at = turn_state.started_at;
     let TurnResolvedConfigFact {

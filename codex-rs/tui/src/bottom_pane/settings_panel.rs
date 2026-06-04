@@ -208,7 +208,7 @@ impl Renderable for SettingsPanel {
                     SettingsTab::Model => "模型设置",
                     SettingsTab::Permissions => "权限设置",
                     SettingsTab::Appearance => "外观设置",
-                    _ => unreachable!(),
+                    _ => panic!("unknown SettingsTab variant"),
                 };
                 let lines = vec![
                     Line::from(format!("  {hint}")).bold(),

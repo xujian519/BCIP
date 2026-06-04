@@ -180,7 +180,7 @@ pub(crate) fn prepare_legacy_session_security(
                 (h_token, None, None, write_root_sids)
             }
             SandboxPolicy::DangerFullAccess | SandboxPolicy::ExternalSandbox { .. } => {
-                unreachable!("dangerous policies rejected before legacy session prep")
+                panic!("dangerous policies rejected before legacy session prep")
             }
         }
     };

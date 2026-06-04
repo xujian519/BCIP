@@ -309,7 +309,7 @@ pub(super) fn split_server_envelope_for_transport(
     }
 
     let ServerEvent::ServerMessage { message } = envelope.event.clone() else {
-        unreachable!("server message variant checked above");
+        panic!("server message variant checked above");
     };
     let raw = serde_json::to_vec(message.as_ref()).map_err(io::Error::other)?;
     let message_size_bytes = raw.len();

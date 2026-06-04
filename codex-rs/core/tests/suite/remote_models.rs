@@ -173,7 +173,7 @@ async fn remote_models_config_context_window_override_clamps_to_max_context_wind
     })
     .await;
     let EventMsg::TurnStarted(turn_started) = turn_started_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
 
     assert_eq!(turn_started.model_context_window, Some(400_000));
@@ -240,7 +240,7 @@ async fn remote_models_config_override_above_max_uses_max_context_window() -> Re
     })
     .await;
     let EventMsg::TurnStarted(turn_started) = turn_started_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
 
     assert_eq!(turn_started.model_context_window, Some(400_000));
@@ -306,7 +306,7 @@ async fn remote_models_use_context_window_when_config_override_is_absent() -> Re
     })
     .await;
     let EventMsg::TurnStarted(turn_started) = turn_started_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
 
     assert_eq!(turn_started.model_context_window, Some(273_000));

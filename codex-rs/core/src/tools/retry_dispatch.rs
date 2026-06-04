@@ -14,14 +14,6 @@ pub fn is_error_retryable(
     policy.should_retry(message)
 }
 
-/// 从 FunctionCallError 中提取错误消息。
-#[allow(dead_code)]
-pub fn error_message(error: &FunctionCallError) -> &str {
-    match error {
-        FunctionCallError::RespondToModel(msg) | FunctionCallError::Fatal(msg) => msg,
-    }
-}
-
 /// 构建降级工具的替换错误消息。
 #[allow(dead_code)]
 pub fn fallback_exhausted_message(tool_name: &str, original_error: &str) -> String {

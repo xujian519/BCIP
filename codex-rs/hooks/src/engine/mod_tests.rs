@@ -75,15 +75,15 @@ fn pre_tool_use_hook_events(command: impl Into<String>) -> HookEventsToml {
 fn config_toml_with_pre_tool_use(command: &str) -> TomlValue {
     let mut config_toml = TomlValue::Table(Default::default());
     let TomlValue::Table(config_table) = &mut config_toml else {
-        unreachable!("config TOML root should be a table");
+        panic!("config TOML root should be a table");
     };
     let mut hooks_table = TomlValue::Table(Default::default());
     let TomlValue::Table(hooks_entries) = &mut hooks_table else {
-        unreachable!("hooks entry should be a table");
+        panic!("hooks entry should be a table");
     };
     let mut pre_tool_use_group = TomlValue::Table(Default::default());
     let TomlValue::Table(pre_tool_use_group_entries) = &mut pre_tool_use_group else {
-        unreachable!("PreToolUse group should be a table");
+        panic!("PreToolUse group should be a table");
     };
     pre_tool_use_group_entries.insert(
         "matcher".to_string(),
@@ -91,7 +91,7 @@ fn config_toml_with_pre_tool_use(command: &str) -> TomlValue {
     );
     let mut handler = TomlValue::Table(Default::default());
     let TomlValue::Table(handler_entries) = &mut handler else {
-        unreachable!("PreToolUse handler should be a table");
+        panic!("PreToolUse handler should be a table");
     };
     handler_entries.insert("type".to_string(), TomlValue::String("command".to_string()));
     handler_entries.insert(
@@ -773,7 +773,7 @@ fn allow_managed_hooks_only_in_config_toml_does_not_enable_policy() {
         AbsolutePathBuf::try_from(temp.path().join("config.toml")).expect("absolute config path");
     let mut config_toml = config_toml_with_pre_tool_use("python3 /tmp/user-hook.py");
     let TomlValue::Table(config_table) = &mut config_toml else {
-        unreachable!("config TOML root should be a table");
+        panic!("config TOML root should be a table");
     };
     config_table.insert(
         "allow_managed_hooks_only".to_string(),
@@ -1037,15 +1037,15 @@ fn discovers_hooks_from_json_and_toml_in_the_same_layer() {
     .expect("write hooks.json");
     let mut config_toml = TomlValue::Table(Default::default());
     let TomlValue::Table(config_table) = &mut config_toml else {
-        unreachable!("config TOML root should be a table");
+        panic!("config TOML root should be a table");
     };
     let mut hooks_table = TomlValue::Table(Default::default());
     let TomlValue::Table(hooks_entries) = &mut hooks_table else {
-        unreachable!("hooks entry should be a table");
+        panic!("hooks entry should be a table");
     };
     let mut pre_tool_use_group = TomlValue::Table(Default::default());
     let TomlValue::Table(pre_tool_use_group_entries) = &mut pre_tool_use_group else {
-        unreachable!("PreToolUse group should be a table");
+        panic!("PreToolUse group should be a table");
     };
     pre_tool_use_group_entries.insert(
         "matcher".to_string(),
@@ -1056,10 +1056,10 @@ fn discovers_hooks_from_json_and_toml_in_the_same_layer() {
         TomlValue::Array(vec![TomlValue::Table(Default::default())]),
     );
     let Some(TomlValue::Array(hooks_array)) = pre_tool_use_group_entries.get_mut("hooks") else {
-        unreachable!("PreToolUse hooks should be an array");
+        panic!("PreToolUse hooks should be an array");
     };
     let Some(TomlValue::Table(handler_entries)) = hooks_array.first_mut() else {
-        unreachable!("PreToolUse handler should be a table");
+        panic!("PreToolUse handler should be a table");
     };
     handler_entries.insert("type".to_string(), TomlValue::String("command".to_string()));
     handler_entries.insert(

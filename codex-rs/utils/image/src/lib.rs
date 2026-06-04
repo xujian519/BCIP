@@ -179,7 +179,7 @@ fn encode_image(
                     source,
                 })?;
         }
-        _ => unreachable!("unsupported target_format should have been handled earlier"),
+        _ => panic!("unsupported target_format should have been handled earlier"),
     }
 
     Ok((buffer, target_format))

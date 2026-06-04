@@ -95,7 +95,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         id, source, status, ..
     } = &started.item
     else {
-        unreachable!("helper returns command execution item");
+        panic!("helper returns command execution item");
     };
     let command_id = id.clone();
     assert_eq!(source, &CommandExecutionSource::UserShell);
@@ -117,7 +117,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         ..
     } = &completed.item
     else {
-        unreachable!("helper returns command execution item");
+        panic!("helper returns command execution item");
     };
     assert_eq!(id, &command_id);
     assert_eq!(source, &CommandExecutionSource::UserShell);
@@ -295,7 +295,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         command, source, ..
     } = &agent_started.item
     else {
-        unreachable!("helper returns command execution item");
+        panic!("helper returns command execution item");
     };
     assert_eq!(source, &CommandExecutionSource::Agent);
     assert_eq!(
@@ -331,7 +331,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
     assert_eq!(started.turn_id, turn.id);
     let command_id = match &started.item {
         ThreadItem::CommandExecution { id, .. } => id.clone(),
-        _ => unreachable!("helper returns command execution item"),
+        _ => panic!("helper returns command execution item"),
     };
     let completed = wait_for_command_execution_completed(&mut mcp, Some(&command_id)).await?;
     assert_eq!(completed.turn_id, turn.id);
@@ -341,7 +341,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         ..
     } = &completed.item
     else {
-        unreachable!("helper returns command execution item");
+        panic!("helper returns command execution item");
     };
     assert_eq!(source, &CommandExecutionSource::UserShell);
     assert_eq!(aggregated_output.as_deref(), Some(expected_output.as_str()));

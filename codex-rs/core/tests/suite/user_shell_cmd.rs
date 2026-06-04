@@ -67,7 +67,7 @@ async fn user_shell_cmd_ls_and_cat_in_temp_dir() {
         stdout, exit_code, ..
     }) = msg
     else {
-        unreachable!()
+        panic!("expected ExecCommandEnd event")
     };
     assert_eq!(exit_code, 0);
     assert!(
@@ -88,7 +88,7 @@ async fn user_shell_cmd_ls_and_cat_in_temp_dir() {
         ..
     }) = msg
     else {
-        unreachable!()
+        panic!("expected ExecCommandEnd event")
     };
     assert_eq!(exit_code, 0);
     if cfg!(windows) {
@@ -134,7 +134,7 @@ async fn user_shell_cmd_can_be_interrupted() {
     )
     .await;
     let EventMsg::TurnAborted(ev) = msg else {
-        unreachable!()
+        panic!("expected TurnAborted event")
     };
     assert_eq!(ev.reason, TurnAbortReason::Interrupted);
 }

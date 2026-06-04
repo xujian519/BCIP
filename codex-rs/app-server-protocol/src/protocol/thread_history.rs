@@ -1032,7 +1032,7 @@ impl ThreadHistoryBuilder {
             return turn;
         }
 
-        unreachable!("current turn must exist after initialization");
+        panic!("current turn must exist after initialization");
     }
 
     fn upsert_item_in_turn_id(&mut self, turn_id: &str, item: ThreadItem) {

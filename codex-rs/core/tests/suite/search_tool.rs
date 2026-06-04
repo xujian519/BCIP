@@ -461,7 +461,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     })
     .await
     else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.call_id, "calendar-call-1");
     assert_eq!(
@@ -474,7 +474,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     })
     .await
     else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
     assert_eq!(end.call_id, "calendar-call-1");
     assert_eq!(
@@ -874,7 +874,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
     })
     .await
     else {
-        unreachable!("event guard guarantees DynamicToolCallRequest");
+        panic!("event guard guarantees DynamicToolCallRequest");
     };
     assert_eq!(request.call_id, dynamic_call_id);
     assert_eq!(request.namespace.as_deref(), Some("codex_app"));
@@ -1182,7 +1182,7 @@ async fn tool_search_surfaced_mcp_tool_errors_are_returned_to_model() -> Result<
     })
     .await
     else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
     assert_eq!(end.call_id, tool_call_id);
     assert!(!end.is_success());

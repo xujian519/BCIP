@@ -317,7 +317,7 @@ async fn run_command_under_sandbox(
             .await?
         }
         SandboxType::Windows => {
-            unreachable!("Windows sandbox should have been handled above");
+            panic!("Windows sandbox should have been handled above");
         }
     };
 

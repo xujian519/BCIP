@@ -197,7 +197,7 @@ pub(super) async fn user_input_or_turn_inner(
         thread_settings,
     } = op
     else {
-        unreachable!();
+        panic!("session handler invoked with unexpected operation variant");
     };
     let emit_thread_settings_applied = thread_settings != ThreadSettingsOverrides::default();
     let mut updates = if emit_thread_settings_applied {

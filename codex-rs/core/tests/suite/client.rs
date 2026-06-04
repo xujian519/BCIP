@@ -2512,7 +2512,7 @@ async fn token_count_includes_rate_limits_snapshot() {
     .await;
     let final_payload = match token_event {
         EventMsg::TokenCount(ev) => ev,
-        _ => unreachable!(),
+        _ => panic!("expected TokenCount event with info"),
     };
     // Assert full JSON for the final token count event (usage + rate limits)
     let final_json = serde_json::to_value(&final_payload).unwrap();
@@ -2646,7 +2646,7 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
 
     let token_event = wait_for_event(&codex, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let EventMsg::TokenCount(event) = token_event else {
-        unreachable!();
+        panic!("expected TokenCount event");
     };
 
     let event_json = serde_json::to_value(&event).expect("serialize token count event");
@@ -2660,7 +2660,7 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
 
     let error_event = wait_for_event(&codex, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
-        unreachable!();
+        panic!("expected Error event");
     };
     assert!(
         error_event.message.to_lowercase().contains("usage limit"),
@@ -2748,7 +2748,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
     .await;
 
     let EventMsg::TokenCount(token_payload) = token_event else {
-        unreachable!("wait_for_event returned unexpected event");
+        panic!("wait_for_event returned unexpected event");
     };
 
     let info = token_payload

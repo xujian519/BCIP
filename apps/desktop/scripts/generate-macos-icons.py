@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""按 macOS App Icon 规范从源图生成 Tauri 图标资源。
+"""从 src-tauri/icons/logo.png 生成 macOS / Windows / Tauri 全套桌面图标。
 
 - 去除 logo 源图黑边/白底，仅保留品牌图形
 - 1024 画布铺满 macOS 风格渐变背景（Big Sur 全出血图标）
 - 图形主体缩放到约 824px 安全区并居中
 - 不预烘焙圆角；由系统在 Dock/Finder 套用 squircle 遮罩
+- 所有 PNG 统一 72 DPI，iconset / 外层 PNG / icns / ico 同源
 """
 
 from __future__ import annotations
@@ -14,14 +15,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageCms
 
 # Apple macOS 图标：1024 画布上约 824×824 内容区
 CANVAS = 1024
 SAFE = 824
+PNG_DPI = (72, 72)
 
 DESKTOP_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE = DESKTOP_ROOT / "public" / "logo.png"
+DEFAULT_SOURCE = DESKTOP_ROOT / "src-tauri" / "icons" / "logo.png"
 ICONS_DIR = DESKTOP_ROOT / "src-tauri" / "icons"
 ICONSET_DIR = ICONS_DIR / "icon.iconset"
 
@@ -29,6 +31,7 @@ ICONSET_DIR = ICONS_DIR / "icon.iconset"
 BG_TOP = (34, 34, 48)
 BG_BOTTOM = (8, 8, 12)
 
+# macOS iconset 标准尺寸（用于 iconutil 生成 .icns）
 ICONSET_SIZES: list[tuple[str, int]] = [
     ("icon_16x16.png", 16),
     ("icon_16x16@2x.png", 32),
@@ -41,6 +44,62 @@ ICONSET_SIZES: list[tuple[str, int]] = [
     ("icon_512x512.png", 512),
     ("icon_512x512@2x.png", 1024),
 ]
+
+# Tauri bundle.icon 引用（tauri.conf.json）
+TAURI_BUNDLE_PNGS: list[str] = [
+    "icon.png",
+    "icon_32x32.png",
+    "icon_128x128.png",
+    "icon_128x128@2x.png",
+    "icon_256x256.png",
+    "icon_512x512.png",
+]
+
+# 历史错误命名，生成后清理
+LEGACY_ICON_FILES: list[str] = [
+    "32x32.png",
+    "128x128.png",
+    "128x128@2x.png",
+    "16x16.png",
+    "256x256.png",
+    "512x512.png",
+]
+
+# Windows Store 遗留资源（Tauri bundle 未引用）
+LEGACY_WINDOWS_STORE_FILES: list[str] = [
+    "Square30x30Logo.png",
+    "Square44x44Logo.png",
+    "Square71x71Logo.png",
+    "Square89x89Logo.png",
+    "Square107x107Logo.png",
+    "Square142x142Logo.png",
+    "Square150x150Logo.png",
+    "Square284x284Logo.png",
+    "Square310x310Logo.png",
+    "StoreLogo.png",
+]
+
+_srgb_profile: bytes | None = None
+
+
+def srgb_icc_profile() -> bytes:
+    global _srgb_profile
+    if _srgb_profile is None:
+        _srgb_profile = ImageCms.ImageCmsProfile(
+            ImageCms.createProfile("sRGB")
+        ).tobytes()
+    return _srgb_profile
+
+
+def save_png(image: Image.Image, path: Path) -> None:
+    rgb = image.convert("RGBA")
+    rgb.save(
+        path,
+        format="PNG",
+        optimize=True,
+        dpi=PNG_DPI,
+        icc_profile=srgb_icc_profile(),
+    )
 
 
 def is_logo_pixel(r: int, g: int, b: int, a: int) -> bool:
@@ -117,7 +176,14 @@ def write_iconset(master: Image.Image, iconset_dir: Path) -> None:
     iconset_dir.mkdir(parents=True)
     for name, edge in ICONSET_SIZES:
         resized = master.resize((edge, edge), Image.Resampling.LANCZOS)
-        resized.save(iconset_dir / name, format="PNG", optimize=True)
+        save_png(resized, iconset_dir / name)
+
+
+def sync_iconset_to_bundle(iconset_dir: Path, icons_dir: Path) -> None:
+    """将 iconset 内全部尺寸同步到 icons/，保证 icns 与外层 PNG 同源。"""
+    for name, _ in ICONSET_SIZES:
+        shutil.copy2(iconset_dir / name, icons_dir / name)
+    save_png(Image.open(iconset_dir / "icon_512x512@2x.png"), icons_dir / "icon.png")
 
 
 def run_iconutil(iconset_dir: Path, icns_path: Path) -> None:
@@ -128,7 +194,8 @@ def run_iconutil(iconset_dir: Path, icns_path: Path) -> None:
 
 
 def write_ico(master: Image.Image, ico_path: Path) -> None:
-    sizes = (16, 32, 48, 64, 128, 256)
+    """Windows ICO：嵌入多尺寸以满足任务栏 / 资源管理器 / NSIS 安装器。"""
+    sizes = (16, 24, 32, 48, 64, 128, 256)
     master.save(
         ico_path,
         format="ICO",
@@ -136,19 +203,18 @@ def write_ico(master: Image.Image, ico_path: Path) -> None:
     )
 
 
-def copy_bundle_pngs(master: Image.Image, icons_dir: Path) -> None:
-    sizes = {
-        "32x32.png": 32,
-        "128x128.png": 128,
-        "128x128@2x.png": 256,
-        "icon.png": 1024,
-    }
-    for name, edge in sizes.items():
-        master.resize((edge, edge), Image.Resampling.LANCZOS).save(
-            icons_dir / name,
-            format="PNG",
-            optimize=True,
-        )
+def remove_legacy_files(icons_dir: Path) -> None:
+    for name in LEGACY_ICON_FILES + LEGACY_WINDOWS_STORE_FILES:
+        path = icons_dir / name
+        if path.is_file():
+            path.unlink()
+
+
+def sync_public_assets(icons_dir: Path) -> None:
+    public_dir = DESKTOP_ROOT / "public"
+    public_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(icons_dir / "icon.png", public_dir / "app-icon.png")
+    shutil.copy2(DEFAULT_SOURCE, public_dir / "logo.png")
 
 
 def main() -> None:
@@ -159,18 +225,19 @@ def main() -> None:
     master = compose_macos_icon(source)
 
     ICONS_DIR.mkdir(parents=True, exist_ok=True)
-    copy_bundle_pngs(master, ICONS_DIR)
+    remove_legacy_files(ICONS_DIR)
     write_iconset(master, ICONSET_DIR)
+    sync_iconset_to_bundle(ICONSET_DIR, ICONS_DIR)
     run_iconutil(ICONSET_DIR, ICONS_DIR / "icon.icns")
     write_ico(master, ICONS_DIR / "icon.ico")
-
-    app_icon = DESKTOP_ROOT / "public" / "app-icon.png"
-    shutil.copy2(ICONS_DIR / "icon.png", app_icon)
+    sync_public_assets(ICONS_DIR)
 
     icns_size = (ICONS_DIR / "icon.icns").stat().st_size
-    print(f"已生成 macOS 图标: {ICONS_DIR}")
-    print(f"  icon.icns 大小: {icns_size / 1024:.1f} KiB")
-    print(f"  已同步: {app_icon}")
+    print(f"源图: {source}")
+    print(f"已生成桌面图标: {ICONS_DIR}")
+    print(f"  icon.icns: {icns_size / 1024:.1f} KiB")
+    print(f"  Tauri bundle PNG: {', '.join(TAURI_BUNDLE_PNGS)}")
+    print(f"  已同步 public/app-icon.png 与 public/logo.png")
 
 
 if __name__ == "__main__":

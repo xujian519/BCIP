@@ -76,6 +76,9 @@ personal/
 .DS_Store
 Thumbs.db
 Icon?
+# Tauri 桌面图标（Icon? 在 macOS 大小写不敏感 FS 上会误匹配 icon.*）
+!apps/desktop/src-tauri/icons/
+!apps/desktop/src-tauri/icons/**
 .Spotlight-V100/
 
 # Unwanted package managers
@@ -113,6 +116,7 @@ codex-rs/codex-patent-assets/card-index.json
 .cursor/
 .sandbox-home/
 .tauri.pid
+.tauri/
 .vite.pid
 .yunxi-todos.json
 .claude.json
@@ -124,6 +128,12 @@ codex-rs/reports/
 
 # Agent generated files
 .yunxi/
+
+# AI 工具本地产物目录
+.omo/
+.opencode/
+.workbuddy/
+.superpowers/
 
 # 实施计划文档（不推送）
 docs/plans/

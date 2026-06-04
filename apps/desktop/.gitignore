@@ -42,6 +42,9 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
+# Tauri 中间产物（由 npm run icons:generate 生成）
+src-tauri/icons/icon.iconset/
+
 # 设计走查（本地生成）
 docs/walkthrough-screenshots/review.html
 

@@ -2196,7 +2196,7 @@ mod tests {
             config_overrides: resume_cli,
         }) = subcommand.expect("resume present")
         else {
-            unreachable!()
+            panic!("resume subcommand expected but got different variant")
         };
 
         finalize_resume_interactive(
@@ -2228,7 +2228,7 @@ mod tests {
             config_overrides: fork_cli,
         }) = subcommand.expect("fork present")
         else {
-            unreachable!()
+            panic!("fork subcommand expected but got different variant")
         };
 
         finalize_fork_interactive(interactive, root_overrides, session_id, last, all, fork_cli)
@@ -2354,7 +2354,7 @@ mod tests {
     fn app_server_from_args(args: &[&str]) -> AppServerCommand {
         let cli = MultitoolCli::try_parse_from(args).expect("parse");
         let Subcommand::AppServer(app_server) = cli.subcommand.expect("app-server present") else {
-            unreachable!()
+            panic!("app-server subcommand expected but got different variant")
         };
         app_server
     }

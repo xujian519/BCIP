@@ -773,7 +773,7 @@ fn sample_command_execution_item_with_actions(
         ..
     } = &mut item
     else {
-        unreachable!("sample command execution item should be CommandExecution");
+        panic!("sample command execution item should be CommandExecution");
     };
     *item_command_actions = command_actions;
     item

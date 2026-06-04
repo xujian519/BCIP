@@ -197,8 +197,12 @@ impl ChatWidget {
                             permission_request_summary("云熙 could request permissions", reason),
                         )
                     }
-                    GuardianAssessmentAction::Command { .. } => unreachable!(),
-                    GuardianAssessmentAction::Execve { .. } => unreachable!(),
+                    GuardianAssessmentAction::Command { .. } => {
+                        panic!("GuardianAssessmentAction::Command should not appear at this display stage")
+                    }
+                    GuardianAssessmentAction::Execve { .. } => {
+                        panic!("GuardianAssessmentAction::Execve should not appear at this display stage")
+                    }
                 }
             };
 
@@ -242,8 +246,12 @@ impl ChatWidget {
                         reason,
                     ))
                 }
-                GuardianAssessmentAction::Command { .. } => unreachable!(),
-                GuardianAssessmentAction::Execve { .. } => unreachable!(),
+                GuardianAssessmentAction::Command { .. } => {
+                    panic!("GuardianAssessmentAction::Command should not appear at this display stage")
+                }
+                GuardianAssessmentAction::Execve { .. } => {
+                    panic!("GuardianAssessmentAction::Execve should not appear at this display stage")
+                }
             }
         };
 

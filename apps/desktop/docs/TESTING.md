@@ -106,10 +106,10 @@ Dock 应显示**圆角矩形（squircle）**，而不是正矩形。若仍为正
 1. 确认已用**最新打包**的 `.app` / DMG（旧构建会缓存错误的 `icon.icns`）。
 2. 开发者更新图标后执行：
    ```bash
-   cd apps/desktop && npm run icons:macos
+   cd apps/desktop && npm run icons:generate
    npm run tauri:build:bundle
    ```
-3. 源图为 `public/logo.png`；脚本会去除黑边/白底、铺满 macOS 渐变背景并生成 `src-tauri/icons/icon.icns`。
+3. 源图为 `src-tauri/icons/logo.png`；脚本会去除黑边/白底、铺满 macOS 渐变背景，并生成 `icon.icns` / `icon.ico` 及 Tauri 所需的全部 PNG。
 4. `tauri dev` 与正式包可能图标不一致；以 **打包后的 `.app`** 为准验收 Dock。
 
 ## ⚠️ 已知限制

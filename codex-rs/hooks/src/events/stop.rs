@@ -235,7 +235,7 @@ fn parse_completed(
                     HookEventName::SubagentStop => {
                         output_parser::parse_subagent_stop(&run_result.stdout)
                     }
-                    _ => unreachable!("validated stop hook event"),
+                    _ => panic!("validated stop hook event"),
                 } {
                     if let Some(system_message) = parsed.universal.system_message {
                         entries.push(HookOutputEntry {
@@ -279,7 +279,7 @@ fn parse_completed(
                                 text: match hook_event_name {
                                     HookEventName::Stop => "Stop hook returned decision:block without a non-empty reason",
                                     HookEventName::SubagentStop => "SubagentStop hook returned decision:block without a non-empty reason",
-                                    _ => unreachable!("validated stop hook event"),
+                                    _ => panic!("validated stop hook event"),
                                 }
                                 .to_string(),
                             });
@@ -294,7 +294,7 @@ fn parse_completed(
                             HookEventName::SubagentStop => {
                                 "hook returned invalid subagent stop hook JSON output"
                             }
-                            _ => unreachable!("validated stop hook event"),
+                            _ => panic!("validated stop hook event"),
                         }
                         .to_string(),
                     });
@@ -321,7 +321,7 @@ fn parse_completed(
                             HookEventName::SubagentStop => {
                                 "SubagentStop hook exited with code 2 but did not write a continuation prompt to stderr"
                             }
-                            _ => unreachable!("validated stop hook event"),
+                            _ => panic!("validated stop hook event"),
                         }
                         .to_string(),
                     });

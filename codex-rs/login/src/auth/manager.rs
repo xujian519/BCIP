@@ -234,8 +234,8 @@ impl CodexAuth {
             ApiAuthMode::ChatgptAuthTokens => {
                 Ok(Self::ChatgptAuthTokens(ChatgptAuthTokens { state }))
             }
-            ApiAuthMode::ApiKey => unreachable!("api key mode is handled above"),
-            ApiAuthMode::AgentIdentity => unreachable!("agent identity mode is handled above"),
+            ApiAuthMode::ApiKey => panic!("api key mode is handled above"),
+            ApiAuthMode::AgentIdentity => panic!("agent identity mode is handled above"),
         }
     }
 

@@ -539,7 +539,7 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
             ..
         } = remote_mcp_item
         else {
-            unreachable!("matched MCP item");
+            panic!("matched MCP item");
         };
         assert_eq!(arguments, &json!("[redacted]"));
         let result = result.as_ref().expect("redacted MCP result");
@@ -576,7 +576,7 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
         arguments, result, ..
     } = normal_mcp_item
     else {
-        unreachable!("matched MCP item");
+        panic!("matched MCP item");
     };
     assert_eq!(arguments, &json!({"secret":"argument"}));
     let result = result.as_ref().expect("normal MCP result");

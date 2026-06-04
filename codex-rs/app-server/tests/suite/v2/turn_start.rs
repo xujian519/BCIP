@@ -1938,7 +1938,7 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
     })
     .await??;
     let ThreadItem::CommandExecution { id, status, .. } = started_command_execution else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "call-decline");
     assert_eq!(status, CommandExecutionStatus::InProgress);
@@ -1988,7 +1988,7 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
         ..
     } = completed_command_execution
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "call-decline");
     assert_eq!(status, CommandExecutionStatus::Declined);
@@ -2156,7 +2156,7 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
         ..
     } = command_exec_item
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(cwd.as_path(), second_cwd.as_path());
     let expected_command = format_with_current_shell_display("echo second turn");
@@ -2551,7 +2551,7 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
         ref changes,
     } = started_file_change
     else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call");
     assert_eq!(status, PatchApplyStatus::InProgress);
@@ -2621,7 +2621,7 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
     let completed_file_change =
         completed_file_change.expect("file change completion should be observed");
     let ThreadItem::FileChange { ref id, status, .. } = completed_file_change else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call");
     assert_eq!(status, PatchApplyStatus::Completed);
@@ -3045,7 +3045,7 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
         agents_states,
     } = spawn_completed
     else {
-        unreachable!("loop ensures we break on collab agent tool call items");
+        panic!("loop ensures we break on collab agent tool call items");
     };
     let receiver_thread_id = receiver_thread_ids
         .first()
@@ -3234,7 +3234,7 @@ config_file = "./custom-role.toml"
         agents_states,
     } = spawn_completed
     else {
-        unreachable!("loop ensures we break on collab agent tool call items");
+        panic!("loop ensures we break on collab agent tool call items");
     };
     let receiver_thread_id = receiver_thread_ids
         .first()
@@ -3367,7 +3367,7 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
     })
     .await??;
     let ThreadItem::FileChange { id, status, .. } = started_file_change_1 else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call-1");
     assert_eq!(status, PatchApplyStatus::InProgress);
@@ -3438,7 +3438,7 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
     })
     .await??;
     let ThreadItem::FileChange { id, status, .. } = started_file_change_2 else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call-2");
     assert_eq!(status, PatchApplyStatus::InProgress);
@@ -3542,7 +3542,7 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
         ref changes,
     } = started_file_change
     else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call");
     assert_eq!(status, PatchApplyStatus::InProgress);
@@ -3596,7 +3596,7 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
     })
     .await??;
     let ThreadItem::FileChange { ref id, status, .. } = completed_file_change else {
-        unreachable!("loop ensures we break on file change items");
+        panic!("loop ensures we break on file change items");
     };
     assert_eq!(id, "patch-call");
     assert_eq!(status, PatchApplyStatus::Declined);
@@ -3692,7 +3692,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
         ..
     } = started_command
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "uexec-1");
     assert_eq!(status, CommandExecutionStatus::InProgress);
@@ -3723,7 +3723,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
         ..
     } = completed_command
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(completed_id, "uexec-1");
     assert!(

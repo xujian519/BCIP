@@ -267,7 +267,7 @@ impl Feature {
         FEATURES
             .iter()
             .find(|spec| spec.id == self)
-            .unwrap_or_else(|| unreachable!("missing FeatureSpec for {self:?}"))
+            .unwrap_or_else(|| panic!("missing FeatureSpec for {self:?}"))
     }
 }
 

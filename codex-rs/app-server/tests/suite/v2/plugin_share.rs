@@ -1328,7 +1328,7 @@ fn remote_plugin_json(plugin_id: &str) -> serde_json::Value {
 fn installed_remote_plugin_json(plugin_id: &str) -> serde_json::Value {
     let mut plugin = remote_plugin_json(plugin_id);
     let serde_json::Value::Object(fields) = &mut plugin else {
-        unreachable!("plugin json should be an object");
+        panic!("plugin json should be an object");
     };
     fields.insert("enabled".to_string(), json!(true));
     fields.insert("disabled_skill_names".to_string(), json!([]));

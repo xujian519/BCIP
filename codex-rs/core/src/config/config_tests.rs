@@ -3665,7 +3665,7 @@ exclude_slash_tmp = true
                     );
                 }
             }
-            _ => unreachable!("unexpected test case `{name}`"),
+            _ => panic!("unexpected test case `{name}`"),
         }
     }
 

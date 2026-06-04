@@ -22,7 +22,7 @@ fn schema_for<T: JsonSchema>(option_add_null_type: bool) -> Value {
     let schema_value = serde_json::to_value(schema)
         .unwrap_or_else(|err| panic!("generated tool schema should serialize: {err}"));
     let Value::Object(mut schema_object) = schema_value else {
-        unreachable!("root tool schema must be an object");
+        panic!("root tool schema must be an object");
     };
 
     let mut tool_schema = Map::new();

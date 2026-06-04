@@ -160,7 +160,7 @@ impl MemoriesSettingsView {
                     description: Some(match idx {
                         0 => "Delete local memory files and rollout summaries.".to_string(),
                         1 => "Return to memory settings.".to_string(),
-                        _ => unreachable!("reset confirmation only renders two rows"),
+                        _ => panic!("reset confirmation only renders two rows"),
                     }),
                     ..Default::default()
                 })
@@ -335,7 +335,7 @@ impl MemoriesSettingsView {
                     self.complete = true;
                 }
                 Some(1) | None => self.close_reset_confirmation(),
-                Some(other) => unreachable!("unexpected reset confirmation row: {other}"),
+                Some(other) => panic!("unexpected reset confirmation row: {other}"),
             }
             return;
         }

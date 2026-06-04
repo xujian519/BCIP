@@ -120,11 +120,11 @@ jobs:
         run: |
           cargo clippy -p codex-im-protocol -p codex-im-common -p codex-im-bridge \
             -p codex-im-telegram -p codex-im-feishu \
-            --tests -- -D warnings || true
+            --tests -- -D warnings
 
       - name: Clippy (API)
         run: |
-          cargo clippy -p codex-api --tests -- -D warnings || true
+          cargo clippy -p codex-api --tests -- -D warnings
 
   rust-test:
     name: Rust test
@@ -161,7 +161,7 @@ jobs:
         run: |
           RUST_MIN_STACK=8388608 cargo nextest run --no-fail-fast \
             -p codex-im-protocol -p codex-im-common -p codex-im-bridge \
-            -p codex-im-telegram -p codex-im-feishu || true
+            -p codex-im-telegram -p codex-im-feishu
 
   rust-build:
     name: Rust build
@@ -261,4 +261,4 @@ jobs:
           tool: cargo-deny
 
       - name: Check licenses and advisories
-        run: cargo deny check --config deny.toml || true
+        run: cargo deny check --config deny.toml

@@ -240,7 +240,7 @@ impl ReadDenyMatcher {
             InvalidDenyReadGlobBehavior::FailClosed,
         ) {
             Ok(matcher) => matcher,
-            Err(_) => unreachable!("fail-closed glob handling does not return errors"),
+            Err(_) => panic!("fail-closed glob handling does not return errors"),
         }
     }
 

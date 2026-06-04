@@ -154,7 +154,7 @@ async fn approved_mcp_tool_call_metadata_records_prior_user_input_request() -> R
     })
     .await
     else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.call_id, call_id);
 
@@ -163,7 +163,7 @@ async fn approved_mcp_tool_call_metadata_records_prior_user_input_request() -> R
     })
     .await
     else {
-        unreachable!("event guard guarantees ElicitationRequest");
+        panic!("event guard guarantees ElicitationRequest");
     };
 
     test.codex
@@ -298,7 +298,7 @@ async fn mcp_tool_call_metadata_records_prior_request_user_input_tool() -> Resul
     })
     .await
     else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.call_id, calendar_call_id);
 

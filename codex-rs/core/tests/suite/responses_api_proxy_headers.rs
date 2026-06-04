@@ -166,7 +166,7 @@ async fn submit_turn_with_timeout(test: &TestCodex, prompt: &str) -> Result<()> 
     })
     .await?;
     let EventMsg::TurnStarted(turn_started) = turn_started else {
-        unreachable!("event predicate only matches turn started events");
+        panic!("event predicate only matches turn started events");
     };
     wait_for_event_result(test, "turn complete", |event| match event {
         EventMsg::TurnComplete(event) => event.turn_id == turn_started.turn_id,

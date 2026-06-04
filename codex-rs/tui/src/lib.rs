@@ -1366,7 +1366,7 @@ async fn run_ratatui_app(
     let mut trust_decision_was_made = false;
     let login_status = if initial_config.model_provider.requires_openai_auth {
         let Some(app_server) = app_server.as_mut() else {
-            unreachable!("app server should exist when auth is required");
+            panic!("app server should exist when auth is required");
         };
         get_login_status(app_server, &initial_config).await?
     } else {
@@ -1462,7 +1462,7 @@ async fn run_ratatui_app(
     let session_selection = if use_fork {
         if let Some(id_str) = cli.fork_session_id.as_deref() {
             let Some(startup_app_server) = app_server.as_mut() else {
-                unreachable!("app server should be initialized for --fork <id>");
+                panic!("app server should be initialized for --fork <id>");
             };
             match lookup_session_target_with_app_server(startup_app_server, id_str).await? {
                 Some(target_session) => resume_picker::SessionSelection::Fork(target_session),
@@ -1479,7 +1479,7 @@ async fn run_ratatui_app(
                 cli.fork_show_all,
             );
             let Some(app_server) = app_server.as_mut() else {
-                unreachable!("app server should be initialized for --fork --last");
+                panic!("app server should be initialized for --fork --last");
             };
             match lookup_latest_session_target_with_app_server(
                 app_server, &config, filter_cwd, /*include_non_interactive*/ false,
@@ -1491,7 +1491,7 @@ async fn run_ratatui_app(
             }
         } else if cli.fork_picker {
             let Some(app_server) = app_server.take() else {
-                unreachable!("app server should be initialized for --fork picker");
+                panic!("app server should be initialized for --fork picker");
             };
             match resume_picker::run_fork_picker_with_app_server(
                 &mut tui,
@@ -1519,7 +1519,7 @@ async fn run_ratatui_app(
         }
     } else if let Some(id_str) = cli.resume_session_id.as_deref() {
         let Some(startup_app_server) = app_server.as_mut() else {
-            unreachable!("app server should be initialized for --resume <id>");
+            panic!("app server should be initialized for --resume <id>");
         };
         match lookup_session_target_with_app_server(startup_app_server, id_str).await? {
             Some(target_session) => resume_picker::SessionSelection::Resume(target_session),
@@ -1536,7 +1536,7 @@ async fn run_ratatui_app(
             cli.resume_show_all,
         );
         let Some(app_server) = app_server.as_mut() else {
-            unreachable!("app server should be initialized for --resume --last");
+            panic!("app server should be initialized for --resume --last");
         };
         match lookup_latest_session_target_with_app_server(
             app_server,
@@ -1551,7 +1551,7 @@ async fn run_ratatui_app(
         }
     } else if cli.resume_picker {
         let Some(app_server) = app_server.take() else {
-            unreachable!("app server should be initialized for --resume picker");
+            panic!("app server should be initialized for --resume picker");
         };
         match resume_picker::run_resume_picker_with_app_server(
             &mut tui,

@@ -167,7 +167,7 @@ fn map_owned_wrapped_line_to_range(
     while let Some(ch) = chars.next() {
         if end < text.len() {
             let Some(src) = text[end..].chars().next() else {
-                unreachable!("checked end < text.len()");
+                panic!("checked end < text.len()");
             };
             if ch == src {
                 end += src.len_utf8();

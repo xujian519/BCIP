@@ -274,7 +274,7 @@ impl GoalToolExecutor {
                 ThreadGoalStatus::Active
                 | ThreadGoalStatus::Paused
                 | ThreadGoalStatus::UsageLimited
-                | ThreadGoalStatus::BudgetLimited => unreachable!("status validated above"),
+                | ThreadGoalStatus::BudgetLimited => panic!("status validated above"),
             },
             invocation.call_id.as_str(),
             BudgetLimitedGoalDisposition::ClearActive,

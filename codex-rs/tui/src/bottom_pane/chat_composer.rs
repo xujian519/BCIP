@@ -1075,7 +1075,7 @@ impl ChatComposer {
             .map(|label| match label {
                 "Normal" => "Vim: Normal".magenta(),
                 "Insert" => "Vim: Insert".green(),
-                _ => unreachable!(),
+                _ => panic!("unexpected vim mode label from textarea"),
             })
     }
 
@@ -1669,7 +1669,7 @@ impl ChatComposer {
             self.footer.mode = reset_mode_after_activity(self.footer.mode);
         }
         let ActivePopup::Command(popup) = &mut self.popups.active else {
-            unreachable!();
+            panic!("ActivePopup::Command expected but got a different or inactive popup");
         };
 
         match key_event {
@@ -1880,7 +1880,7 @@ impl ChatComposer {
                         // If decide_begin_buffer opted not to start buffering,
                         // fall through to normal insertion below.
                     }
-                    _ => unreachable!("on_plain_char_no_hold returned unexpected variant"),
+                    _ => panic!("on_plain_char_no_hold returned unexpected variant"),
                 }
             }
         }
@@ -1911,7 +1911,7 @@ impl ChatComposer {
             self.footer.mode = reset_mode_after_activity(self.footer.mode);
         }
         let ActivePopup::File(popup) = &mut self.popups.active else {
-            unreachable!();
+            panic!("ActivePopup::File expected but got a different or inactive popup");
         };
 
         match key_event {
@@ -2027,7 +2027,7 @@ impl ChatComposer {
         self.footer.mode = reset_mode_after_activity(self.footer.mode);
 
         let ActivePopup::Skill(popup) = &mut self.popups.active else {
-            unreachable!();
+            panic!("ActivePopup::Skill expected but got a different or inactive popup");
         };
 
         let mut selected_mention: Option<(String, Option<String>)> = None;
@@ -2103,7 +2103,7 @@ impl ChatComposer {
         self.footer.mode = reset_mode_after_activity(self.footer.mode);
 
         let ActivePopup::MentionV2(popup) = &mut self.popups.active else {
-            unreachable!();
+            panic!("ActivePopup::MentionV2 expected but got a different or inactive popup");
         };
 
         let mut selected: Option<MentionV2Selection> = None;

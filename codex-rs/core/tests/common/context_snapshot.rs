@@ -301,7 +301,7 @@ fn format_snapshot_json_string(text: &str, options: &ContextSnapshotOptions) -> 
             &normalize_snapshot_line_endings(&canonicalize_snapshot_text(text)),
         ),
         ContextSnapshotRenderMode::FullText => normalize_snapshot_line_endings(text),
-        ContextSnapshotRenderMode::KindOnly => unreachable!(),
+        ContextSnapshotRenderMode::KindOnly => panic!("KindOnly render mode should not be passed to this formatter"),
     };
     match options.render_mode {
         ContextSnapshotRenderMode::KindWithTextPrefix { max_chars }
@@ -313,7 +313,7 @@ fn format_snapshot_json_string(text: &str, options: &ContextSnapshotOptions) -> 
         ContextSnapshotRenderMode::RedactedText
         | ContextSnapshotRenderMode::FullText
         | ContextSnapshotRenderMode::KindWithTextPrefix { .. } => normalized,
-        ContextSnapshotRenderMode::KindOnly => unreachable!(),
+        ContextSnapshotRenderMode::KindOnly => panic!("KindOnly render mode should not be passed to this formatter"),
     }
 }
 
@@ -358,7 +358,7 @@ fn format_snapshot_text(text: &str, options: &ContextSnapshotOptions) -> String 
                 format!("{prefix}...")
             }
         }
-        ContextSnapshotRenderMode::KindOnly => unreachable!(),
+        ContextSnapshotRenderMode::KindOnly => panic!("KindOnly render mode should not be passed to this formatter"),
     }
 }
 

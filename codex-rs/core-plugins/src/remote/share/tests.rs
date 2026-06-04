@@ -116,7 +116,7 @@ fn remote_plugin_json_with_share_url_and_principals(
 ) -> serde_json::Value {
     let mut plugin = remote_plugin_json(plugin_id);
     let serde_json::Value::Object(fields) = &mut plugin else {
-        unreachable!("plugin json should be an object");
+        panic!("plugin json should be an object");
     };
     fields.insert("discoverability".to_string(), json!("PRIVATE"));
     fields.insert("share_url".to_string(), json!(share_url));
@@ -127,7 +127,7 @@ fn remote_plugin_json_with_share_url_and_principals(
 fn installed_remote_plugin_json(plugin_id: &str) -> serde_json::Value {
     let mut plugin = remote_plugin_json(plugin_id);
     let serde_json::Value::Object(fields) = &mut plugin else {
-        unreachable!("plugin json should be an object");
+        panic!("plugin json should be an object");
     };
     fields.insert("enabled".to_string(), json!(true));
     fields.insert("disabled_skill_names".to_string(), json!([]));

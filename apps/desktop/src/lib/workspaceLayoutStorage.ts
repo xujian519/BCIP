@@ -55,6 +55,7 @@ function readStore(): LayoutStore {
     }
     return parsed as LayoutStore;
   } catch {
+    // localStorage 不可用或数据损坏时返回空状态
     return {};
   }
 }

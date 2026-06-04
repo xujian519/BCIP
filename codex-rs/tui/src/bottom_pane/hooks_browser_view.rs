@@ -795,7 +795,7 @@ fn config_source_label(source: HookSource) -> &'static str {
         HookSource::Project => "Project config",
         HookSource::Mdm => "Admin config",
         HookSource::SessionFlags => "Session flags",
-        HookSource::Plugin => unreachable!("plugin hooks are handled by summary_source"),
+        HookSource::Plugin => panic!("plugin hooks are handled by summary_source"),
         HookSource::CloudRequirements => "Admin config",
         HookSource::LegacyManagedConfigFile => "Admin config",
         HookSource::LegacyManagedConfigMdm => "Admin config",

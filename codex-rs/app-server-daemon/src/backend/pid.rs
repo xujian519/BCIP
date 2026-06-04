@@ -140,7 +140,7 @@ impl PidBackend {
                             continue;
                         }
                         PidFileState::Starting => {
-                            unreachable!("lock holder cannot observe starting")
+                            panic!("lock holder cannot observe starting")
                         }
                     }
                 }

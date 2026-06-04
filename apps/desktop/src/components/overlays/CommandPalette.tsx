@@ -346,7 +346,7 @@ export default function CommandPalette() {
                       >
                         <Icon
                           size={16}
-                          className={isSelected ? 'text-[#4A7C6F]' : 'text-[#9CA3AF]'}
+                          className={isSelected ? 'text-[var(--accent-primary)]' : 'text-[#9CA3AF]'}
                         />
                         <span className={`flex-1 text-[13px] font-medium ${
                           isSelected ? 'text-[#E8E8E8]' : 'text-[#E8E8E8]'

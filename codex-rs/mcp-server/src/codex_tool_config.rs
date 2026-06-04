@@ -143,7 +143,7 @@ fn codex_tool_output_schema() -> Arc<JsonObject> {
     });
     match schema {
         serde_json::Value::Object(map) => Arc::new(map),
-        _ => unreachable!("json literal must be an object"),
+        _ => panic!("json literal must be an object"),
     }
 }
 

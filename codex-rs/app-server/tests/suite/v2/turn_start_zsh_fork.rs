@@ -158,7 +158,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         ..
     } = started_command_execution
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "call-zsh-fork");
     assert_eq!(status, CommandExecutionStatus::InProgress);
@@ -293,7 +293,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         ..
     } = completed_command_execution
     else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "call-zsh-fork-decline");
     assert_eq!(status, CommandExecutionStatus::Declined);
@@ -418,7 +418,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     })
     .await??;
     let ThreadItem::CommandExecution { id, status, .. } = completed_command_execution else {
-        unreachable!("loop ensures we break on command execution items");
+        panic!("loop ensures we break on command execution items");
     };
     assert_eq!(id, "call-zsh-fork-cancel");
     assert_eq!(status, CommandExecutionStatus::Declined);
@@ -666,7 +666,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
                 ..
             } = parent_completed_command_execution
             else {
-                unreachable!("loop ensures we break on parent command execution item");
+                panic!("loop ensures we break on parent command execution item");
             };
             assert_eq!(id, "call-zsh-fork-subcommand-decline");
             assert_eq!(status, CommandExecutionStatus::Declined);

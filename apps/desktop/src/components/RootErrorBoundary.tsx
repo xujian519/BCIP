@@ -36,7 +36,7 @@ export default class RootErrorBoundary extends Component<Props, State> {
           </pre>
           <button
             type="button"
-            className="rounded-md bg-[#4A7C6F] px-4 py-2 text-sm text-white"
+            className="rounded-md bg-[var(--accent-primary)] px-4 py-2 text-sm text-white"
             onClick={() => {
               window.location.hash = '#/';
               window.location.reload();

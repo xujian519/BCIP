@@ -164,7 +164,7 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
     })
     .await
     else {
-        unreachable!()
+        panic!("expected ExecCommandEnd event")
     };
     wait_for_event(&test.codex, |event| {
         matches!(event, EventMsg::TurnComplete(_))

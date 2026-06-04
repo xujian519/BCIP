@@ -549,7 +549,7 @@ fn command_hook_hash(
         group,
     };
     let Ok(value) = TomlValue::try_from(identity) else {
-        unreachable!("normalized hook identity should serialize to TOML");
+        panic!("normalized hook identity should serialize to TOML");
     };
     version_for_toml(&value)
 }

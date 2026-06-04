@@ -140,12 +140,12 @@ export default function McpElicitationModal() {
           >
             <div className="p-6">
               <div className="flex items-center gap-2 mb-2">
-                <Plug size={20} className="text-[#4A7C6F]" />
+                <Plug size={20} className="text-[var(--accent-primary)]" />
                 <h2 className="text-lg font-semibold text-[#E8E8E8]">MCP 服务器请求</h2>
               </div>
 
               <p className="text-sm text-[#9CA3AF] mb-4">
-                <span className="font-mono text-[#4A7C6F]">{serverName}</span>
+                <span className="font-mono text-[var(--accent-primary)]">{serverName}</span>
                 {isUrlMode ? ' 需要你在浏览器中完成操作：' : ' 需要以下信息：'}
               </p>
 
@@ -160,7 +160,7 @@ export default function McpElicitationModal() {
                   <button
                     type="button"
                     onClick={handleOpenUrl}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-[#4A7C6F] hover:bg-[#5A9A8C] text-white text-sm font-medium rounded-lg transition-colors duration-150"
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white text-sm font-medium rounded-lg transition-colors duration-150"
                   >
                     <ExternalLink size={16} />
                     在浏览器中打开
@@ -191,7 +191,7 @@ export default function McpElicitationModal() {
                               ),
                             )
                           }
-                          className="w-full h-9 px-3 bg-[#1A1A1A] border border-[rgba(255,255,255,0.1)] rounded-md text-sm text-[#E8E8E8] focus:outline-none focus:border-[#4A7C6F] transition-colors duration-150"
+                          className="w-full h-9 px-3 bg-[#1A1A1A] border border-[rgba(255,255,255,0.1)] rounded-md text-sm text-[#E8E8E8] focus:outline-none focus:border-[var(--accent-primary)] transition-colors duration-150"
                         >
                           {field.options?.map((opt) => (
                             <option key={opt} value={opt}>
@@ -211,7 +211,7 @@ export default function McpElicitationModal() {
                             )
                           }
                           placeholder={field.description}
-                          className="w-full h-9 px-3 bg-[#1A1A1A] border border-[rgba(255,255,255,0.1)] rounded-md text-sm text-[#E8E8E8] placeholder:text-[#4B5563] focus:outline-none focus:border-[#4A7C6F] focus:shadow-[0_0_0_3px_rgba(74,124,111,0.15)] transition-all duration-150 font-mono"
+                          className="w-full h-9 px-3 bg-[#1A1A1A] border border-[rgba(255,255,255,0.1)] rounded-md text-sm text-[#E8E8E8] placeholder:text-[#4B5563] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_0_3px_rgba(74,124,111,0.15)] transition-all duration-150 font-mono"
                         />
                       )}
                       {field.description && field.type !== 'text' && (
@@ -240,7 +240,7 @@ export default function McpElicitationModal() {
                     type="button"
                     onClick={handleUrlComplete}
                     disabled={submitting}
-                    className="h-9 px-4 text-[13px] font-medium text-white bg-[#4A7C6F] hover:bg-[#5A9A8C] rounded-lg transition-all duration-150 disabled:opacity-50"
+                    className="h-9 px-4 text-[13px] font-medium text-white bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] rounded-lg transition-all duration-150 disabled:opacity-50"
                   >
                     {submitting ? '发送中...' : '已完成'}
                   </button>
@@ -249,7 +249,7 @@ export default function McpElicitationModal() {
                     type="button"
                     onClick={handleSubmitForm}
                     disabled={submitting || fields.some((f) => !f.value.trim())}
-                    className="h-9 px-4 text-[13px] font-medium text-white bg-[#4A7C6F] hover:bg-[#5A9A8C] rounded-lg transition-all duration-150 disabled:opacity-50"
+                    className="h-9 px-4 text-[13px] font-medium text-white bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] rounded-lg transition-all duration-150 disabled:opacity-50"
                   >
                     {submitting ? '发送中...' : '确认并发送'}
                   </button>

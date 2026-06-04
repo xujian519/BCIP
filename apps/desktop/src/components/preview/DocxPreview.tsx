@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import mammoth from 'mammoth';
 import { cn } from '@/lib/utils';
 import { readFileBinary, isTauri } from '@/lib/fileSystem';
@@ -38,7 +39,11 @@ export default function DocxPreview({ filePath, legacyDoc = false }: DocxPreview
         ) as ArrayBuffer;
 
         const result = await mammoth.convertToHtml({ arrayBuffer });
-        setHtml(result.value);
+        const sanitized = DOMPurify.sanitize(result.value, {
+          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code', 'blockquote', 'img', 'a'],
+          ALLOWED_ATTR: ['class', 'src', 'alt', 'href', 'target'],
+        });
+        setHtml(sanitized);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : '无法解析 Word 文档';

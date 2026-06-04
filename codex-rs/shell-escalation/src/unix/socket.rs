@@ -141,7 +141,7 @@ async fn read_frame_header(
             return Ok((payload_len, fds));
         }
     }
-    unreachable!("header loop always returns")
+    panic!("header loop always returns")
 }
 
 /// Read `message_len` bytes from a SOCK_STREAM socket.
@@ -173,7 +173,7 @@ async fn read_frame_payload(
             return Ok(assume_init_vec(payload));
         }
     }
-    unreachable!("loop exits only after returning payload")
+    panic!("loop exits only after returning payload")
 }
 
 fn send_datagram_bytes(socket: &Socket, data: &[u8], fds: &[OwnedFd]) -> std::io::Result<()> {

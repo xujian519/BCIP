@@ -158,7 +158,7 @@ async fn wait_for_sample_mcp_ready(codex: &codex_core::CodexThread) -> Result<()
     )
     .await;
     let EventMsg::McpStartupComplete(startup) = startup_event else {
-        unreachable!("event guard guarantees McpStartupComplete");
+        panic!("event guard guarantees McpStartupComplete");
     };
     if let Some(failure) = startup
         .failed

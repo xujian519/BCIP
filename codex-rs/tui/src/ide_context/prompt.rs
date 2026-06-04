@@ -42,7 +42,7 @@ pub(crate) fn apply_ide_context_to_user_input(
             text_elements,
         } = item
         else {
-            unreachable!("position matched a text item");
+            panic!("position matched a text item");
         };
         items[text_index] = prefixed_text_input(prefix, text, text_elements);
     } else {

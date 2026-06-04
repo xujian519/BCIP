@@ -285,7 +285,7 @@ async fn wait_for_mcp_server(fixture: &TestCodex, server_name: &str) -> anyhow::
     )
     .await;
     let EventMsg::McpStartupComplete(summary) = startup_event else {
-        unreachable!("event guard guarantees McpStartupComplete");
+        panic!("event guard guarantees McpStartupComplete");
     };
     if let Some(failure) = summary
         .failed
@@ -415,7 +415,7 @@ async fn call_cwd_tool(
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
     let structured_content = end
         .result
@@ -527,7 +527,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
     .await;
 
     let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
@@ -537,7 +537,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
 
     let result = end
@@ -883,7 +883,7 @@ async fn stdio_mcp_parallel_tool_calls_default_false_runs_serially() -> anyhow::
             EventMsg::McpToolCallEnd(end) => {
                 call_events.push(McpCallEvent::End(end.call_id));
             }
-            _ => unreachable!("event guard guarantees MCP call events"),
+            _ => panic!("event guard guarantees MCP call events"),
         }
     }
 
@@ -1169,7 +1169,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("begin");
+        panic!("begin");
     };
     assert_eq!(
         begin,
@@ -1190,7 +1190,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("end");
+        panic!("end");
     };
     assert_eq!(end.call_id, call_id);
     assert_eq!(
@@ -1538,7 +1538,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
     .await;
 
     let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
@@ -1548,7 +1548,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
 
     let result = end
@@ -1660,7 +1660,7 @@ async fn stdio_server_propagates_explicit_local_env_var_source() -> anyhow::Resu
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
     let structured = end
         .result
@@ -1752,7 +1752,7 @@ async fn remote_stdio_env_var_source_does_not_copy_local_env() -> anyhow::Result
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
     let structured = end
         .result
@@ -1936,7 +1936,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     .await;
 
     let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
@@ -1948,7 +1948,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
 
     let result = end
@@ -2126,7 +2126,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     .await;
 
     let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("event guard guarantees McpToolCallBegin");
+        panic!("event guard guarantees McpToolCallBegin");
     };
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
@@ -2138,7 +2138,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     })
     .await;
     let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
+        panic!("event guard guarantees McpToolCallEnd");
     };
 
     let result = end
