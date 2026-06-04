@@ -4,7 +4,10 @@
 
 use codex_protocol::models::ContentItem;
 use codex_protocol::models::LocalShellAction;
+use codex_protocol::models::ReasoningItemContent;
+use codex_protocol::models::ReasoningItemReasoningSummary;
 use codex_protocol::models::ResponseItem;
+use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -24,6 +27,7 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
 
     // Convert ResponseItem input to chat messages
     let mut pending_assistant: Option<Value> = None;
+    let mut pending_reasoning: Option<String> = None;
     for item in &request.input {
         match item {
             ResponseItem::Message { role, content, .. } => {
@@ -47,14 +51,17 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         if !content.is_empty() {
                             pending["content"] = chat_content;
                         }
+                        attach_reasoning_content_to_message(pending, pending_reasoning.take());
                         continue;
                     }
                     // No pending tool_calls — push as a standalone assistant message.
                     // If FunctionCall items follow, they will pop this and merge.
-                    messages.push(serde_json::json!({
+                    let mut message = serde_json::json!({
                         "role": "assistant",
                         "content": chat_content,
-                    }));
+                    });
+                    attach_reasoning_content_to_message(&mut message, pending_reasoning.take());
+                    messages.push(message);
                     continue;
                 }
 
@@ -81,7 +88,12 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         "arguments": arguments,
                     }
                 });
-                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
+                accumulate_tool_call(
+                    tool_call,
+                    &mut pending_assistant,
+                    &mut pending_reasoning,
+                    &mut messages,
+                );
             }
             ResponseItem::FunctionCallOutput { call_id, output } => {
                 // Flush pending assistant first
@@ -109,7 +121,12 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         "arguments": input,
                     }
                 });
-                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
+                accumulate_tool_call(
+                    tool_call,
+                    &mut pending_assistant,
+                    &mut pending_reasoning,
+                    &mut messages,
+                );
             }
             ResponseItem::CustomToolCallOutput {
                 call_id, output, ..
@@ -151,13 +168,22 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
                         "arguments": args_json,
                     }
                 });
-                accumulate_tool_call(tool_call, &mut pending_assistant, &mut messages);
+                accumulate_tool_call(
+                    tool_call,
+                    &mut pending_assistant,
+                    &mut pending_reasoning,
+                    &mut messages,
+                );
             }
             // LocalShellCall without a call_id: no paired output can exist, skip.
             ResponseItem::LocalShellCall { call_id: None, .. } => {}
+            ResponseItem::Reasoning {
+                content, summary, ..
+            } => {
+                pending_reasoning = Some(reasoning_text_from_item(content, summary));
+            }
             // Skip items without Chat Completions equivalents
-            ResponseItem::Reasoning { .. }
-            | ResponseItem::ToolSearchCall { .. }
+            ResponseItem::ToolSearchCall { .. }
             | ResponseItem::ToolSearchOutput { .. }
             | ResponseItem::WebSearchCall { .. }
             | ResponseItem::ImageGenerationCall { .. }
@@ -177,6 +203,10 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
     // Missing outputs can occur after context compaction or interrupted tool calls.
     ensure_tool_responses(&mut messages);
 
+    // Kimi / DeepSeek thinking+tools require reasoning_content on assistant tool-call
+    // messages when replaying history (including via LiteLLM). Fill missing fields.
+    ensure_assistant_reasoning_content(&mut messages);
+
     // Convert tools
     let tools = convert_tools(&request.tools);
 
@@ -191,13 +221,105 @@ pub fn convert_request(request: &ResponsesApiRequest) -> Value {
         body["tool_choice"] = Value::String(request.tool_choice.clone());
     }
 
+    apply_chat_reasoning_request_params(&mut body, request.reasoning.as_ref());
+
     body
+}
+
+fn reasoning_text_from_item(
+    content: &Option<Vec<ReasoningItemContent>>,
+    summary: &[ReasoningItemReasoningSummary],
+) -> String {
+    let mut parts = Vec::new();
+    for ReasoningItemReasoningSummary::SummaryText { text } in summary {
+        if !text.is_empty() {
+            parts.push(text.clone());
+        }
+    }
+    if let Some(content) = content {
+        for entry in content {
+            let text = match entry {
+                ReasoningItemContent::ReasoningText { text }
+                | ReasoningItemContent::Text { text } => text,
+            };
+            if !text.is_empty() {
+                parts.push(text.clone());
+            }
+        }
+    }
+    parts.join("\n")
+}
+
+fn attach_reasoning_content_to_message(message: &mut Value, reasoning: Option<String>) {
+    let Some(reasoning) = reasoning else {
+        return;
+    };
+    if let Some(obj) = message.as_object_mut() {
+        obj.insert("reasoning_content".to_string(), Value::String(reasoning));
+    }
+}
+
+/// Every assistant message with `tool_calls` must include `reasoning_content` when
+/// thinking mode is active upstream (LiteLLM / Kimi / DeepSeek). Use an empty string
+/// when the client did not persist reasoning text.
+fn ensure_assistant_reasoning_content(messages: &mut [Value]) {
+    for message in messages {
+        let Some(obj) = message.as_object_mut() else {
+            continue;
+        };
+        if obj.get("role").and_then(Value::as_str) != Some("assistant") {
+            continue;
+        }
+        let has_tool_calls = obj
+            .get("tool_calls")
+            .and_then(Value::as_array)
+            .is_some_and(|calls| !calls.is_empty());
+        if !has_tool_calls {
+            continue;
+        }
+        if !obj.contains_key("reasoning_content") {
+            obj.insert(
+                "reasoning_content".to_string(),
+                Value::String(String::new()),
+            );
+        }
+    }
+}
+
+fn apply_chat_reasoning_request_params(
+    body: &mut Value,
+    reasoning: Option<&crate::common::Reasoning>,
+) {
+    let Some(reasoning) = reasoning else {
+        return;
+    };
+    let Some(obj) = body.as_object_mut() else {
+        return;
+    };
+    if let Some(effort) = reasoning.effort {
+        obj.insert(
+            "reasoning_effort".to_string(),
+            Value::String(reasoning_effort_to_api_string(effort)),
+        );
+    }
+}
+
+fn reasoning_effort_to_api_string(effort: ReasoningEffortConfig) -> String {
+    match effort {
+        ReasoningEffortConfig::None => "none".to_string(),
+        ReasoningEffortConfig::Minimal => "minimal".to_string(),
+        ReasoningEffortConfig::Low => "low".to_string(),
+        ReasoningEffortConfig::Medium => "medium".to_string(),
+        ReasoningEffortConfig::High => "high".to_string(),
+        ReasoningEffortConfig::XHigh => "xhigh".to_string(),
+    }
 }
 
 /// Push a tool_call object into a pending or existing assistant message.
 fn accumulate_tool_call(
     tool_call: Value,
     pending_assistant: &mut Option<Value>,
+    pending_reasoning: &mut Option<String>,
     messages: &mut Vec<Value>,
 ) {
     if pending_assistant.is_none()
@@ -213,13 +335,16 @@ fn accumulate_tool_call(
             } else if let Some(arr) = msg["tool_calls"].as_array_mut() {
                 arr.push(tool_call);
             }
+            attach_reasoning_content_to_message(msg, pending_reasoning.take());
         }
         None => {
-            *pending_assistant = Some(serde_json::json!({
+            let mut message = serde_json::json!({
                 "role": "assistant",
                 "content": null,
                 "tool_calls": [tool_call],
-            }));
+            });
+            attach_reasoning_content_to_message(&mut message, pending_reasoning.take());
+            *pending_assistant = Some(message);
         }
     }
 }
@@ -368,6 +493,7 @@ pub struct ChunkChoice {
 pub struct ChunkDelta {
     pub role: Option<String>,
     pub content: Option<String>,
+    pub reasoning_content: Option<String>,
     pub tool_calls: Option<Vec<ChunkToolCall>>,
 }
 
@@ -560,6 +686,63 @@ mod tests {
         assert!(messages[0]["tool_calls"].is_array());
         assert_eq!(messages[1]["role"], "tool");
         assert_eq!(messages[1]["tool_call_id"], "call_2");
+    }
+
+    #[test]
+    fn converts_reasoning_into_assistant_tool_call_message() {
+        use codex_protocol::models::ReasoningItemContent;
+        let req = make_request(vec![
+            ResponseItem::Reasoning {
+                id: "rsn-1".to_string(),
+                summary: vec![],
+                content: Some(vec![ReasoningItemContent::Text {
+                    text: "plan the search".to_string(),
+                }]),
+                encrypted_content: None,
+            },
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "search".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_1".to_string(),
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_1".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "ok".to_string(),
+                ),
+            },
+        ]);
+        let body = convert_request(&req);
+        let messages = body["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "assistant");
+        assert_eq!(messages[0]["reasoning_content"], "plan the search");
+        assert!(messages[0]["tool_calls"].is_array());
+        assert_eq!(messages[1]["role"], "tool");
+    }
+
+    #[test]
+    fn ensures_empty_reasoning_content_on_tool_calls_without_prior_reasoning() {
+        let req = make_request(vec![
+            ResponseItem::FunctionCall {
+                id: None,
+                name: "search".to_string(),
+                namespace: None,
+                arguments: "{}".to_string(),
+                call_id: "call_1".to_string(),
+            },
+            ResponseItem::FunctionCallOutput {
+                call_id: "call_1".to_string(),
+                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    "ok".to_string(),
+                ),
+            },
+        ]);
+        let body = convert_request(&req);
+        let messages = body["messages"].as_array().unwrap();
+        assert_eq!(messages[0]["reasoning_content"], "");
     }
 
     #[test]
