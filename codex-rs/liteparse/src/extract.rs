@@ -224,7 +224,9 @@ fn extract_page_text_items(
                 Some(ch_mapped) => (ch_mapped, ""),
                 None => {
                     if debug {
-                        tracing::debug!("[extract-debug] i={i} SKIP invalid unicode=0x{unicode:04X}");
+                        tracing::debug!(
+                            "[extract-debug] i={i} SKIP invalid unicode=0x{unicode:04X}"
+                        );
                     }
                     continue;
                 }
@@ -418,7 +420,11 @@ fn dedup_overlapping_items(items: &mut Vec<TextItem>, debug: bool) {
                 if debug {
                     tracing::debug!(
                         "[extract-debug] DEDUP exact-match drop i={i} text='{}' at ({:.1},{:.1}) in favor of j={j} at ({:.1},{:.1})",
-                        items[i].text, items[i].x, items[i].y, items[j].x, items[j].y
+                        items[i].text,
+                        items[i].x,
+                        items[i].y,
+                        items[j].x,
+                        items[j].y
                     );
                 }
                 keep[i] = false;

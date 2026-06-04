@@ -62,9 +62,11 @@ impl FrameDecoder {
             });
         }
 
-        let payload_len =
-            u32::from_be_bytes(data[..4].try_into().expect("checked len >= FRAME_HEADER_SIZE above"))
-                as usize;
+        let payload_len = u32::from_be_bytes(
+            data[..4]
+                .try_into()
+                .expect("checked len >= FRAME_HEADER_SIZE above"),
+        ) as usize;
         let version = data[4];
 
         if version != FRAME_VERSION {

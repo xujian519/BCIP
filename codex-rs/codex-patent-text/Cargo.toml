@@ -1,6 +1,7 @@
 [package]
 name = "codex-patent-text"
 version = "0.1.0"
+license = "Apache-2.0"
 edition = "2024"
 description = "专利文本处理引擎 — CJK 分词、多度量相似度、IPC 分类"
 

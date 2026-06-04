@@ -252,7 +252,8 @@ pub(crate) async fn ocr_and_merge_rendered(
     if failed_tasks > 0 {
         tracing::warn!(
             "[ocr] {}/{} page(s) failed OCR; continuing with partial results",
-            failed_tasks, total_tasks
+            failed_tasks,
+            total_tasks
         );
     }
 

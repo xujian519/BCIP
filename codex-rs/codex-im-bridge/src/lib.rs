@@ -92,6 +92,7 @@ impl ImBridge {
         }
     }
 
+    #[allow(clippy::await_holding_invalid_type)]
     async fn try_connect(&self) -> Result<(), BridgeError> {
         let url_str = self.config.server_url.clone();
         info!(url = %url_str, "正在连接 WebSocket");

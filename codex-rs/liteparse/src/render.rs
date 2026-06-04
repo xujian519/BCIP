@@ -87,7 +87,9 @@ pub fn screenshot(
 
     tracing::info!(
         "rendered page {} at {dpi} DPI → {output_path} ({}×{})",
-        page_num, page.width, page.height
+        page_num,
+        page.width,
+        page.height
     );
 
     Ok(())

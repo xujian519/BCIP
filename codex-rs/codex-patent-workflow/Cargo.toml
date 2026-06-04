@@ -1,6 +1,7 @@
 [package]
 name = "codex-patent-workflow"
 version.workspace = true
+license = "Apache-2.0"
 edition = "2021"
 publish = false
 description = "DAG 编排引擎 — 将线性 FlowStep 扩展为有向无环图，支持并行分支执行与条件路由"
