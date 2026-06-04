@@ -10,6 +10,7 @@ use crate::error::ApiError;
 use crate::telemetry::SseTelemetry;
 use codex_client::ByteStream;
 use codex_client::StreamResponse;
+use codex_protocol::models::ReasoningItemContent;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::protocol::TokenUsage;
 use eventsource_stream::Eventsource;
@@ -74,6 +75,8 @@ async fn process_chat_completions_sse(
     let mut tool_calls: Vec<ToolCallAccumulator> = Vec::new();
     let mut response_id = String::from("chat_unknown");
     let mut text_item_added = false;
+    let mut reasoning_buffer = String::new();
+    let mut reasoning_item_added = false;
 
     loop {
         let start = Instant::now();
@@ -90,6 +93,13 @@ async fn process_chat_completions_sse(
             }
             Ok(None) => {
                 // Stream ended without a finish_reason → treat as completed
+                emit_reasoning_item_done(
+                    &mut reasoning_buffer,
+                    &mut reasoning_item_added,
+                    &tx_event,
+                )
+                .await;
+                emit_pending_tool_calls(&mut tool_calls, &tx_event).await;
                 emit_text_item_done(&mut text_item_added, &tx_event).await;
                 let _ = tx_event
                     .send(Ok(ResponseEvent::Completed {
@@ -116,6 +126,12 @@ async fn process_chat_completions_sse(
         if sse.data.trim().is_empty() || sse.data == "[DONE]" {
             if sse.data == "[DONE]" {
                 // Emit any pending tool calls before completing
+                emit_reasoning_item_done(
+                    &mut reasoning_buffer,
+                    &mut reasoning_item_added,
+                    &tx_event,
+                )
+                .await;
                 emit_pending_tool_calls(&mut tool_calls, &tx_event).await;
                 emit_text_item_done(&mut text_item_added, &tx_event).await;
                 let _ = tx_event
@@ -143,6 +159,39 @@ async fn process_chat_completions_sse(
         }
 
         for choice in chunk.choices {
+            if let Some(reasoning) = &choice.delta.reasoning_content
+                && !reasoning.is_empty()
+            {
+                if !reasoning_item_added {
+                    reasoning_item_added = true;
+                    if tx_event
+                        .send(Ok(ResponseEvent::OutputItemAdded(
+                            ResponseItem::Reasoning {
+                                id: format!("chat-reasoning-{response_id}"),
+                                summary: vec![],
+                                content: None,
+                                encrypted_content: None,
+                            },
+                        )))
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+                reasoning_buffer.push_str(reasoning);
+                if tx_event
+                    .send(Ok(ResponseEvent::ReasoningContentDelta {
+                        delta: reasoning.clone(),
+                        content_index: 0,
+                    }))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+
             // Text delta
             if let Some(content) = &choice.delta.content {
                 if !text_item_added {
@@ -194,6 +243,12 @@ async fn process_chat_completions_sse(
 
             // Finish
             if let Some(reason) = &choice.finish_reason {
+                emit_reasoning_item_done(
+                    &mut reasoning_buffer,
+                    &mut reasoning_item_added,
+                    &tx_event,
+                )
+                .await;
                 // Emit pending tool calls
                 emit_pending_tool_calls(&mut tool_calls, &tx_event).await;
                 emit_text_item_done(&mut text_item_added, &tx_event).await;
@@ -222,6 +277,32 @@ async fn process_chat_completions_sse(
             }
         }
     }
+}
+
+async fn emit_reasoning_item_done(
+    reasoning_buffer: &mut String,
+    reasoning_item_added: &mut bool,
+    tx_event: &mpsc::Sender<Result<ResponseEvent, ApiError>>,
+) {
+    if !*reasoning_item_added {
+        return;
+    }
+    *reasoning_item_added = false;
+    let text = std::mem::take(reasoning_buffer);
+    let content = if text.is_empty() {
+        None
+    } else {
+        Some(vec![ReasoningItemContent::Text { text }])
+    };
+    let item = ResponseItem::Reasoning {
+        id: "chat-reasoning".to_string(),
+        summary: vec![],
+        content,
+        encrypted_content: None,
+    };
+    let _ = tx_event
+        .send(Ok(ResponseEvent::OutputItemDone(item)))
+        .await;
 }
 
 async fn emit_pending_tool_calls(

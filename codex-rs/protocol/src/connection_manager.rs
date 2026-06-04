@@ -64,6 +64,12 @@ pub enum ConnectionEvent {
     Failed { name: String, error: String },
 }
 
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionManager {
     pub fn new() -> Self {
         let (event_tx, _) = broadcast::channel(64);

@@ -87,6 +87,7 @@ impl RemoteTransport {
     }
 
     /// Read a single frame from the stream.
+    #[allow(dead_code)]
     async fn read_frame(stream: &mut TcpStream) -> Result<AgentBusMessage, TransportError> {
         let mut header = [0u8; FRAME_HEADER_SIZE];
         stream
@@ -97,7 +98,7 @@ impl RemoteTransport {
         let payload_len = u32::from_be_bytes(
             header[..4]
                 .try_into()
-                .expect("header is FRAME_HEADER_SIZE bytes from read_exact"),
+                .map_err(|_| TransportError::ReceiveFailed("invalid header length".into()))?,
         ) as usize;
         if FRAME_HEADER_SIZE + payload_len > MAX_FRAME_SIZE {
             return Err(TransportError::ReceiveFailed(
