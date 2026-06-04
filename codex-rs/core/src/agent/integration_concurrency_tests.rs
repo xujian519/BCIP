@@ -50,6 +50,7 @@ async fn no_deadlock_on_bus_and_registry_interaction() {
                     AgentBusMessageType::SystemEvent,
                     serde_json::json!({"agent": i, "seq": j}),
                 ))
+                .await
                 .unwrap();
             }
 
@@ -110,7 +111,7 @@ async fn no_deadlock_concurrent_bus_publish_and_topic_subscribe() {
                     "concurrent.topic",
                     serde_json::json!(i),
                 )
-                .unwrap();
+                .await.unwrap();
             if i % 10 == 0 {
                 tokio::task::yield_now().await;
             }

@@ -110,26 +110,69 @@ impl ImBridge {
         let connected_recv = self.connected.clone();
         let connected_heartbeat = self.connected.clone();
         let event_tx = self.event_tx.clone();
-        let event_tx_heartbeat = self.event_tx.clone();
 
+        // Writer task: sends outgoing messages and heartbeat Pings.
+        let (pong_notify_tx, mut pong_notify_rx) = tokio::sync::mpsc::channel::<()>(1);
         tokio::spawn(async move {
+            let mut heartbeat_ticker = tokio::time::interval(heartbeat_interval);
+            heartbeat_ticker.tick().await; // skip first immediate tick
+            let mut missed_pongs: u32 = 0;
+            const MAX_MISSED_PONGS: u32 = 3;
+
             loop {
-                let msg = {
-                    let mut rx = msg_rx.lock().await;
-                    rx.try_recv().ok()
-                };
-                if let Some(msg) = msg {
-                    let json = serde_json::to_string(&msg).expect("序列化 ClientMessage");
-                    if let Err(e) = write.send(Message::Text(json.into())).await {
-                        error!(%e, "发送消息失败");
-                        *connected_send.lock().await = false;
-                        break;
+                tokio::select! {
+                    // Outgoing application messages
+                    msg = async {
+                        let mut rx = msg_rx.lock().await;
+                        rx.recv().await
+                    } => {
+                        match msg {
+                            Some(msg) => {
+                                let json = serde_json::to_string(&msg).expect("序列化 ClientMessage");
+                                if let Err(e) = write.send(Message::Text(json.into())).await {
+                                    error!(%e, "发送消息失败");
+                                    *connected_send.lock().await = false;
+                                    break;
+                                }
+                            }
+                            None => break,
+                        }
+                    }
+                    // Heartbeat Ping
+                    _ = heartbeat_ticker.tick() => {
+                        if !*connected_heartbeat.lock().await {
+                            break;
+                        }
+                        tracing::debug!("发送心跳 Ping");
+                        if let Err(e) = write.send(Message::Ping(vec![].into())).await {
+                            error!(%e, "发送 Ping 失败");
+                            *connected_heartbeat.lock().await = false;
+                            break;
+                        }
+                        // Wait for Pong with timeout
+                        match tokio::time::timeout(
+                            Duration::from_secs(10),
+                            pong_notify_rx.recv(),
+                        ).await {
+                            Ok(Some(())) => {
+                                missed_pongs = 0;
+                            }
+                            _ => {
+                                missed_pongs += 1;
+                                warn!(missed_pongs, "心跳 Pong 超时");
+                                if missed_pongs >= MAX_MISSED_PONGS {
+                                    warn!("连续 {} 次未收到 Pong，断开连接", MAX_MISSED_PONGS);
+                                    *connected_heartbeat.lock().await = false;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
-                tokio::time::sleep(Duration::from_millis(50)).await;
             }
         });
 
+        // Reader task: reads incoming messages and signals Pong reception.
         tokio::spawn(async move {
             while let Some(msg) = read.next().await {
                 match msg {
@@ -141,7 +184,16 @@ impl ImBridge {
                             warn!(%e, "解析 ServerMessage 失败");
                         }
                     },
-                    Ok(Message::Ping(_)) => {}
+                    Ok(Message::Pong(_)) => {
+                        tracing::debug!("收到心跳 Pong");
+                        let _ = pong_notify_tx.try_send(());
+                    }
+                    Ok(Message::Ping(data)) => {
+                        // Reply to server-initiated Pings
+                        tracing::debug!("收到服务器 Ping，回复 Pong");
+                        // tungstenite auto-replies to Ping frames, so this is a no-op
+                        let _ = data;
+                    }
                     Ok(Message::Close(_)) => {
                         info!("WebSocket 连接关闭");
                         break;
@@ -154,18 +206,6 @@ impl ImBridge {
                 }
             }
             *connected_recv.lock().await = false;
-        });
-
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(heartbeat_interval).await;
-                if !*connected_heartbeat.lock().await {
-                    break;
-                }
-                if event_tx_heartbeat.receiver_count() == 0 {
-                    break;
-                }
-            }
         });
 
         Ok(())

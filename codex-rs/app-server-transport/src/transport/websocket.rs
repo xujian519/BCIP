@@ -241,6 +241,7 @@ pub(crate) enum IncomingWebSocketMessage {
 /// sends directly.
 pub(crate) trait AppServerWebSocketMessage: Sized {
     fn text(text: String) -> Self;
+    fn ping(payload: Bytes) -> Self;
     fn pong(payload: Bytes) -> Self;
     fn into_incoming(self) -> Option<IncomingWebSocketMessage>;
 }
@@ -248,6 +249,10 @@ pub(crate) trait AppServerWebSocketMessage: Sized {
 impl AppServerWebSocketMessage for AxumWebSocketMessage {
     fn text(text: String) -> Self {
         Self::Text(text.into())
+    }
+
+    fn ping(payload: Bytes) -> Self {
+        Self::Ping(payload)
     }
 
     fn pong(payload: Bytes) -> Self {
@@ -268,6 +273,10 @@ impl AppServerWebSocketMessage for AxumWebSocketMessage {
 impl AppServerWebSocketMessage for TungsteniteWebSocketMessage {
     fn text(text: String) -> Self {
         Self::Text(text.into())
+    }
+
+    fn ping(payload: Bytes) -> Self {
+        Self::Ping(payload)
     }
 
     fn pong(payload: Bytes) -> Self {
@@ -338,6 +347,7 @@ async fn run_websocket_inbound_loop<M, StreamError>(
     M: AppServerWebSocketMessage + Send + 'static,
     StreamError: std::fmt::Display + Send + 'static,
 {
+    let idle_timeout = std::time::Duration::from_secs(60);
     tokio::pin!(websocket_reader);
     loop {
         tokio::select! {
@@ -381,6 +391,13 @@ async fn run_websocket_inbound_loop<M, StreamError>(
                         warn!("websocket receive error: {err}");
                         break;
                     }
+                }
+            }
+            _ = tokio::time::sleep(idle_timeout) => {
+                warn!("websocket idle timeout ({idle_timeout:?}), sending ping");
+                match writer_control_tx.try_send(M::ping(Bytes::new())) {
+                    Ok(()) => {}
+                    Err(_) => break,
                 }
             }
         }

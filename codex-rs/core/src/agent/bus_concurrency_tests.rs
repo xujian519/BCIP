@@ -38,6 +38,7 @@ async fn concurrent_broadcast_to_many_subscribers() {
                     AgentBusMessageType::SystemEvent,
                     serde_json::json!({"publisher": i, "seq": j}),
                 ))
+                .await
                 .unwrap();
             }
         }));
@@ -83,7 +84,7 @@ async fn concurrent_topic_subscribe_unsubscribe() {
         for i in 0..100 {
             bus_b
                 .publish(test_path("publisher"), "stress.topic", serde_json::json!(i))
-                .unwrap();
+                .await.unwrap();
             tokio::task::yield_now().await;
         }
     });
@@ -120,6 +121,7 @@ async fn concurrent_history_writes_under_load() {
                     AgentBusMessageType::Custom(format!("test_{i}_{j}")),
                     serde_json::json!({"sender": i, "seq": j}),
                 ))
+                .await
                 .unwrap();
             }
         }));
@@ -207,6 +209,7 @@ async fn history_does_not_exceed_max_under_high_throughput() {
                     "high.throughput",
                     serde_json::json!(j),
                 )
+                .await
                 .unwrap();
             }
         }));

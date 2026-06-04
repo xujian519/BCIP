@@ -14,6 +14,9 @@ use codex_protocol::agent_bus::AgentBusMessageType;
 use codex_protocol::agent_bus::AgentBusRecipient;
 use codex_protocol::agent_bus::AgentLiveness;
 use codex_protocol::agent_bus::HeartbeatConfig;
+use codex_protocol::transport::LocalTransport;
+use codex_protocol::transport::Transport;
+use codex_protocol::transport::TransportError;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -72,7 +75,7 @@ struct LivenessState {
 }
 
 pub(crate) struct AgentBus {
-    tx: broadcast::Sender<AgentBusMessage>,
+    transport: Arc<dyn Transport>,
     topics: Arc<RwLock<HashMap<String, Vec<AgentPath>>>>,
     history: Arc<RwLock<VecDeque<AgentBusMessage>>>,
     dead_letter: Arc<RwLock<VecDeque<AgentBusMessage>>>,
@@ -83,9 +86,12 @@ pub(crate) struct AgentBus {
 
 impl AgentBus {
     pub(crate) fn new(buffer_size: usize, max_history: usize) -> Self {
-        let (tx, _) = broadcast::channel(buffer_size);
+        Self::with_transport(Arc::new(LocalTransport::new(buffer_size)), max_history)
+    }
+
+    pub(crate) fn with_transport(transport: Arc<dyn Transport>, max_history: usize) -> Self {
         Self {
-            tx,
+            transport,
             topics: Arc::new(RwLock::new(HashMap::new())),
             history: Arc::new(RwLock::new(VecDeque::with_capacity(max_history))),
             dead_letter: Arc::new(RwLock::new(VecDeque::with_capacity(DEFAULT_DLQ_CAPACITY))),
@@ -103,7 +109,7 @@ impl AgentBus {
     /// Subscribe to the bus. Returns a [`Receiver`] that gets all broadcast messages.
     /// The subscriber should filter messages locally based on recipient.
     pub(crate) fn subscribe(&self) -> Receiver<AgentBusMessage> {
-        self.tx.subscribe()
+        self.transport.subscribe()
     }
 
     pub(crate) async fn subscribe_topic(&self, topic: &str, agent: AgentPath) {
@@ -126,7 +132,7 @@ impl AgentBus {
         }
     }
 
-    pub(crate) fn send(&self, message: AgentBusMessage) -> Result<usize, BusError> {
+    pub(crate) async fn send(&self, message: AgentBusMessage) -> Result<usize, BusError> {
         let payload_size = message.payload.to_string().len();
         if payload_size > self.max_payload_bytes {
             return Err(BusError::PayloadTooLarge {
@@ -135,7 +141,7 @@ impl AgentBus {
             });
         }
 
-        let result = self.tx.send(message.clone());
+        let result = self.transport.send(message.clone()).await;
         if let Ok(mut history) = self.history.try_write() {
             if history.len() >= self.max_history {
                 history.pop_front();
@@ -144,41 +150,42 @@ impl AgentBus {
         }
         match result {
             Ok(n) => Ok(n),
-            Err(_) => Ok(0), // No receivers is not an error — message still recorded
+            Err(TransportError::SendFailed(_)) => Ok(0),
+            Err(_) => Ok(0),
         }
     }
 
     /// Convenience: send a direct (point-to-point) message.
-    pub(crate) fn send_direct(
+    pub(crate) async fn send_direct(
         &self,
         from: AgentPath,
         to: AgentPath,
         payload: serde_json::Value,
     ) -> Result<usize, BusError> {
         let msg = AgentBusMessage::direct(from, to, payload);
-        self.send(msg)
+        self.send(msg).await
     }
 
     /// Convenience: publish to a topic.
-    pub(crate) fn publish(
+    pub(crate) async fn publish(
         &self,
         from: AgentPath,
         topic: &str,
         payload: serde_json::Value,
     ) -> Result<usize, BusError> {
         let msg = AgentBusMessage::topic(from, topic, payload);
-        self.send(msg)
+        self.send(msg).await
     }
 
     /// Convenience: broadcast to all agents of a role.
-    pub(crate) fn send_to_role(
+    pub(crate) async fn send_to_role(
         &self,
         from: AgentPath,
         role: &str,
         payload: serde_json::Value,
     ) -> Result<usize, BusError> {
         let msg = AgentBusMessage::role(from, role, payload);
-        self.send(msg)
+        self.send(msg).await
     }
 
     /// Query message history with optional filter.
@@ -231,7 +238,7 @@ impl AgentBus {
         let mut attempts = 0;
 
         loop {
-            let n = self.send(message.clone())?;
+            let n = self.send(message.clone()).await?;
             if n > 0 {
                 tracing::debug!(attempts, receivers = n, "send_with_retry succeeded");
                 return Ok(n);
@@ -268,7 +275,7 @@ impl AgentBus {
         self.dead_letter.read().await.len()
     }
 
-    pub(crate) fn replay_dead_letter(&self, message_id: uuid::Uuid) -> Result<usize, BusError> {
+    pub(crate) async fn replay_dead_letter(&self, message_id: uuid::Uuid) -> Result<usize, BusError> {
         let msg = {
             let dlq = self.dead_letter.try_read();
             match dlq {
@@ -277,7 +284,7 @@ impl AgentBus {
             }
         };
         match msg {
-            Some(m) => self.send(m),
+            Some(m) => self.send(m).await,
             None => Ok(0),
         }
     }
@@ -367,6 +374,7 @@ mod tests {
             AgentBusMessageType::SystemEvent,
             payload.clone(),
         ))
+        .await
         .unwrap();
 
         let msg = rx.try_recv().unwrap();
@@ -392,9 +400,9 @@ mod tests {
         let from = test_path("agent");
 
         bus.publish(from.clone(), "test.topic", serde_json::json!("data1"))
-            .unwrap();
+            .await.unwrap();
         bus.publish(from.clone(), "test.topic", serde_json::json!("data2"))
-            .unwrap();
+            .await.unwrap();
 
         let filter = MessageFilter {
             topic: Some("test.topic".to_string()),
@@ -412,7 +420,7 @@ mod tests {
 
         for i in 0..5 {
             bus.publish(from.clone(), "test", serde_json::json!(i))
-                .unwrap();
+                .await.unwrap();
         }
 
         let all = bus.history(MessageFilter::default()).await;
@@ -428,7 +436,7 @@ mod tests {
         let to = test_path("b");
 
         bus.send_direct(from.clone(), to.clone(), serde_json::json!("hello"))
-            .unwrap();
+            .await.unwrap();
 
         let msg = rx.try_recv().unwrap();
         assert_eq!(msg.from, from);
@@ -444,7 +452,7 @@ mod tests {
         // No subscribers — message should still be recorded
         let from = test_path("lonely");
         bus.publish(from, "orphan.topic", serde_json::json!("data"))
-            .unwrap();
+            .await.unwrap();
 
         let h = bus
             .history(MessageFilter {
@@ -543,7 +551,7 @@ mod tests {
         assert_eq!(bus.dead_letter_count().await, 1);
 
         let _rx = bus.subscribe();
-        let result = bus.replay_dead_letter(msg_id).unwrap();
+        let result = bus.replay_dead_letter(msg_id).await.unwrap();
         assert_eq!(result, 1);
     }
 
@@ -626,7 +634,8 @@ mod tests {
             test_path("a"),
             test_path("b"),
             big_payload,
-        ));
+        ))
+        .await;
         match result {
             Err(BusError::PayloadTooLarge { size, max }) => {
                 assert!(size > max);
@@ -643,7 +652,8 @@ mod tests {
             test_path("a"),
             test_path("b"),
             serde_json::json!({"key": "value"}),
-        ));
+        ))
+        .await;
         assert!(result.is_ok());
     }
 }
