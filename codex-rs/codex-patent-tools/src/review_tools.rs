@@ -125,7 +125,7 @@ impl ReviewTools {
             50.0
         } else {
             let ratio = dependent_count as f64 / independent_count as f64;
-            if ratio >= 1.0 && ratio <= 5.0 {
+            if (1.0..=5.0).contains(&ratio) {
                 95.0
             } else if ratio > 5.0 && ratio <= 10.0 {
                 75.0
@@ -156,7 +156,7 @@ impl ReviewTools {
                 if claim.contains("根据权利要求") {
                     for cap in re.captures_iter(claim) {
                         let ref_num: usize = cap.get(1).unwrap().as_str().parse().unwrap_or(0);
-                        if ref_num == 0 || ref_num > claims.len() || ref_num >= i + 1 {
+                        if ref_num == 0 || ref_num > claims.len() || ref_num > i {
                             score -= 20.0;
                         }
                     }
@@ -169,7 +169,7 @@ impl ReviewTools {
         let length_score = {
             let avg_len: f64 = claims.iter().map(|c| c.chars().count()).sum::<usize>() as f64
                 / claims.len() as f64;
-            if avg_len >= 30.0 && avg_len <= 300.0 {
+            if (30.0..=300.0).contains(&avg_len) {
                 90.0
             } else if avg_len < 30.0 {
                 50.0
@@ -219,6 +219,26 @@ impl ReviewTools {
     }
 }
 
+pub fn register_review_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("FormalCheck".into(), |input| {
+        Box::pin(async move {
+            let parsed: FormalCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::formal_check(parsed)
+        })
+    });
+    t.insert("QualityAssess".into(), |input| {
+        Box::pin(async move {
+            let parsed: QualityAssessInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ReviewTools::quality_assess(parsed)
+        })
+    });
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,16 +271,17 @@ mod tests {
     #[test]
     fn formal_check_invalid_reference() {
         let input = FormalCheckInput {
-            claims: vec![
-                "一种装置。".into(),
-                "根据权利要求99所述的装置。".into(),
-            ],
+            claims: vec!["一种装置。".into(), "根据权利要求99所述的装置。".into()],
             specification_sections: None,
             invention_title: None,
         };
         let result = ReviewTools::formal_check(input).unwrap();
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("无效引用")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("无效引用"))
+        );
     }
 
     #[test]
@@ -272,7 +293,11 @@ mod tests {
         };
         let result = ReviewTools::formal_check(input).unwrap();
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("背景技术")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("背景技术"))
+        );
     }
 
     #[test]
@@ -285,7 +310,11 @@ mod tests {
         };
         let result = ReviewTools::formal_check(input).unwrap();
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("发明名称过长")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("发明名称过长"))
+        );
     }
 
     #[test]
@@ -297,7 +326,11 @@ mod tests {
         };
         let result = ReviewTools::formal_check(input).unwrap();
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("禁止用词")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("禁止用词"))
+        );
     }
 
     // ── quality_assess ───────────────────────────────────────────────────
@@ -326,7 +359,10 @@ mod tests {
         };
         let result = ReviewTools::quality_assess(input).unwrap();
         let score = result["overall_score"].as_f64().unwrap();
-        assert!(score > 0.5, "good claims should score above 0.5, got {score}");
+        assert!(
+            score > 0.5,
+            "good claims should score above 0.5, got {score}"
+        );
         assert_eq!(result["independent_claims"], 1);
         assert_eq!(result["dependent_claims"], 3);
     }
@@ -341,27 +377,12 @@ mod tests {
             specification_word_count: 100,
         };
         let result = ReviewTools::quality_assess(input).unwrap();
-        let dep_score = result["dimensions"]["dependency_ratio_score"].as_f64().unwrap();
-        assert!(dep_score < 50.0, "no independent claims should score low, got {dep_score}");
+        let dep_score = result["dimensions"]["dependency_ratio_score"]
+            .as_f64()
+            .unwrap();
+        assert!(
+            dep_score < 50.0,
+            "no independent claims should score low, got {dep_score}"
+        );
     }
-}
-
-pub fn register_review_tools() -> std::collections::HashMap<String, super::ToolHandler> {
-    use std::collections::HashMap;
-    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
-    t.insert("FormalCheck".into(), |input| {
-        Box::pin(async move {
-            let parsed: FormalCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::formal_check(parsed)
-        })
-    });
-    t.insert("QualityAssess".into(), |input| {
-        Box::pin(async move {
-            let parsed: QualityAssessInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ReviewTools::quality_assess(parsed)
-        })
-    });
-    t
 }

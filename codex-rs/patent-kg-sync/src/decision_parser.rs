@@ -255,7 +255,10 @@ mod tests {
 
     #[test]
     fn extract_conclusion_fallback() {
-        assert_eq!(extract_conclusion("宣告专利权全部无效"), "宣告专利权全部无效");
+        assert_eq!(
+            extract_conclusion("宣告专利权全部无效"),
+            "宣告专利权全部无效"
+        );
     }
 
     #[test]
@@ -298,13 +301,19 @@ mod tests {
     #[test]
     fn extract_ipc_from_table_valid() {
         let content = "国际分类号 | H02G 3/00";
-        assert_eq!(extract_ipc_from_table(content), Some("H02G3/00".to_string()));
+        assert_eq!(
+            extract_ipc_from_table(content),
+            Some("H02G3/00".to_string())
+        );
     }
 
     #[test]
     fn extract_ipc_from_table_colon() {
         let content = "分类号：G06F 1/00";
-        assert_eq!(extract_ipc_from_table(content), Some("G06F1/00".to_string()));
+        assert_eq!(
+            extract_ipc_from_table(content),
+            Some("G06F1/00".to_string())
+        );
     }
 
     #[test]

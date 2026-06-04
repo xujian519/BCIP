@@ -1,9 +1,9 @@
-use aes_gcm::aead::Aead;
 use aes_gcm::Aes256Gcm;
 use aes_gcm::KeyInit;
 use aes_gcm::Nonce;
-use base64::engine::general_purpose::STANDARD as BASE64;
+use aes_gcm::aead::Aead;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 
 #[derive(Clone)]
 pub struct EncryptionKey(pub [u8; 32]);
@@ -47,8 +47,8 @@ pub enum CryptoError {
 }
 
 pub fn encrypt(key: &EncryptionKey, plaintext: &[u8]) -> Result<String, CryptoError> {
-    let cipher = Aes256Gcm::new_from_slice(&key.0)
-        .map_err(|e| CryptoError::Encryption(e.to_string()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key.0).map_err(|e| CryptoError::Encryption(e.to_string()))?;
 
     let mut nonce_bytes = [0u8; 12];
     use rand::RngCore;
@@ -78,8 +78,8 @@ pub fn decrypt(key: &EncryptionKey, ciphertext_b64: &str) -> Result<Vec<u8>, Cry
     let (nonce_bytes, ciphertext) = combined.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    let cipher = Aes256Gcm::new_from_slice(&key.0)
-        .map_err(|e| CryptoError::Decryption(e.to_string()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key.0).map_err(|e| CryptoError::Decryption(e.to_string()))?;
 
     cipher
         .decrypt(nonce, ciphertext)
@@ -87,12 +87,15 @@ pub fn decrypt(key: &EncryptionKey, ciphertext_b64: &str) -> Result<Vec<u8>, Cry
 }
 
 pub fn encrypt_json(key: &EncryptionKey, value: &serde_json::Value) -> Result<String, CryptoError> {
-    let json_bytes = serde_json::to_vec(value)
-        .map_err(|e| CryptoError::Encryption(e.to_string()))?;
+    let json_bytes =
+        serde_json::to_vec(value).map_err(|e| CryptoError::Encryption(e.to_string()))?;
     encrypt(key, &json_bytes)
 }
 
-pub fn decrypt_json(key: &EncryptionKey, ciphertext_b64: &str) -> Result<serde_json::Value, CryptoError> {
+pub fn decrypt_json(
+    key: &EncryptionKey,
+    ciphertext_b64: &str,
+) -> Result<serde_json::Value, CryptoError> {
     let json_bytes = decrypt(key, ciphertext_b64)?;
     serde_json::from_slice(&json_bytes).map_err(|e| CryptoError::Decryption(e.to_string()))
 }

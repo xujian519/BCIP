@@ -188,15 +188,15 @@ impl ManagementTools {
             ("虚假产地", r"(?:原装|进口|国产|正牌)\w*(?:酒|茶|烟)"),
         ];
         for (name, pattern) in &deceptive_patterns {
-            if let Ok(re) = regex::Regex::new(pattern) {
-                if re.is_match(mark) {
-                    score -= 20.0;
-                    issues.push(format!("可能具有欺骗性: {}", name));
-                }
+            if let Ok(re) = regex::Regex::new(pattern)
+                && re.is_match(mark)
+            {
+                score -= 20.0;
+                issues.push(format!("可能具有欺骗性: {}", name));
             }
         }
 
-        let final_score = score.max(0.0).min(100.0);
+        let final_score = score.clamp(0.0, 100.0);
         let recommendation = if final_score >= 80.0 {
             "建议申请注册"
         } else if final_score >= 60.0 {
@@ -253,7 +253,7 @@ impl ManagementTools {
                         return Err(format!(
                             "发明专利年费年度超出范围（1-20），当前: {}",
                             input.year
-                        ))
+                        ));
                     }
                 };
                 (fee, "发明专利年费")
@@ -268,7 +268,7 @@ impl ManagementTools {
                         return Err(format!(
                             "实用新型年费年度超出范围（1-10），当前: {}",
                             input.year
-                        ))
+                        ));
                     }
                 };
                 (fee, "实用新型专利年费")
@@ -284,7 +284,7 @@ impl ManagementTools {
                         return Err(format!(
                             "外观设计年费年度超出范围（1-15），当前: {}",
                             input.year
-                        ))
+                        ));
                     }
                 };
                 (fee, "外观设计年费")
@@ -293,14 +293,17 @@ impl ManagementTools {
                 return Err(format!(
                     "未知专利类型: {}，支持 invention/utility_model/design",
                     input.patent_type
-                ))
+                ));
             }
         };
 
         // 个人申请可享受费用减缓（85%减免）
         let (final_fee, reduction) = if is_individual {
             let reduced = (annual_fee as f64 * 0.15) as u32;
-            (reduced, format!("个人申请享受85%减缓，原费{}元", annual_fee))
+            (
+                reduced,
+                format!("个人申请享受85%减缓，原费{}元", annual_fee),
+            )
         } else {
             (annual_fee, "标准费率".to_string())
         };
@@ -356,7 +359,7 @@ impl ManagementTools {
                 return Err(format!(
                     "未知事件类型: {}，支持 oa_response/annual_fee/reexamination/invalidation",
                     input.event_type
-                ))
+                ));
             }
         };
 
@@ -402,7 +405,7 @@ fn analyze_distinctiveness(mark: &str) -> (String, f64) {
         "Shell",
         "shell",
     ];
-    let is_arbitrary = arbitrary_words.iter().any(|w| mark == *w);
+    let is_arbitrary = arbitrary_words.contains(&mark);
 
     // 暗示性词：暗示商品特点但需要想象
     let suggestive_patterns = [r"(\w+)科技", r"(\w+)智能", r"Smart", r"Quick", r"Easy"];
@@ -440,6 +443,47 @@ fn analyze_distinctiveness(mark: &str) -> (String, f64) {
     } else {
         ("需综合判断".into(), 60.0)
     }
+}
+
+pub fn register_management_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("PatentManager".into(), |input| {
+        Box::pin(async move {
+            let parsed: PatentManageInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::patent_manager(parsed)
+        })
+    });
+    t.insert("ProcessChart".into(), |input| {
+        Box::pin(async move {
+            let parsed: ProcessChartInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::process_chart(&parsed.process_type)
+        })
+    });
+    t.insert("TrademarkAnalysis".into(), |input| {
+        Box::pin(async move {
+            let parsed: TrademarkAnalysisInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::trademark_analysis(&parsed.mark)
+        })
+    });
+    t.insert("FeeCalculator".into(), |input| {
+        Box::pin(async move {
+            let parsed: FeeCalculatorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::fee_calculator(parsed)
+        })
+    });
+    t.insert("DeadlineTracker".into(), |input| {
+        Box::pin(async move {
+            let parsed: DeadlineTrackerInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            ManagementTools::deadline_tracker(parsed)
+        })
+    });
+    t
 }
 
 #[cfg(test)]
@@ -484,7 +528,10 @@ mod tests {
     fn trademark_analysis_coinage_high_score() {
         let result = ManagementTools::trademark_analysis("IBM").unwrap();
         let score = result["registrability_score"].as_f64().unwrap();
-        assert!(score >= 80.0, "coinage mark should score >= 80, got {score}");
+        assert!(
+            score >= 80.0,
+            "coinage mark should score >= 80, got {score}"
+        );
         assert!(result["distinctiveness"].as_str().unwrap().contains("臆造"));
     }
 
@@ -492,14 +539,21 @@ mod tests {
     fn trademark_analysis_forbidden_words() {
         let result = ManagementTools::trademark_analysis("中国XX品牌").unwrap();
         let issues = result["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|i| i.as_str().unwrap().contains("禁用标志")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.as_str().unwrap().contains("禁用标志"))
+        );
     }
 
     #[test]
     fn trademark_analysis_generic_low_score() {
         let result = ManagementTools::trademark_analysis("电脑").unwrap();
         let score = result["registrability_score"].as_f64().unwrap();
-        assert!(score < 20.0, "generic word should score very low, got {score}");
+        assert!(
+            score < 20.0,
+            "generic word should score very low, got {score}"
+        );
     }
 
     #[test]
@@ -618,45 +672,4 @@ mod tests {
         assert!(result["mermaid"].as_str().unwrap().contains("graph LR"));
         assert!(result["mermaid"].as_str().unwrap().contains("授权"));
     }
-}
-
-pub fn register_management_tools() -> std::collections::HashMap<String, super::ToolHandler> {
-    use std::collections::HashMap;
-    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
-    t.insert("PatentManager".into(), |input| {
-        Box::pin(async move {
-            let parsed: PatentManageInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ManagementTools::patent_manager(parsed)
-        })
-    });
-    t.insert("ProcessChart".into(), |input| {
-        Box::pin(async move {
-            let parsed: ProcessChartInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ManagementTools::process_chart(&parsed.process_type)
-        })
-    });
-    t.insert("TrademarkAnalysis".into(), |input| {
-        Box::pin(async move {
-            let parsed: TrademarkAnalysisInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ManagementTools::trademark_analysis(&parsed.mark)
-        })
-    });
-    t.insert("FeeCalculator".into(), |input| {
-        Box::pin(async move {
-            let parsed: FeeCalculatorInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ManagementTools::fee_calculator(parsed)
-        })
-    });
-    t.insert("DeadlineTracker".into(), |input| {
-        Box::pin(async move {
-            let parsed: DeadlineTrackerInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            ManagementTools::deadline_tracker(parsed)
-        })
-    });
-    t
 }

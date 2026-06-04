@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn comprehensive_analyzer_default() {
-        let _ = ComprehensiveAnalyzer::default();
+        let _ = ComprehensiveAnalyzer;
     }
 
     #[test]

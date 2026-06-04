@@ -15,8 +15,10 @@ const CB_HALF_OPEN_MAX: u32 = 3;
 const BACKOFF_BASE_MS: u64 = 1000;
 const BACKOFF_MAX_MS: u64 = 30_000;
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CbState {

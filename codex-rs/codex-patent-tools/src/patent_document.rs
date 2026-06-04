@@ -125,7 +125,7 @@ mod tests {
             oa_text: "审查意见：本申请不具备新颖性。对比文件CN1234567A公开了全部技术特征。权利要求1-3不具备新颖性，驳回。".into(),
         };
         let result = PatentDocumentTools::oa_parse(input).unwrap();
-        assert!(result["cited_patents"].as_array().unwrap().len() > 0);
+        assert!(!result["cited_patents"].as_array().unwrap().is_empty());
         assert!(result["sections"]["has_comparison"].as_bool().unwrap());
         assert!(result["sections"]["has_claims_analysis"].as_bool().unwrap());
         assert!(result["sections"]["has_conclusion"].as_bool().unwrap());
@@ -144,7 +144,9 @@ mod tests {
     #[test]
     fn document_parse_identifies_sections() {
         let input = DocumentParseInput {
-            document_text: "权利要求书\n说明书\n技术领域\n背景技术\n发明内容\n附图说明\n具体实施方式\n摘要".into(),
+            document_text:
+                "权利要求书\n说明书\n技术领域\n背景技术\n发明内容\n附图说明\n具体实施方式\n摘要"
+                    .into(),
             document_type: Some("patent".into()),
         };
         let result = PatentDocumentTools::document_parse(input).unwrap();

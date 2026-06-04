@@ -246,7 +246,7 @@ impl DocumentTools {
                 return Err(format!(
                     "未知导出类型: {}，支持 claims/oa_response/specification/analysis_report",
                     input.export_type
-                ))
+                ));
             }
         };
 
@@ -279,7 +279,10 @@ fn format_claims_document(content: &serde_json::Value) -> String {
 
     let mut doc = String::from("权 利 要 求 书\n\n");
     for (i, claim) in claims.iter().enumerate() {
-        let text: String = claim.as_str().map(|s| s.to_string()).unwrap_or_else(|| claim.to_string());
+        let text: String = claim
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| claim.to_string());
         doc.push_str(&format!("{}. {}\n\n", i + 1, text));
     }
     if claims.is_empty() {
@@ -312,7 +315,8 @@ fn format_oa_response(content: &serde_json::Value) -> String {
          日期：{}",
         oa_type,
         match strategy {
-            "amend" => "申请人根据审查意见对权利要求书进行了修改。修改未超出原说明书和权利要求书记载的范围。",
+            "amend" =>
+                "申请人根据审查意见对权利要求书进行了修改。修改未超出原说明书和权利要求书记载的范围。",
             "argue" => "申请人经仔细对比分析后认为，本申请与对比文件存在区别技术特征。",
             _ => "申请人结合审查意见进行了认真分析。",
         },
@@ -321,10 +325,7 @@ fn format_oa_response(content: &serde_json::Value) -> String {
 }
 
 fn format_specification(content: &serde_json::Value) -> String {
-    let title = content
-        .get("title")
-        .and_then(|t| t.as_str())
-        .unwrap_or("");
+    let title = content.get("title").and_then(|t| t.as_str()).unwrap_or("");
     let field = content
         .get("technical_field")
         .and_then(|f| f.as_str())
@@ -624,8 +625,7 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
 
     t.insert("ExportTool".into(), |input| {
         Box::pin(async move {
-            let parsed: ExportInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let parsed: ExportInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             DocumentTools::export_tool(parsed)
         })
     });
@@ -826,7 +826,12 @@ mod tests {
             output_path: None,
         };
         let result = DocumentTools::export_tool(input).unwrap();
-        assert!(result["content"].as_str().unwrap().contains("权 利 要 求 书"));
+        assert!(
+            result["content"]
+                .as_str()
+                .unwrap()
+                .contains("权 利 要 求 书")
+        );
     }
 
     #[test]
@@ -847,6 +852,11 @@ mod tests {
             output_path: None,
         };
         let result = DocumentTools::export_tool(input).unwrap();
-        assert!(result["content"].as_str().unwrap().contains("意 见 陈 述 书"));
+        assert!(
+            result["content"]
+                .as_str()
+                .unwrap()
+                .contains("意 见 陈 述 书")
+        );
     }
 }

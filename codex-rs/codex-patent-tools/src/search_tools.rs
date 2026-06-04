@@ -65,10 +65,7 @@ pub fn register_search_tools() -> HashMap<String, crate::ToolHandler> {
                 .get("patent_number")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| "缺少必填字段: patent_number".to_string())?;
-            let limit = input
-                .get("limit")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(20) as usize;
+            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
 
             let query = format!("priority:{}", patent_number);
             let google_input = GooglePatentsInput {

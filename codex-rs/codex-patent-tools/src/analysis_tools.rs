@@ -812,27 +812,28 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
 
             // 3. 等同原则适用性判断
             let has_means_plus_function = claim.contains("用于") || claim.contains("装置用于");
-            let has_parameter_range = regex::Regex::new(
-                r"\d+[\.\d]*\s*(?:%|度|mm|cm|m|kg|Hz|MHz|GHz|V|A|W|Pa)",
-            )
-            .unwrap()
-            .is_match(claim);
+            let has_parameter_range =
+                regex::Regex::new(r"\d+[\.\d]*\s*(?:%|度|mm|cm|m|kg|Hz|MHz|GHz|V|A|W|Pa)")
+                    .unwrap()
+                    .is_match(claim);
             let has_method_steps = claim.contains("步骤") || claim.contains("包括以下步骤");
 
-            let equivalence_applicable = has_means_plus_function || !identified_broad_terms.is_empty();
+            let equivalence_applicable =
+                has_means_plus_function || !identified_broad_terms.is_empty();
 
             // 4. 保护范围宽度评估
-            let scope_width = if !functional_features.is_empty() && identified_broad_terms.len() >= 2 {
-                "宽" // 功能性限定+上位概念 = 宽范围
-            } else if identified_broad_terms.len() >= 2 {
-                "较宽" // 多个上位概念
-            } else if !functional_features.is_empty() {
-                "中等" // 有功能性限定
-            } else if has_parameter_range {
-                "窄" // 有具体参数范围
-            } else {
-                "适中"
-            };
+            let scope_width =
+                if !functional_features.is_empty() && identified_broad_terms.len() >= 2 {
+                    "宽" // 功能性限定+上位概念 = 宽范围
+                } else if identified_broad_terms.len() >= 2 {
+                    "较宽" // 多个上位概念
+                } else if !functional_features.is_empty() {
+                    "中等" // 有功能性限定
+                } else if has_parameter_range {
+                    "窄" // 有具体参数范围
+                } else {
+                    "适中"
+                };
 
             // 5. 风险提示
             let mut warnings = Vec::new();

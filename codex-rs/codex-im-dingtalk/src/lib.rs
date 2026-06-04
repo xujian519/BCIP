@@ -166,7 +166,10 @@ impl DingtalkAdapter {
         match cmd {
             DingtalkCommand::Help => {
                 let text = "BCIP 专利智能助手\n\n命令: 新会话 / 帮助 / 状态 / 停止 / 清空";
-                self.api.send_message(token, conversation_id, text).await.ok();
+                self.api
+                    .send_message(token, conversation_id, text)
+                    .await
+                    .ok();
             }
             DingtalkCommand::NewSession(project) => {
                 let text = match project {
@@ -260,11 +263,7 @@ impl DingtalkAdapter {
 
                 ServerMessage::Error { code, message } => {
                     self.api
-                        .send_message(
-                            token,
-                            conversation_id,
-                            &format!("错误 [{code}]: {message}"),
-                        )
+                        .send_message(token, conversation_id, &format!("错误 [{code}]: {message}"))
                         .await
                         .ok();
                     break;

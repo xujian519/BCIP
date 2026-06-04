@@ -201,7 +201,13 @@ mod tests {
     use super::*;
     use codex_patent_core::KnowledgeCard;
 
-    fn make_card(id: &str, title: &str, concept: &str, domain: &str, quality: f64) -> KnowledgeCard {
+    fn make_card(
+        id: &str,
+        title: &str,
+        concept: &str,
+        domain: &str,
+        quality: f64,
+    ) -> KnowledgeCard {
         KnowledgeCard {
             id: id.into(),
             file_path: format!("{id}.md"),
@@ -325,7 +331,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let index_path = dir.path().join("card-index.json");
         let card = make_card("c1", "Test", "test", "d", 0.9);
-        std::fs::write(&index_path, make_index_json(&[card.clone()])).unwrap();
+        std::fs::write(&index_path, make_index_json(std::slice::from_ref(&card))).unwrap();
         let md_path = dir.path().join("c1.md");
         std::fs::write(&md_path, "# Test Content\nHello world").unwrap();
 
@@ -339,7 +345,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let index_path = dir.path().join("card-index.json");
         let card = make_card("c1", "Test", "test", "d", 0.9);
-        std::fs::write(&index_path, make_index_json(&[card.clone()])).unwrap();
+        std::fs::write(&index_path, make_index_json(std::slice::from_ref(&card))).unwrap();
         let md_path = dir.path().join("c1.md");
         std::fs::write(&md_path, "cached content").unwrap();
 

@@ -10,12 +10,14 @@
 
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 fn fixtures_dir() -> PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
 }
 
+#[allow(dead_code)]
 fn minimal_pdf_path() -> PathBuf {
     fixtures_dir().join("minimal.pdf")
 }
@@ -178,7 +180,7 @@ mod stub_tests {
     fn test_pdf_screenshot_not_registered_without_feature() {
         let tools = register_document_tools();
         assert!(
-            tools.get("PdfScreenshot").is_none(),
+            !tools.contains_key("PdfScreenshot"),
             "PdfScreenshot should not be registered without document-pdf feature"
         );
     }
@@ -187,7 +189,7 @@ mod stub_tests {
     fn test_format_converter_removed() {
         let tools = register_document_tools();
         assert!(
-            tools.get("FormatConverter").is_none(),
+            !tools.contains_key("FormatConverter"),
             "FormatConverter should have been removed"
         );
     }

@@ -194,28 +194,28 @@ impl LegalTools {
         let card_answer = Self::try_card_search(question);
 
         // 第三步: 如果知识源有结果，优先返回
-        if let Some(ref answer) = kb_answer {
-            if !answer.is_empty() {
-                return Ok(serde_json::json!({
-                    "question": question,
-                    "domain": domain,
-                    "answer": answer,
-                    "source": "knowledge_graph",
-                    "fallback": false,
-                }));
-            }
+        if let Some(ref answer) = kb_answer
+            && !answer.is_empty()
+        {
+            return Ok(serde_json::json!({
+                "question": question,
+                "domain": domain,
+                "answer": answer,
+                "source": "knowledge_graph",
+                "fallback": false,
+            }));
         }
 
-        if let Some(ref answer) = card_answer {
-            if !answer.is_empty() {
-                return Ok(serde_json::json!({
-                    "question": question,
-                    "domain": domain,
-                    "answer": answer,
-                    "source": "knowledge_card",
-                    "fallback": false,
-                }));
-            }
+        if let Some(ref answer) = card_answer
+            && !answer.is_empty()
+        {
+            return Ok(serde_json::json!({
+                "question": question,
+                "domain": domain,
+                "answer": answer,
+                "source": "knowledge_card",
+                "fallback": false,
+            }));
         }
 
         // Fallback: 硬编码模板匹配

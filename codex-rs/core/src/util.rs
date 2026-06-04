@@ -12,9 +12,7 @@ static BACKOFF_PRESET: std::sync::OnceLock<crate::resilience::ExponentialBackoff
     std::sync::OnceLock::new();
 
 fn backoff_preset() -> &'static crate::resilience::ExponentialBackoff {
-    BACKOFF_PRESET.get_or_init(|| {
-        crate::resilience::ExponentialBackoff::new(200, 30_000, 2.0, 0.1)
-    })
+    BACKOFF_PRESET.get_or_init(|| crate::resilience::ExponentialBackoff::new(200, 30_000, 2.0, 0.1))
 }
 
 /// Emit structured feedback metadata as key/value pairs.

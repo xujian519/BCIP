@@ -160,7 +160,10 @@ mod tests {
         };
         let d1 = bo.delay_for_attempt(3);
         let d2 = bo.delay_for_attempt(3);
-        assert_eq!(d1, d2, "with jitter_range=0, same attempt should yield same delay");
+        assert_eq!(
+            d1, d2,
+            "with jitter_range=0, same attempt should yield same delay"
+        );
     }
 
     #[test]

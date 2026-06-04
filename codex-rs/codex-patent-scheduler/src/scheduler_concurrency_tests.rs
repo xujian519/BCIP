@@ -2,8 +2,6 @@
 
 use super::*;
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering;
 
 /// Test 17: 5 个过期任务 jitter_ms=100，各触发恰好 1 次。
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -43,15 +41,15 @@ async fn concurrent_task_firing_with_jitter() {
                     Err(_) => continue,
                 };
                 let from = task.last_fired_at.unwrap_or(past);
-                if let Some(next) = expr.next_run(from) {
-                    if next <= Utc::now() {
-                        let task_id = task.id.clone();
-                        let mut counts = fire_counts_clone.lock().unwrap();
-                        *counts.entry(task_id).or_insert(0) += 1;
-                        task.last_fired_at = Some(Utc::now());
-                        if !task.recurring {
-                            task.enabled = false;
-                        }
+                if let Some(next) = expr.next_run(from)
+                    && next <= Utc::now()
+                {
+                    let task_id = task.id.clone();
+                    let mut counts = fire_counts_clone.lock().unwrap();
+                    *counts.entry(task_id).or_insert(0) += 1;
+                    task.last_fired_at = Some(Utc::now());
+                    if !task.recurring {
+                        task.enabled = false;
                     }
                 }
             }

@@ -270,10 +270,7 @@ mod tests {
     #[test]
     fn extract_section_label_found() {
         let content = "案由：侵害发明专利权纠纷";
-        assert_eq!(
-            extract_section_label(content, "案由"),
-            "侵害发明专利权纠纷"
-        );
+        assert_eq!(extract_section_label(content, "案由"), "侵害发明专利权纠纷");
     }
 
     #[test]

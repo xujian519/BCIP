@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 /// 工具错误分类：决定是否应该重试。
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolErrorKind {
     /// 可重试：网络超时、连接拒绝、服务暂不可用等临时性错误
@@ -13,6 +14,7 @@ pub enum ToolErrorKind {
 ///
 /// 匹配常见的超时、网络、限流等可重试错误关键字。
 /// 未匹配任何模式时默认为 `Fatal`（保守策略：不重试未知错误）。
+#[allow(dead_code)]
 pub fn classify_tool_error(msg: &str) -> ToolErrorKind {
     let lower = msg.to_lowercase();
     if lower.contains("timeout")
@@ -152,17 +154,26 @@ mod tests {
 
     #[test]
     fn classify_retryable_timeout() {
-        assert_eq!(classify_tool_error("request timeout"), ToolErrorKind::Retryable);
+        assert_eq!(
+            classify_tool_error("request timeout"),
+            ToolErrorKind::Retryable
+        );
     }
 
     #[test]
     fn classify_retryable_connection() {
-        assert_eq!(classify_tool_error("connection refused"), ToolErrorKind::Retryable);
+        assert_eq!(
+            classify_tool_error("connection refused"),
+            ToolErrorKind::Retryable
+        );
     }
 
     #[test]
     fn classify_retryable_rate_limit() {
-        assert_eq!(classify_tool_error("rate limit exceeded"), ToolErrorKind::Retryable);
+        assert_eq!(
+            classify_tool_error("rate limit exceeded"),
+            ToolErrorKind::Retryable
+        );
     }
 
     #[test]
@@ -172,7 +183,10 @@ mod tests {
 
     #[test]
     fn classify_retryable_gateway() {
-        assert_eq!(classify_tool_error("502 bad gateway"), ToolErrorKind::Retryable);
+        assert_eq!(
+            classify_tool_error("502 bad gateway"),
+            ToolErrorKind::Retryable
+        );
     }
 
     #[test]
@@ -182,22 +196,34 @@ mod tests {
 
     #[test]
     fn classify_retryable_try_again() {
-        assert_eq!(classify_tool_error("please try again"), ToolErrorKind::Retryable);
+        assert_eq!(
+            classify_tool_error("please try again"),
+            ToolErrorKind::Retryable
+        );
     }
 
     #[test]
     fn classify_fatal_invalid_arg() {
-        assert_eq!(classify_tool_error("invalid argument"), ToolErrorKind::Fatal);
+        assert_eq!(
+            classify_tool_error("invalid argument"),
+            ToolErrorKind::Fatal
+        );
     }
 
     #[test]
     fn classify_fatal_permission() {
-        assert_eq!(classify_tool_error("permission denied"), ToolErrorKind::Fatal);
+        assert_eq!(
+            classify_tool_error("permission denied"),
+            ToolErrorKind::Fatal
+        );
     }
 
     #[test]
     fn classify_fatal_unknown() {
-        assert_eq!(classify_tool_error("something went wrong"), ToolErrorKind::Fatal);
+        assert_eq!(
+            classify_tool_error("something went wrong"),
+            ToolErrorKind::Fatal
+        );
     }
 
     #[test]

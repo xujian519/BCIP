@@ -125,9 +125,7 @@ mod tests {
 
     #[test]
     fn load_rules_from_nonexistent_path() {
-        let result = RuleLoader::load_rules_from(&[
-            PathBuf::from("/nonexistent/path"),
-        ]);
+        let result = RuleLoader::load_rules_from(&[PathBuf::from("/nonexistent/path")]);
         assert!(result.is_ok());
         let map = result.unwrap();
         assert!(map.is_empty());
@@ -212,10 +210,7 @@ mod tests {
         std::fs::write(dir.path().join("file.yaml"), yaml_content).unwrap();
         std::fs::write(subdir.join("inner.yaml"), yaml_content).unwrap();
 
-        let result = RuleLoader::load_rules_from(&[
-            dir.path().join("file.yaml"),
-            subdir,
-        ]);
+        let result = RuleLoader::load_rules_from(&[dir.path().join("file.yaml"), subdir]);
         assert!(result.is_ok());
         let map = result.unwrap();
         assert_eq!(map.len(), 2);

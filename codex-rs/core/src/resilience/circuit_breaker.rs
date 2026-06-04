@@ -1,6 +1,9 @@
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
+use std::time::Instant;
 
 // ── CircuitState ──
 
@@ -292,9 +295,7 @@ impl CircuitBreakerRegistry {
         let mut breakers = self.breakers.lock().unwrap_or_else(|e| e.into_inner());
         breakers
             .entry(service.to_string())
-            .or_insert_with(|| {
-                Arc::new(StdCircuitBreaker::new(service.to_string(), config))
-            })
+            .or_insert_with(|| Arc::new(StdCircuitBreaker::new(service.to_string(), config)))
             .clone()
     }
 

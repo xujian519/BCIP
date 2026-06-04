@@ -86,11 +86,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 pub trait WebhookReceiver: Send + Sync {
-    fn handle_request(
-        &self,
-        headers: &HashMap<String, String>,
-        body: &[u8],
-    ) -> WebhookResult;
+    fn handle_request(&self, headers: &HashMap<String, String>, body: &[u8]) -> WebhookResult;
 
     fn challenge_response(&self, _body: &[u8]) -> Option<String> {
         None

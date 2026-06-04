@@ -476,9 +476,6 @@ mod tests {
 
     #[test]
     fn sanitize_judgment_id_replaces_spaces() {
-        assert_eq!(
-            sanitize_judgment_id("(2023) abc/def"),
-            "J_(2023)_abc_def"
-        );
+        assert_eq!(sanitize_judgment_id("(2023) abc/def"), "J_(2023)_abc_def");
     }
 }

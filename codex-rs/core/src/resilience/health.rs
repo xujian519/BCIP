@@ -108,9 +108,10 @@ impl HealthReport {
                 crate::resilience::CircuitState::HalfOpen => {
                     ComponentHealth::Degraded("熔断器半开，探测中".into())
                 }
-                crate::resilience::CircuitState::Open => {
-                    ComponentHealth::Unhealthy(format!("熔断器打开，连续失败 {}", stats.consecutive_failures))
-                }
+                crate::resilience::CircuitState::Open => ComponentHealth::Unhealthy(format!(
+                    "熔断器打开，连续失败 {}",
+                    stats.consecutive_failures
+                )),
             };
             circuit_breakers.push(CircuitBreakerHealth {
                 name: name.clone(),
@@ -217,7 +218,8 @@ impl HealthReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resilience::{CircuitBreakerRegistry, RecoveryContext};
+    use crate::resilience::CircuitBreakerRegistry;
+    use crate::resilience::RecoveryContext;
 
     fn test_agent_health(
         path: &str,

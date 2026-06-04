@@ -129,6 +129,51 @@ impl DraftingTools {
     }
 }
 
+pub fn register_drafting_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("ClaimGenerator".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimGeneratorInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::claim_generator(parsed)
+        })
+    });
+    t.insert("SpecificationDrafter".into(), |input| {
+        Box::pin(async move {
+            let parsed: SpecificationInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::specification_draft(parsed)
+        })
+    });
+    t.insert("AbstractDrafter".into(), |input| {
+        Box::pin(async move {
+            let parsed: AbstractDraftInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DraftingTools::abstract_draft(parsed)
+        })
+    });
+    t.insert("ClaimOutputProcessor".into(), |_input| Box::pin(async {
+        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准权利要求书格式"}))
+    }));
+    t.insert("SpecOutputProcessor".into(), |_input| Box::pin(async {
+        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准说明书格式"}))
+    }));
+    t.insert("ClaimsStructure".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimsStructureInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            let lines: Vec<&str> = parsed.claims_text.lines().collect();
+            let ind_count = lines
+                .iter()
+                .filter(|l| !l.contains("根据权利要求"))
+                .count();
+            Ok(serde_json::json!({"total_claims": lines.len(), "independent": ind_count, "dependent": lines.len() - ind_count}))
+        })
+    });
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,10 +202,7 @@ mod tests {
         let input = ClaimGeneratorInput {
             invention_name: "传感器".into(),
             essential_features: vec!["检测模块".into(), "处理模块".into()],
-            optional_features: Some(vec![
-                vec!["无线传输".into()],
-                vec!["低功耗模式".into()],
-            ]),
+            optional_features: Some(vec![vec!["无线传输".into()], vec!["低功耗模式".into()]]),
         };
         let result = DraftingTools::claim_generator(input).unwrap();
         let claims = result["claims"].as_array().unwrap();
@@ -206,54 +248,13 @@ mod tests {
             Some("大幅提高计算速度".into()),
             Some(0.8),
             Some(false),
-        ).unwrap();
+        )
+        .unwrap();
         let score = result["score"].as_f64().unwrap();
-        assert!((0.0..=1.0).contains(&score), "score should be in [0,1], got {score}");
+        assert!(
+            (0.0..=1.0).contains(&score),
+            "score should be in [0,1], got {score}"
+        );
         assert!(result["innovation_level"].is_string());
     }
-}
-
-pub fn register_drafting_tools() -> std::collections::HashMap<String, super::ToolHandler> {
-    use std::collections::HashMap;
-    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
-    t.insert("ClaimGenerator".into(), |input| {
-        Box::pin(async move {
-            let parsed: ClaimGeneratorInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DraftingTools::claim_generator(parsed)
-        })
-    });
-    t.insert("SpecificationDrafter".into(), |input| {
-        Box::pin(async move {
-            let parsed: SpecificationInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DraftingTools::specification_draft(parsed)
-        })
-    });
-    t.insert("AbstractDrafter".into(), |input| {
-        Box::pin(async move {
-            let parsed: AbstractDraftInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DraftingTools::abstract_draft(parsed)
-        })
-    });
-    t.insert("ClaimOutputProcessor".into(), |_input| Box::pin(async {
-        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准权利要求书格式"}))
-    }));
-    t.insert("SpecOutputProcessor".into(), |_input| Box::pin(async {
-        Ok(serde_json::json!({"status": "CNIPA 格式已应用", "note": "输出已格式化为标准说明书格式"}))
-    }));
-    t.insert("ClaimsStructure".into(), |input| {
-        Box::pin(async move {
-            let parsed: ClaimsStructureInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            let lines: Vec<&str> = parsed.claims_text.lines().collect();
-            let ind_count = lines
-                .iter()
-                .filter(|l| !l.contains("根据权利要求"))
-                .count();
-            Ok(serde_json::json!({"total_claims": lines.len(), "independent": ind_count, "dependent": lines.len() - ind_count}))
-        })
-    });
-    t
 }

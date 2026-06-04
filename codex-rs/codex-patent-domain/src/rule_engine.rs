@@ -926,7 +926,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_novelty(&ctx).unwrap();
-        let nr01 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-01"));
+        let nr01 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("NR-01"));
         assert!(nr01.is_some());
         assert!(nr01.unwrap().score < 0.2);
         assert!(nr01.unwrap().conclusion.contains("全部技术特征"));
@@ -940,7 +943,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_novelty(&ctx).unwrap();
-        let nr01 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-01"));
+        let nr01 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("NR-01"));
         assert!(nr01.is_some());
         assert!(nr01.unwrap().score > 0.7);
     }
@@ -953,7 +959,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_novelty(&ctx).unwrap();
-        let nr02 = result.applied_rules.iter().find(|r| r.rule_name.contains("NR-02"));
+        let nr02 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("NR-02"));
         assert!(nr02.is_some());
         assert!(nr02.unwrap().score < 0.1);
     }
@@ -994,7 +1003,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir03 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-03"));
+        let ir03 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-03"));
         assert!(ir03.is_some());
         assert!(ir03.unwrap().conclusion.contains("公知常识"));
         assert!(ir03.unwrap().score < 0.3);
@@ -1010,7 +1022,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir03 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-03"));
+        let ir03 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-03"));
         assert!(ir03.is_some());
         assert!(ir03.unwrap().score > 0.5);
     }
@@ -1023,7 +1038,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir05 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-05"));
+        let ir05 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-05"));
         assert!(ir05.is_some());
         assert!(ir05.unwrap().score < 0.3);
         assert!(ir05.unwrap().conclusion.contains("简单叠加"));
@@ -1038,7 +1056,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir06 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-06"));
+        let ir06 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-06"));
         assert!(ir06.is_some());
         assert!(ir06.unwrap().score < 0.4);
     }
@@ -1051,7 +1072,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir10 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-10"));
+        let ir10 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-10"));
         assert!(ir10.is_some());
         assert!(ir10.unwrap().score > 0.6);
     }
@@ -1064,7 +1088,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir11 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-11"));
+        let ir11 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-11"));
         assert!(ir11.is_some());
         assert!(ir11.unwrap().score > 0.8);
         assert!(ir11.unwrap().conclusion.contains("80%"));
@@ -1078,7 +1105,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir11 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-11"));
+        let ir11 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-11"));
         assert!(ir11.is_some());
         assert!(ir11.unwrap().score < 0.35);
     }
@@ -1091,7 +1121,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir12 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-12"));
+        let ir12 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-12"));
         assert!(ir12.is_some());
         assert!(ir12.unwrap().score < 0.2);
         assert!(ir12.unwrap().conclusion.contains("显而易见"));
@@ -1105,7 +1138,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.analyze_inventiveness(&ctx).unwrap();
-        let ir12 = result.applied_rules.iter().find(|r| r.rule_name.contains("IR-12"));
+        let ir12 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("IR-12"));
         assert!(ir12.is_some());
         assert!(ir12.unwrap().score > 0.7);
     }
@@ -1118,7 +1154,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.suggest_oa_strategy(&ctx).unwrap();
-        let oa01 = result.applied_rules.iter().find(|r| r.rule_name.contains("OA-01"));
+        let oa01 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("OA-01"));
         assert!(oa01.is_some());
         assert!(oa01.unwrap().conclusion.contains("新颖性驳回"));
     }
@@ -1131,7 +1170,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.suggest_oa_strategy(&ctx).unwrap();
-        let oa03 = result.applied_rules.iter().find(|r| r.rule_name.contains("OA-03"));
+        let oa03 = result
+            .applied_rules
+            .iter()
+            .find(|r| r.rule_name.contains("OA-03"));
         assert!(oa03.is_some());
         assert!(oa03.unwrap().conclusion.contains("不同技术领域"));
     }

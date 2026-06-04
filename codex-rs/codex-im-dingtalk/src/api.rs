@@ -34,10 +34,7 @@ impl DingtalkApi {
             .await
             .map_err(|e| format!("请求失败: {e}"))?;
 
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("解析失败: {e}"))?;
+        let json: serde_json::Value = resp.json().await.map_err(|e| format!("解析失败: {e}"))?;
 
         let errcode = json["errcode"].as_i64().unwrap_or(-1);
         if errcode != 0 {
@@ -82,10 +79,7 @@ impl DingtalkApi {
             .await
             .map_err(|e| format!("请求失败: {e}"))?;
 
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("解析失败: {e}"))?;
+        let json: serde_json::Value = resp.json().await.map_err(|e| format!("解析失败: {e}"))?;
 
         let errcode = json["errcode"].as_i64().unwrap_or(-1);
         if errcode != 0 {
@@ -93,10 +87,7 @@ impl DingtalkApi {
             return Err(format!("发送失败 [{errcode}]: {errmsg}"));
         }
 
-        let task_id = json["task_id"]
-            .as_i64()
-            .unwrap_or(0)
-            .to_string();
+        let task_id = json["task_id"].as_i64().unwrap_or(0).to_string();
 
         Ok(SentMessage {
             message_id: task_id,

@@ -448,7 +448,10 @@ mod tests {
         let msg = format!("{err}");
         assert!(msg.contains("test"));
 
-        let err = CronError::OutOfRange { field: "hour", value: 25 };
+        let err = CronError::OutOfRange {
+            field: "hour",
+            value: 25,
+        };
         let msg = format!("{err}");
         assert!(msg.contains("hour"));
         assert!(msg.contains("25"));

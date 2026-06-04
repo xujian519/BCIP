@@ -10,13 +10,22 @@ mod health;
 mod recovery;
 
 pub use backoff::ExponentialBackoff;
-pub use circuit_breaker::{
-    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerRegistry, CircuitBreakerStats,
-    CircuitState, StdCircuitBreaker,
-};
-pub use client::{
-    call_with_breaker, call_with_breaker_async, sleep_backoff, sleep_backoff_async,
-    CircuitOpenError, ResilientCallConfig,
-};
-pub use health::{AgentHealthSummary, CircuitBreakerHealth, ComponentHealth, HealthReport};
-pub use recovery::{AgentRecoveryState, RecoveryContext, RecoveryPolicy};
+pub use circuit_breaker::CircuitBreaker;
+pub use circuit_breaker::CircuitBreakerConfig;
+pub use circuit_breaker::CircuitBreakerRegistry;
+pub use circuit_breaker::CircuitBreakerStats;
+pub use circuit_breaker::CircuitState;
+pub use circuit_breaker::StdCircuitBreaker;
+pub use client::CircuitOpenError;
+pub use client::ResilientCallConfig;
+pub use client::call_with_breaker;
+pub use client::call_with_breaker_async;
+pub use client::sleep_backoff;
+pub use client::sleep_backoff_async;
+pub use health::AgentHealthSummary;
+pub use health::CircuitBreakerHealth;
+pub use health::ComponentHealth;
+pub use health::HealthReport;
+pub use recovery::AgentRecoveryState;
+pub use recovery::RecoveryContext;
+pub use recovery::RecoveryPolicy;

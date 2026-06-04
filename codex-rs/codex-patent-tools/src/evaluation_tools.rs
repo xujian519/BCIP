@@ -148,78 +148,6 @@ impl EvaluationTools {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn action_review_matches() {
-        let result = EvaluationTools::action_review("search", "found", "result found ok").unwrap();
-        assert_eq!(result["matches_expectation"], true);
-        assert_eq!(result["action"], "search");
-    }
-
-    #[test]
-    fn action_review_no_match() {
-        let result = EvaluationTools::action_review("search", "xyz", "abc def").unwrap();
-        assert_eq!(result["matches_expectation"], false);
-    }
-
-    #[test]
-    fn llm_reflection_all_met() {
-        let result =
-            EvaluationTools::llm_reflection("quality accuracy completeness", &["quality", "accuracy"]).unwrap();
-        assert_eq!(result["total_criteria"], 2);
-        assert_eq!(result["met"], 2);
-    }
-
-    #[test]
-    fn llm_reflection_none_met() {
-        let result = EvaluationTools::llm_reflection("hello world", &["quality", "accuracy"]).unwrap();
-        assert_eq!(result["met"], 0);
-    }
-
-    #[test]
-    fn faithfulness_identical_text() {
-        let result = EvaluationTools::faithfulness_eval("the quick brown fox", "the quick brown fox").unwrap();
-        let score = result["faithfulness_score"].as_f64().unwrap();
-        assert_eq!(score, 1.0);
-        assert_eq!(result["hallucination_risk"], "low");
-    }
-
-    #[test]
-    fn faithfulness_empty_source() {
-        let result = EvaluationTools::faithfulness_eval("", "some output").unwrap();
-        assert_eq!(result["faithfulness_score"], 0.0);
-    }
-
-    #[test]
-    fn self_consistency_single_result() {
-        let result = EvaluationTools::self_consistency_eval(&["only one".into()]).unwrap();
-        assert_eq!(result["consistency"], 1.0);
-        assert_eq!(result["samples"], 1);
-    }
-
-    #[test]
-    fn self_consistency_identical_results() {
-        let result = EvaluationTools::self_consistency_eval(&[
-            "same text here".into(),
-            "same text here".into(),
-            "same text here".into(),
-        ]).unwrap();
-        let score = result["consistency_score"].as_f64().unwrap();
-        assert!(score > 0.9, "identical results should have high consistency, got {score}");
-    }
-
-    #[test]
-    fn g_eval_matching_criterion() {
-        let result = EvaluationTools::g_eval("quality accuracy output", &[("quality", 1.0), ("accuracy", 0.5)]).unwrap();
-        let total = result["total_score"].as_f64().unwrap();
-        assert!(total > 0.0, "matching criteria should yield positive score, got {total}");
-    }
-}
-
 pub fn register_evaluation_tools() -> std::collections::HashMap<String, super::ToolHandler> {
     use std::collections::HashMap;
     let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
@@ -264,4 +192,93 @@ pub fn register_evaluation_tools() -> std::collections::HashMap<String, super::T
         })
     });
     t
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn action_review_matches() {
+        let result = EvaluationTools::action_review("search", "found", "result found ok").unwrap();
+        assert_eq!(result["matches_expectation"], true);
+        assert_eq!(result["action"], "search");
+    }
+
+    #[test]
+    fn action_review_no_match() {
+        let result = EvaluationTools::action_review("search", "xyz", "abc def").unwrap();
+        assert_eq!(result["matches_expectation"], false);
+    }
+
+    #[test]
+    fn llm_reflection_all_met() {
+        let result = EvaluationTools::llm_reflection(
+            "quality accuracy completeness",
+            &["quality", "accuracy"],
+        )
+        .unwrap();
+        assert_eq!(result["total_criteria"], 2);
+        assert_eq!(result["met"], 2);
+    }
+
+    #[test]
+    fn llm_reflection_none_met() {
+        let result =
+            EvaluationTools::llm_reflection("hello world", &["quality", "accuracy"]).unwrap();
+        assert_eq!(result["met"], 0);
+    }
+
+    #[test]
+    fn faithfulness_identical_text() {
+        let result =
+            EvaluationTools::faithfulness_eval("the quick brown fox", "the quick brown fox")
+                .unwrap();
+        let score = result["faithfulness_score"].as_f64().unwrap();
+        assert_eq!(score, 1.0);
+        assert_eq!(result["hallucination_risk"], "low");
+    }
+
+    #[test]
+    fn faithfulness_empty_source() {
+        let result = EvaluationTools::faithfulness_eval("", "some output").unwrap();
+        assert_eq!(result["faithfulness_score"], 0.0);
+    }
+
+    #[test]
+    fn self_consistency_single_result() {
+        let result = EvaluationTools::self_consistency_eval(&["only one".into()]).unwrap();
+        assert_eq!(result["consistency"], 1.0);
+        assert_eq!(result["samples"], 1);
+    }
+
+    #[test]
+    fn self_consistency_identical_results() {
+        let result = EvaluationTools::self_consistency_eval(&[
+            "same text here".into(),
+            "same text here".into(),
+            "same text here".into(),
+        ])
+        .unwrap();
+        let score = result["consistency_score"].as_f64().unwrap();
+        assert!(
+            score > 0.9,
+            "identical results should have high consistency, got {score}"
+        );
+    }
+
+    #[test]
+    fn g_eval_matching_criterion() {
+        let result = EvaluationTools::g_eval(
+            "quality accuracy output",
+            &[("quality", 1.0), ("accuracy", 0.5)],
+        )
+        .unwrap();
+        let total = result["total_score"].as_f64().unwrap();
+        assert!(
+            total > 0.0,
+            "matching criteria should yield positive score, got {total}"
+        );
+    }
 }

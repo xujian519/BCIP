@@ -343,7 +343,9 @@ impl QualityTools {
     /// - 不能引用自身或后续权利要求
     /// - 引用链不能存在循环引用
     /// - 至少包含一条独立权利要求
-    pub fn claim_dependency_validator(input: ClaimDependencyInput) -> Result<serde_json::Value, String> {
+    pub fn claim_dependency_validator(
+        input: ClaimDependencyInput,
+    ) -> Result<serde_json::Value, String> {
         let claims = &input.claims;
         if claims.is_empty() {
             return Err("权利要求列表不能为空".to_string());
@@ -361,7 +363,8 @@ impl QualityTools {
             }
 
             // 提取所有引用编号
-            let refs: Vec<usize> = re.captures_iter(claim)
+            let refs: Vec<usize> = re
+                .captures_iter(claim)
                 .filter_map(|cap| cap.get(1)?.as_str().parse().ok())
                 .collect();
 
@@ -373,20 +376,28 @@ impl QualityTools {
             for &ref_num in &refs {
                 // 检查引用编号在有效范围内
                 if ref_num == 0 || ref_num > claims.len() {
-                    issues.push(format!("权利要求{}: 引用了不存在的权利要求{}", claim_num, ref_num));
+                    issues.push(format!(
+                        "权利要求{}: 引用了不存在的权利要求{}",
+                        claim_num, ref_num
+                    ));
                 }
                 // 检查不能引用自身或后续权利要求
                 else if ref_num >= claim_num {
-                    issues.push(format!("权利要求{}: 只能引用在前的权利要求（引用了{}）", claim_num, ref_num));
+                    issues.push(format!(
+                        "权利要求{}: 只能引用在前的权利要求（引用了{}）",
+                        claim_num, ref_num
+                    ));
                 }
             }
         }
 
         // 检查引用链是否有环（传递依赖）
         // 构建引用图
-        let mut graph: std::collections::HashMap<usize, Vec<usize>> = std::collections::HashMap::new();
+        let mut graph: std::collections::HashMap<usize, Vec<usize>> =
+            std::collections::HashMap::new();
         for (i, claim) in claims.iter().enumerate() {
-            let refs: Vec<usize> = re.captures_iter(claim)
+            let refs: Vec<usize> = re
+                .captures_iter(claim)
                 .filter_map(|cap| cap.get(1)?.as_str().parse().ok())
                 .filter(|&r| r >= 1 && r <= claims.len() && r <= i)
                 .collect();
@@ -430,7 +441,8 @@ impl QualityTools {
         }
 
         // 检查独立权利要求存在性
-        let independent_count = claims.iter()
+        let independent_count = claims
+            .iter()
             .filter(|c| !c.contains("根据权利要求"))
             .count();
         if independent_count == 0 {
@@ -445,6 +457,63 @@ impl QualityTools {
             "dependent_claims": claims.len() - independent_count,
         }))
     }
+}
+
+pub fn register_quality_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("UnifiedQuality".into(), |input| {
+        Box::pin(async move {
+            let parsed: QualityCheckInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::unified_quality(parsed)
+        })
+    });
+    t.insert("SubjectMatterChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: SubjectMatterInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::subject_matter_checker(parsed)
+        })
+    });
+    t.insert("UnityChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: UnityInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::unity_checker(parsed)
+        })
+    });
+    t.insert("SpecFormalityChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: SpecFormalityInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::spec_formality_checker(parsed)
+        })
+    });
+    t.insert("LegalLanguageChecker".into(), |input| {
+        Box::pin(async move {
+            let parsed: LegalLanguageInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::legal_language_checker(parsed)
+        })
+    });
+    t.insert("FormatRules".into(), |input| {
+        Box::pin(async move {
+            let content = input.get("content").and_then(|v| v.as_str()).unwrap_or("");
+            let doc_type = input
+                .get("doc_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("generic");
+            QualityTools::format_rules(content, doc_type)
+        })
+    });
+    t.insert("ClaimDependencyValidator".into(), |input| {
+        Box::pin(async move {
+            let parsed: ClaimDependencyInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            QualityTools::claim_dependency_validator(parsed)
+        })
+    });
+    t
 }
 
 #[cfg(test)]
@@ -815,71 +884,4 @@ mod tests {
         let result = QualityTools::legal_language_checker(input).unwrap();
         assert_eq!(result["passed"], false);
     }
-}
-
-/// 注册质量检测工具到工具注册表。
-///
-/// 注册的工具列表：
-/// - `UnifiedQuality`: 统一质量检查
-/// - `SubjectMatterChecker`: 客体审查
-/// - `UnityChecker`: 单一性检查
-/// - `SpecFormalityChecker`: 说明书形式审查
-/// - `LegalLanguageChecker`: 法律用语合规检查
-/// - `FormatRules`: 格式规则检查
-/// - `ClaimDependencyValidator`: 权利要求依赖验证
-pub fn register_quality_tools() -> std::collections::HashMap<String, super::ToolHandler> {
-    use std::collections::HashMap;
-    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
-    t.insert("UnifiedQuality".into(), |input| {
-        Box::pin(async move {
-            let parsed: QualityCheckInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::unified_quality(parsed)
-        })
-    });
-    t.insert("SubjectMatterChecker".into(), |input| {
-        Box::pin(async move {
-            let parsed: SubjectMatterInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::subject_matter_checker(parsed)
-        })
-    });
-    t.insert("UnityChecker".into(), |input| {
-        Box::pin(async move {
-            let parsed: UnityInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::unity_checker(parsed)
-        })
-    });
-    t.insert("SpecFormalityChecker".into(), |input| {
-        Box::pin(async move {
-            let parsed: SpecFormalityInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::spec_formality_checker(parsed)
-        })
-    });
-    t.insert("LegalLanguageChecker".into(), |input| {
-        Box::pin(async move {
-            let parsed: LegalLanguageInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::legal_language_checker(parsed)
-        })
-    });
-    t.insert("FormatRules".into(), |input| {
-        Box::pin(async move {
-            let content = input.get("content").and_then(|v| v.as_str()).unwrap_or("");
-            let doc_type = input
-                .get("doc_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("generic");
-            QualityTools::format_rules(content, doc_type)
-        })
-    });
-    t.insert("ClaimDependencyValidator".into(), |input| {
-        Box::pin(async move {
-            let parsed: ClaimDependencyInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            QualityTools::claim_dependency_validator(parsed)
-        })
-    });
-    t
 }

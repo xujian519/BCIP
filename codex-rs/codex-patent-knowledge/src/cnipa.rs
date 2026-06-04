@@ -23,7 +23,7 @@ pub struct CnipaSearchHit {
 pub struct CnipaSearchBuilder;
 
 impl CnipaSearchBuilder {
-    pub const BASE_URL: &str = "http://epub.cnipa.gov.cn/patentoutline.action";
+    pub const BASE_URL: &str = "https://epub.cnipa.gov.cn/patentoutline.action";
 
     /// 构建关键词搜索 URL
     pub fn search_by_keyword(keyword: &str) -> String {

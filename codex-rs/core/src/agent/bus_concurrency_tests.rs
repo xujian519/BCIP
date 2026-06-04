@@ -84,7 +84,8 @@ async fn concurrent_topic_subscribe_unsubscribe() {
         for i in 0..100 {
             bus_b
                 .publish(test_path("publisher"), "stress.topic", serde_json::json!(i))
-                .await.unwrap();
+                .await
+                .unwrap();
             tokio::task::yield_now().await;
         }
     });

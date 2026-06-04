@@ -67,42 +67,54 @@ mod tests {
 
     #[test]
     fn kg_db_path_default() {
-        unsafe { std::env::remove_var("BCIP_ASSETS_DIR"); }
+        unsafe {
+            std::env::remove_var("BCIP_ASSETS_DIR");
+        }
         let path = kg_db_path();
         assert!(path.contains("patent_kg.db"));
     }
 
     #[test]
     fn law_db_path_default() {
-        unsafe { std::env::remove_var("BCIP_ASSETS_DIR"); }
+        unsafe {
+            std::env::remove_var("BCIP_ASSETS_DIR");
+        }
         let path = law_db_path();
         assert!(path.contains("laws.db"));
     }
 
     #[test]
     fn card_index_path_default() {
-        unsafe { std::env::remove_var("BCIP_ASSETS_DIR"); }
+        unsafe {
+            std::env::remove_var("BCIP_ASSETS_DIR");
+        }
         let path = card_index_path();
         assert!(path.contains("card-index.json"));
     }
 
     #[test]
     fn kb_root_default() {
-        unsafe { std::env::remove_var("BCIP_ASSETS_DIR"); }
+        unsafe {
+            std::env::remove_var("BCIP_ASSETS_DIR");
+        }
         let root = kb_root();
         assert_eq!(root, DEFAULT_ASSETS_DIR);
     }
 
     #[test]
     fn mlx_url_default() {
-        unsafe { std::env::remove_var("BCIP_MLX_URL"); }
+        unsafe {
+            std::env::remove_var("BCIP_MLX_URL");
+        }
         let url = mlx_url();
         assert_eq!(url, "http://localhost:8009");
     }
 
     #[test]
     fn mlx_model_default() {
-        unsafe { std::env::remove_var("BCIP_MLX_MODEL"); }
+        unsafe {
+            std::env::remove_var("BCIP_MLX_MODEL");
+        }
         let model = mlx_model();
         assert_eq!(model, "bge-m3-mlx-8bit");
     }

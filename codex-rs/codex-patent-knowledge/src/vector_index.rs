@@ -147,11 +147,11 @@ impl VectorIndex {
 
             if heap.len() < top_k {
                 heap.push(HeapEntry { score, idx: i });
-            } else if let Some(top) = heap.peek() {
-                if score > top.score {
-                    heap.pop();
-                    heap.push(HeapEntry { score, idx: i });
-                }
+            } else if let Some(top) = heap.peek()
+                && score > top.score
+            {
+                heap.pop();
+                heap.push(HeapEntry { score, idx: i });
             }
         }
 

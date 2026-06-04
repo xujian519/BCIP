@@ -6,7 +6,8 @@
 use std::sync::Arc;
 
 use super::backoff::ExponentialBackoff;
-use super::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
+use super::circuit_breaker::CircuitBreaker;
+use super::circuit_breaker::CircuitBreakerConfig;
 
 /// 弹性调用配置。
 #[derive(Debug, Clone)]
@@ -196,9 +197,11 @@ pub async fn sleep_backoff_async(backoff: &ExponentialBackoff, attempt: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resilience::circuit_breaker::{CircuitBreakerConfig, StdCircuitBreaker};
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use crate::resilience::circuit_breaker::CircuitBreakerConfig;
+    use crate::resilience::circuit_breaker::StdCircuitBreaker;
     use std::sync::Arc;
+    use std::sync::atomic::AtomicU32;
+    use std::sync::atomic::Ordering;
 
     fn test_breaker() -> Arc<dyn CircuitBreaker> {
         Arc::new(StdCircuitBreaker::new(
@@ -216,8 +219,7 @@ mod tests {
     #[test]
     fn call_with_breaker_success() {
         let breaker = test_breaker();
-        let result: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || Ok(42));
+        let result: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || Ok(42));
         assert_eq!(result.unwrap(), 42);
     }
 
@@ -225,22 +227,20 @@ mod tests {
     fn call_with_breaker_failure_records() {
         let breaker = test_breaker();
         let call_count = AtomicU32::new(0);
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                call_count.fetch_add(1, Ordering::SeqCst);
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                call_count.fetch_add(1, Ordering::SeqCst);
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            call_count.fetch_add(1, Ordering::SeqCst);
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            call_count.fetch_add(1, Ordering::SeqCst);
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
 
         // 2 failures → breaker should be Open
         assert_eq!(
@@ -255,28 +255,25 @@ mod tests {
         let breaker = test_breaker();
 
         // 触发熔断
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
 
         // 第3次应该被拒绝（不调用闭包）
         let called = AtomicU32::new(0);
-        let result: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                called.fetch_add(1, Ordering::SeqCst);
-                Ok(1)
-            });
+        let result: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            called.fetch_add(1, Ordering::SeqCst);
+            Ok(1)
+        });
         assert!(result.is_err());
         assert_eq!(called.load(Ordering::SeqCst), 0);
     }
@@ -286,27 +283,24 @@ mod tests {
         let breaker = test_breaker();
 
         // 1 failure
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
 
         // 1 success → resets consecutive
-        let result: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || Ok(42));
+        let result: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || Ok(42));
         assert_eq!(result.unwrap(), 42);
 
         // 1 more failure → NOT tripped (consecutive was reset)
-        let _: Result<i32, CircuitOpenError> =
-            call_with_breaker(&breaker, "test", || {
-                Err(CircuitOpenError {
-                    service: "test".into(),
-                    state: super::super::circuit_breaker::CircuitState::Open,
-                })
-            });
+        let _: Result<i32, CircuitOpenError> = call_with_breaker(&breaker, "test", || {
+            Err(CircuitOpenError {
+                service: "test".into(),
+                state: super::super::circuit_breaker::CircuitState::Open,
+            })
+        });
 
         // Should still be Closed
         assert_eq!(
@@ -318,12 +312,11 @@ mod tests {
     #[tokio::test]
     async fn call_with_breaker_async_success() {
         let breaker = test_breaker();
-        let result: Result<i32, CircuitOpenError> = call_with_breaker_async(
-            &breaker,
-            "test",
-            || async { Ok::<i32, CircuitOpenError>(42) },
-        )
-        .await;
+        let result: Result<i32, CircuitOpenError> =
+            call_with_breaker_async(&breaker, "test", || async {
+                Ok::<i32, CircuitOpenError>(42)
+            })
+            .await;
         assert_eq!(result.unwrap(), 42);
     }
 
@@ -349,8 +342,10 @@ mod tests {
 
         // 应被拒绝
         let result: Result<i32, CircuitOpenError> =
-            call_with_breaker_async(&breaker, "test", || async { Ok::<i32, CircuitOpenError>(42) })
-                .await;
+            call_with_breaker_async(&breaker, "test", || async {
+                Ok::<i32, CircuitOpenError>(42)
+            })
+            .await;
         assert!(result.is_err());
     }
 

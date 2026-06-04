@@ -946,7 +946,10 @@ mod tests {
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
         match check {
-            RuleCheck::DivisionalRules { timing, constraints } => {
+            RuleCheck::DivisionalRules {
+                timing,
+                constraints,
+            } => {
                 assert_eq!(timing, vec!["母案授权前"]);
                 assert_eq!(constraints, vec!["不得超出母案范围"]);
             }
@@ -967,7 +970,10 @@ mod tests {
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
         match check {
-            RuleCheck::InfringementAnalysis { principles, defenses } => {
+            RuleCheck::InfringementAnalysis {
+                principles,
+                defenses,
+            } => {
                 assert_eq!(principles.len(), 1);
                 assert_eq!(defenses.len(), 1);
                 assert_eq!(principles[0].principle, "全面覆盖");

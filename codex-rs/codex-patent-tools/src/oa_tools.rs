@@ -222,6 +222,46 @@ impl OaTools {
     }
 }
 
+pub fn register_oa_tools() -> std::collections::HashMap<String, super::ToolHandler> {
+    use std::collections::HashMap;
+    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
+    t.insert("OaParser".into(), |input| {
+        Box::pin(async move {
+            let parsed: OaParseInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            OaTools::oa_parser(parsed)
+        })
+    });
+    t.insert("OaStrategist".into(), |input| {
+        Box::pin(async move {
+            let parsed: OaStrategyInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            OaTools::oa_strategist(parsed)
+        })
+    });
+    t.insert("PatentResponder".into(), |input| {
+        Box::pin(async move {
+            let parsed: ResponderInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            OaTools::patent_responder(parsed)
+        })
+    });
+    t.insert("StrategyArgumentGenerator".into(), |input| {
+        Box::pin(async move {
+            let parsed: ArgumentInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            OaTools::strategy_argument_generator(parsed)
+        })
+    });
+    t.insert("ResponseTemplate".into(), |input| {
+        Box::pin(async move {
+            let parsed: TemplateInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            OaTools::response_template(parsed)
+        })
+    });
+    t
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -232,7 +272,10 @@ mod tests {
 
     #[test]
     fn oa_type_str_novelty() {
-        assert_eq!(OaTools::oa_type_str(&codex_patent_core::OaType::Novelty), "新颖性");
+        assert_eq!(
+            OaTools::oa_type_str(&codex_patent_core::OaType::Novelty),
+            "新颖性"
+        );
     }
 
     #[test]
@@ -255,11 +298,7 @@ mod tests {
 
     #[test]
     fn build_argument_novelty_with_differences() {
-        let result = OaTools::build_argument(
-            "novelty",
-            &["特征A".into(), "特征B".into()],
-            &[],
-        );
+        let result = OaTools::build_argument("novelty", &["特征A".into(), "特征B".into()], &[]);
         assert!(result.contains("特征A、特征B"));
         assert!(result.contains("新颖性"));
     }
@@ -298,7 +337,8 @@ mod tests {
 
     #[test]
     fn get_response_template_argue() {
-        let tpl = OaTools::get_response_template(&codex_patent_core::OaType::InventiveStep, "argue");
+        let tpl =
+            OaTools::get_response_template(&codex_patent_core::OaType::InventiveStep, "argue");
         assert!(tpl.contains("区别技术特征"));
     }
 
@@ -367,7 +407,8 @@ mod tests {
     #[test]
     fn patent_responder_minimal() {
         let input = ResponderInput {
-            oa_content: "审查意见：本申请不具备新颖性。对比文件CN123456A公开了全部技术特征。".into(),
+            oa_content: "审查意见：本申请不具备新颖性。对比文件CN123456A公开了全部技术特征。"
+                .into(),
             strategy: None,
             patent_info: None,
         };
@@ -376,44 +417,4 @@ mod tests {
         assert!(result["confidence"].is_number());
         assert!(result["template"].is_string());
     }
-}
-
-pub fn register_oa_tools() -> std::collections::HashMap<String, super::ToolHandler> {
-    use std::collections::HashMap;
-    let mut t: HashMap<String, super::ToolHandler> = HashMap::new();
-    t.insert("OaParser".into(), |input| {
-        Box::pin(async move {
-            let parsed: OaParseInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            OaTools::oa_parser(parsed)
-        })
-    });
-    t.insert("OaStrategist".into(), |input| {
-        Box::pin(async move {
-            let parsed: OaStrategyInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            OaTools::oa_strategist(parsed)
-        })
-    });
-    t.insert("PatentResponder".into(), |input| {
-        Box::pin(async move {
-            let parsed: ResponderInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            OaTools::patent_responder(parsed)
-        })
-    });
-    t.insert("StrategyArgumentGenerator".into(), |input| {
-        Box::pin(async move {
-            let parsed: ArgumentInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            OaTools::strategy_argument_generator(parsed)
-        })
-    });
-    t.insert("ResponseTemplate".into(), |input| {
-        Box::pin(async move {
-            let parsed: TemplateInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            OaTools::response_template(parsed)
-        })
-    });
-    t
 }

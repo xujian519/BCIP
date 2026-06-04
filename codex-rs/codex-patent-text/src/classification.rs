@@ -1,5 +1,3 @@
-use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
 
 /// IPC 分类结果。

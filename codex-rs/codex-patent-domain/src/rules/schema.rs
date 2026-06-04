@@ -144,7 +144,9 @@ field: claims
 value: 1
 "#;
         let check: Check = serde_yaml::from_str(yaml_min).unwrap();
-        assert!(matches!(check, Check::MinLength { field, value } if field == "claims" && value == 1));
+        assert!(
+            matches!(check, Check::MinLength { field, value } if field == "claims" && value == 1)
+        );
 
         let yaml_max = r#"
 type: max_length
@@ -152,7 +154,9 @@ field: abstract_text
 value: 300
 "#;
         let check: Check = serde_yaml::from_str(yaml_max).unwrap();
-        assert!(matches!(check, Check::MaxLength { field, value } if field == "abstract_text" && value == 300));
+        assert!(
+            matches!(check, Check::MaxLength { field, value } if field == "abstract_text" && value == 300)
+        );
     }
 
     #[test]

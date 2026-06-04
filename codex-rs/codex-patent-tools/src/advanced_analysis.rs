@@ -223,7 +223,10 @@ mod tests {
         let result = AdvancedAnalysisTools::semantic_compare(input).unwrap();
         assert_eq!(result["mode"], "lexical");
         let lex = result["lexical_similarity"].as_f64().unwrap();
-        assert!(lex > 0.9, "identical text should have high lexical similarity, got {lex}");
+        assert!(
+            lex > 0.9,
+            "identical text should have high lexical similarity, got {lex}"
+        );
     }
 
     #[test]
@@ -236,7 +239,10 @@ mod tests {
         let result = AdvancedAnalysisTools::semantic_compare(input).unwrap();
         assert_eq!(result["mode"], "hybrid");
         let hybrid = result["hybrid_score"].as_f64().unwrap();
-        assert!(hybrid < 1.0, "different text should have lower hybrid score, got {hybrid}");
+        assert!(
+            hybrid < 1.0,
+            "different text should have lower hybrid score, got {hybrid}"
+        );
     }
 
     #[test]
@@ -271,7 +277,10 @@ mod tests {
         };
         let result = AdvancedAnalysisTools::success_predictor(input).unwrap();
         let prob = result["success_probability"].as_f64().unwrap();
-        assert!(prob > 0.5, "with differences + effect + 3 args, should be > 0.5, got {prob}");
+        assert!(
+            prob > 0.5,
+            "with differences + effect + 3 args, should be > 0.5, got {prob}"
+        );
         assert_eq!(result["assessment"], "likely_success");
     }
 
@@ -285,7 +294,10 @@ mod tests {
         };
         let result = AdvancedAnalysisTools::success_predictor(input).unwrap();
         let prob = result["success_probability"].as_f64().unwrap();
-        assert!((0.3..=0.6).contains(&prob), "base case should be around 0.5, got {prob}");
+        assert!(
+            (0.3..=0.6).contains(&prob),
+            "base case should be around 0.5, got {prob}"
+        );
         assert_eq!(result["score_breakdown"]["rejection_type_impact"], 0.0);
     }
 }

@@ -111,7 +111,8 @@ async fn no_deadlock_concurrent_bus_publish_and_topic_subscribe() {
                     "concurrent.topic",
                     serde_json::json!(i),
                 )
-                .await.unwrap();
+                .await
+                .unwrap();
             if i % 10 == 0 {
                 tokio::task::yield_now().await;
             }
