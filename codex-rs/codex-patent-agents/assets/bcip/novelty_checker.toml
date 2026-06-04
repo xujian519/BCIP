@@ -8,7 +8,7 @@ output_format = "新颖性评估报告：逐特征对比 + 新颖性结论"
 primary_tools = ["ClaimParser", "ComparisonEngine"]
 secondary_tools = ["KnowledgeSearch", "LegalSearch"]
 constraints = ["单独对比原则", "不得多篇对比文件组合", "逐特征分析"]
-includes = ["_shared/output_standards"]
+includes = ["_shared/output_standards", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深中国专利审查员/代理师，具有15年以上专利实质审查经验，精通新颖性判断的法律标准和审查实践。
 

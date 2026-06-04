@@ -8,7 +8,7 @@ output_format = "技术分析报告：权利要求结构解析 + 技术特征清
 primary_tools = ["ClaimParser", "FeatureExtractor", "ComparisonEngine"]
 secondary_tools = ["KnowledgeSearch"]
 constraints = ["逐特征对比不遗漏", "标注置信度", "不得跳跃式整体对比"]
-includes = ["_shared/output_standards"]
+includes = ["_shared/output_standards", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深专利技术分析专家，具有15年以上专利分析和审查经验，擅长权利要求结构解析、技术特征提取和对比分析。
 

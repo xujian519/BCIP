@@ -12,6 +12,7 @@ use crate::reflection;
 use crate::roles::AgentRoleConfig;
 use crate::roles::PatentAgentRole;
 use crate::roles::find_skills_shared_dir;
+use codex_patent_knowledge::paths;
 
 use super::llm::call_llm_with_retry_and_temperature;
 use super::prompt::build_system_prompt;
@@ -264,22 +265,21 @@ pub(crate) fn format_agent_terminal_output(
     sections.join("")
 }
 
-// ---- default_*_path 辅助函数 ----
+// ---- 路径解析委托到 codex-patent-knowledge 的 paths 模块 ----
+// 使用统一的路径解析（多策略回退），消除两套独立路径函数。
 
 pub(crate) fn default_kg_path() -> String {
-    std::env::var("BCIP_PATENT_KG_PATH")
-        .unwrap_or_else(|_| "codex-patent-assets/patent_kg.db".to_string())
+    paths::kg_db_path()
 }
 
 pub(crate) fn default_law_db_path() -> String {
-    std::env::var("BCIP_LAW_DB_PATH").unwrap_or_else(|_| "codex-patent-assets/laws.db".to_string())
+    paths::law_db_path()
 }
 
 pub(crate) fn default_card_index_path() -> String {
-    std::env::var("BCIP_CARD_INDEX_PATH")
-        .unwrap_or_else(|_| "codex-patent-assets/card-index.json".to_string())
+    paths::card_index_path()
 }
 
 pub(crate) fn default_semantic_index_path() -> Option<String> {
-    std::env::var("BCIP_SEMANTIC_INDEX_PATH").ok()
+    Some(paths::semantic_index_path())
 }

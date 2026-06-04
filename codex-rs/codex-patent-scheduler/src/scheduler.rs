@@ -124,15 +124,42 @@ impl CronScheduler {
     }
 
     pub async fn run_loop(tasks: Arc<Mutex<Vec<CronTask>>>, on_fire: impl Fn(&CronTask)) -> ! {
-        let check_interval = tokio::time::Duration::from_secs(1);
-
         loop {
-            tokio::time::sleep(check_interval).await;
             let now = Utc::now();
 
+            let sleep_duration = {
+                let tasks_lock = tasks.lock().await;
+                let mut nearest = None;
+
+                for task in tasks_lock.iter() {
+                    if !task.enabled {
+                        continue;
+                    }
+
+                    if let Ok(expr) = CronExpression::parse(&task.cron) {
+                        if let Some(next) = expr.next_run(now) {
+                            let dur = (next - now)
+                                .to_std()
+                                .unwrap_or(std::time::Duration::from_secs(1));
+                            nearest = Some(match nearest {
+                                Some(prev) if dur < prev => dur,
+                                None => dur,
+                                Some(prev) => prev,
+                            });
+                        }
+                    }
+                }
+
+                nearest.unwrap_or(std::time::Duration::from_secs(60))
+            };
+
+            tokio::time::sleep(sleep_duration).await;
+
+            let now = Utc::now();
             let fired = {
                 let mut tasks_lock = tasks.lock().await;
                 let mut fired = Vec::new();
+
                 for task in tasks_lock.iter_mut() {
                     if !task.enabled {
                         continue;
@@ -143,7 +170,9 @@ impl CronScheduler {
                         Err(_) => continue,
                     };
 
-                    let from = task.last_fired_at.unwrap_or(now);
+                    let from = task
+                        .last_fired_at
+                        .unwrap_or(now - chrono::TimeDelta::minutes(1));
                     if let Some(next) = expr.next_run(from)
                         && next <= now
                     {

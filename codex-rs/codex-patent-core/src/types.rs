@@ -510,58 +510,6 @@ pub struct ClaimDraft {
 // ── 法律世界模型三层架构 ──
 // 参考: Athena constitution.py 三层架构（基础法→专利专业法→司法案例）
 
-/// 法律层级类型（三层架构）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LegalLayer {
-    /// 第一层：基础法律层（民法典、民诉法等通用法律 + 司法解释）
-    FoundationLaw,
-    /// 第二层：专利专业层（专利法、审查指南、复审无效决定书）
-    PatentProfessional,
-    /// 第三层：司法案例层（法院判决文书）
-    JudicialCase,
-}
-
-impl LegalLayer {
-    pub fn weight(&self) -> u8 {
-        match self {
-            Self::FoundationLaw => 1,
-            Self::PatentProfessional => 2,
-            Self::JudicialCase => 3,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::FoundationLaw => "foundation_law",
-            Self::PatentProfessional => "patent_professional",
-            Self::JudicialCase => "judicial_case",
-        }
-    }
-}
-
-/// 法律实体类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LegalEntityType {
-    Law,
-    Regulation,
-    Guideline,
-    Interpretation,
-    InvalidationDecision,
-    Judgment,
-    CourtVerdict,
-}
-
-/// 知识图谱节点关系类别（跨层/同层/跨域）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RelationCategory {
-    LayerReference,
-    PeerReference,
-    CrossDomainMapping,
-}
-
 /// 工具所属业务域，用于角色感知的工具裁剪。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -579,31 +527,4 @@ pub enum ToolDomain {
     Evaluation,
     Simulator,
     Council,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn legal_layer_weight_order() {
-        assert!(LegalLayer::FoundationLaw.weight() < LegalLayer::PatentProfessional.weight());
-        assert!(LegalLayer::PatentProfessional.weight() < LegalLayer::JudicialCase.weight());
-    }
-
-    #[test]
-    fn legal_layer_serde_roundtrip() {
-        let layer = LegalLayer::PatentProfessional;
-        let json = serde_json::to_string(&layer).unwrap();
-        assert_eq!(json, "\"patent_professional\"");
-        let back: LegalLayer = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, LegalLayer::PatentProfessional);
-    }
-
-    #[test]
-    fn legal_entity_type_discrimination() {
-        let law = serde_json::to_string(&LegalEntityType::Law).unwrap();
-        let guideline = serde_json::to_string(&LegalEntityType::Guideline).unwrap();
-        assert_ne!(law, guideline);
-    }
 }

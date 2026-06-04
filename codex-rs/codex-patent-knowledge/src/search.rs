@@ -89,11 +89,32 @@ impl UnifiedSearch {
         card_index_path: Option<&str>,
     ) -> Self {
         let kg = kg_path
-            .and_then(|p| SqliteKnowledgeGraph::open(p).ok())
+            .and_then(|p| {
+                SqliteKnowledgeGraph::open(p)
+                    .map_err(|e| {
+                        tracing::warn!("打开知识图谱失败 (路径={p:?}): {e}");
+                        e
+                    })
+                    .ok()
+            })
             .map(Mutex::new);
-        let law_db = law_db_path.and_then(|p| LawDatabase::open(p).ok());
+        let law_db = law_db_path.and_then(|p| {
+            LawDatabase::open(p)
+                .map_err(|e| {
+                    tracing::warn!("打开法规数据库失败 (路径={p:?}): {e}");
+                    e
+                })
+                .ok()
+        });
         let card_index = card_index_path
-            .and_then(|p| CardIndex::load(p).ok())
+            .and_then(|p| {
+                CardIndex::load(p)
+                    .map_err(|e| {
+                        tracing::warn!("加载知识卡片失败 (路径={p:?}): {e}");
+                        e
+                    })
+                    .ok()
+            })
             .map(Mutex::new);
         Self {
             kg,
@@ -118,15 +139,47 @@ impl UnifiedSearch {
         mlx_model: Option<&str>,
     ) -> Self {
         let kg = kg_path
-            .and_then(|p| SqliteKnowledgeGraph::open(p).ok())
+            .and_then(|p| {
+                SqliteKnowledgeGraph::open(p)
+                    .map_err(|e| {
+                        tracing::warn!("打开知识图谱失败 (路径={p:?}): {e}");
+                        e
+                    })
+                    .ok()
+            })
             .map(Mutex::new);
-        let law_db = law_db_path.and_then(|p| LawDatabase::open(p).ok());
+        let law_db = law_db_path.and_then(|p| {
+            LawDatabase::open(p)
+                .map_err(|e| {
+                    tracing::warn!("打开法规数据库失败 (路径={p:?}): {e}");
+                    e
+                })
+                .ok()
+        });
         let card_index = card_index_path
-            .and_then(|p| CardIndex::load(p).ok())
+            .and_then(|p| {
+                CardIndex::load(p)
+                    .map_err(|e| {
+                        tracing::warn!("加载知识卡片失败 (路径={p:?}): {e}");
+                        e
+                    })
+                    .ok()
+            })
             .map(Mutex::new);
-        let vector_index = semantic_index_path.and_then(|p| VectorIndex::open(p).ok());
-        let embedding_client = mlx_base_url.zip(mlx_api_key).map(|(url, key)| {
-            EmbeddingClient::new(url, key, mlx_model.unwrap_or("bge-m3-mlx-8bit"))
+        let vector_index = semantic_index_path.and_then(|p| {
+            VectorIndex::open(p)
+                .map_err(|e| {
+                    tracing::warn!("打开语义向量索引失败 (路径={p:?}): {e}");
+                    e
+                })
+                .ok()
+        });
+        let embedding_client = mlx_base_url.map(|url| {
+            EmbeddingClient::new(
+                url,
+                mlx_api_key.map(|k| k.to_string()),
+                mlx_model.unwrap_or("bge-m3-mlx-8bit"),
+            )
         });
         let vector_available =
             vector_index.is_some() && embedding_client.as_ref().is_some_and(|c| c.health_check());

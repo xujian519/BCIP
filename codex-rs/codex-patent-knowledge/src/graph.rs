@@ -95,7 +95,44 @@ impl SqliteKnowledgeGraph {
         })
     }
 
-    /// FTS5 全文搜索节点，支持按节点类型过滤，结果缓存 100 条
+    /// 检查字符串是否包含 CJK 字符
+    fn has_cjk(text: &str) -> bool {
+        text.chars().any(|c| {
+            let cp = c as u32;
+            (0x4E00..=0x9FFF).contains(&cp) // CJK Unified Ideographs
+                || (0x3400..=0x4DBF).contains(&cp) // Extension A
+                || (0x2E80..=0x2EFF).contains(&cp) // CJK Radicals
+                || (0xF900..=0xFAFF).contains(&cp) // Compatibility Ideographs
+        })
+    }
+
+    /// 使用 LIKE 进行回退搜索（当 FTS5 对 CJK 查询返回空时使用）
+    fn like_fallback_search(
+        &self,
+        query: &str,
+        node_type: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<KgNode>, String> {
+        let pattern = format!("%{}%", query.replace('%', "\\%").replace('_', "\\_"));
+        if let Some(nt) = node_type {
+            let sql = "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
+                      FROM nodes \
+                      WHERE (title LIKE ?1 ESCAPE '\\' OR content LIKE ?1 ESCAPE '\\') AND node_type = ?2 \
+                      LIMIT ?3";
+            self.query_nodes(sql, params![pattern, nt, limit])
+        } else {
+            let sql = "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
+                      FROM nodes \
+                      WHERE title LIKE ?1 ESCAPE '\\' OR content LIKE ?1 ESCAPE '\\' \
+                      LIMIT ?2";
+            self.query_nodes(sql, params![pattern, limit])
+        }
+    }
+
+    /// FTS5 全文搜索节点，支持按节点类型过滤，结果缓存 100 条。
+    ///
+    /// 当 FTS5 返回空结果且查询包含 CJK 字符时，自动降级为 LIKE 回退搜索
+    /// （因为默认 unicode61 分词器对 CJK 多字词短语搜索支持不佳）。
     pub fn search_nodes(
         &self,
         query: &str,
@@ -132,15 +169,22 @@ impl SqliteKnowledgeGraph {
             self.query_nodes(sql, params![fts_query, limit])?
         };
 
+        let result = if nodes.is_empty() && Self::has_cjk(query) {
+            tracing::debug!("FTS5 对 CJK 查询返回空，降级为 LIKE 回退: query={query}");
+            self.like_fallback_search(query, node_type, limit)?
+        } else {
+            nodes
+        };
+
         {
             let mut cache = self.query_cache.write().unwrap();
             if cache.len() > 100 {
                 cache.clear();
             }
-            cache.insert(cache_key, nodes.clone());
+            cache.insert(cache_key, result.clone());
         }
 
-        Ok(nodes)
+        Ok(result)
     }
 
     /// 清空查询缓存

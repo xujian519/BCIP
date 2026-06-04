@@ -70,7 +70,6 @@ members = [
     "codex-patent-tools",
     "codex-patent-agents",
     "codex-patent-constitutional",
-    "codex-patent-skills",
     "codex-patent-text",
     "codex-patent-scheduler",
     "codex-patent-workflow",
@@ -224,7 +223,6 @@ codex-patent-core = { path = "codex-patent-core" }
 codex-patent-domain = { path = "codex-patent-domain" }
 codex-patent-knowledge = { path = "codex-patent-knowledge" }
 codex-patent-workflow = { path = "codex-patent-workflow" }
-codex-patent-skills = { path = "codex-patent-skills" }
 codex-patent-tools = { path = "codex-patent-tools" }
 codex-patent-scheduler = { path = "codex-patent-scheduler" }
 codex-plugin = { path = "plugin" }

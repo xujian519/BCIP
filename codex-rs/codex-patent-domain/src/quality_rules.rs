@@ -4,8 +4,15 @@
 //! 提供 `vague_words()` 等静态词汇表及 `commercial_terms()` 等动态配置查询。
 
 use serde::Deserialize;
+use std::sync::OnceLock;
 
 const RULES_YAML: &str = include_str!("../../codex-patent-assets/rules/spec-quality.yaml");
+
+static CONFIG_CACHE: OnceLock<SpecQualityConfig> = OnceLock::new();
+
+fn load_config() -> &'static SpecQualityConfig {
+    CONFIG_CACHE.get_or_init(|| serde_yaml::from_str(RULES_YAML).unwrap_or_default())
+}
 
 #[derive(Debug, Deserialize, Default)]
 struct SpecQualityConfig {
@@ -73,10 +80,6 @@ impl Threshold {
     }
 }
 
-fn load_config() -> SpecQualityConfig {
-    serde_yaml::from_str(RULES_YAML).unwrap_or_default()
-}
-
 /// 返回静态定义的模糊词汇列表，如"大约""左右""基本上"等。
 ///
 /// 这些词汇在权利要求中使用时可能影响清晰性判断。
@@ -88,33 +91,33 @@ pub fn vague_words() -> Vec<&'static str> {
 ///
 /// 这些用语在专利文件中应当避免使用，以免引起夸大宣传嫌疑。
 pub fn commercial_terms() -> Vec<String> {
-    load_config().keyword_lists.commercial_terms.items
+    load_config().keyword_lists.commercial_terms.items.clone()
 }
 
 /// 从 YAML 配置加载不确定用语（如"大约""左右"等）。
 ///
 /// 这些用语可能导致权利要求保护范围不清晰。
 pub fn uncertain_terms() -> Vec<String> {
-    load_config().keyword_lists.uncertain_terms.items
+    load_config().keyword_lists.uncertain_terms.items.clone()
 }
 
 /// 从 YAML 配置加载模糊范围用语（如"以上""以下"等）。
 ///
 /// 这些用语在数值范围限定中可能导致保护边界不明确。
 pub fn vague_range_terms() -> Vec<String> {
-    load_config().keyword_lists.vague_range_terms.items
+    load_config().keyword_lists.vague_range_terms.items.clone()
 }
 
 /// 从 YAML 配置加载模糊动作用语（如"适当调整"等）。
 ///
 /// 这些用语在描述技术方案时可能导致可实施性不足。
 pub fn fuzzy_action_terms() -> Vec<String> {
-    load_config().keyword_lists.fuzzy_action_terms.items
+    load_config().keyword_lists.fuzzy_action_terms.items.clone()
 }
 
 /// 获取禁止引用的正则模式字符串，用于检测说明书中对权利要求的直接引用。
 pub fn prohibited_reference_regex() -> String {
-    load_config().patterns.prohibited_references.regex
+    load_config().patterns.prohibited_references.regex.clone()
 }
 
 /// 获取可实施性评估中每项权利要求的最少字数阈值。
@@ -131,10 +134,10 @@ pub fn background_min_chars() -> usize {
 pub fn all_quality_terms() -> Vec<String> {
     let config = load_config();
     let mut terms = Vec::new();
-    terms.extend(config.keyword_lists.commercial_terms.items);
-    terms.extend(config.keyword_lists.uncertain_terms.items);
-    terms.extend(config.keyword_lists.vague_range_terms.items);
-    terms.extend(config.keyword_lists.fuzzy_action_terms.items);
+    terms.extend(config.keyword_lists.commercial_terms.items.clone());
+    terms.extend(config.keyword_lists.uncertain_terms.items.clone());
+    terms.extend(config.keyword_lists.vague_range_terms.items.clone());
+    terms.extend(config.keyword_lists.fuzzy_action_terms.items.clone());
     terms.extend(vague_words().into_iter().map(|s| s.to_string()));
     terms
 }

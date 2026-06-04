@@ -1,21 +1,7 @@
 use std::collections::HashSet;
 
-/// 计算两个向量的余弦相似度。
-pub fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
-    if a.len() != b.len() || a.is_empty() {
-        return 0.0;
-    }
-    let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f64 = a.iter().map(|v| v * v).sum::<f64>().sqrt();
-    let norm_b: f64 = b.iter().map(|v| v * v).sum::<f64>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
-        return 0.0;
-    }
-    dot / (norm_a * norm_b)
-}
-
 /// 计算两个字符串的 Jaccard 相似度（基于字符集合）。
-pub fn jaccard_similarity(a: &str, b: &str) -> f64 {
+pub(crate) fn jaccard_similarity(a: &str, b: &str) -> f64 {
     let set_a: HashSet<char> = a.chars().collect();
     let set_b: HashSet<char> = b.chars().collect();
 
@@ -34,7 +20,7 @@ pub fn jaccard_similarity(a: &str, b: &str) -> f64 {
 }
 
 /// 计算两个字符串的编辑距离（Levenshtein）。
-pub fn edit_distance(a: &str, b: &str) -> usize {
+pub(crate) fn edit_distance(a: &str, b: &str) -> usize {
     let a_len = a.chars().count();
     let b_len = b.chars().count();
 
@@ -68,7 +54,7 @@ pub fn edit_distance(a: &str, b: &str) -> usize {
 }
 
 /// 归一化编辑相似度（1 - 编辑距离/最大长度）。
-pub fn normalized_edit_similarity(a: &str, b: &str) -> f64 {
+pub(crate) fn normalized_edit_similarity(a: &str, b: &str) -> f64 {
     let a_len = a.chars().count();
     let b_len = b.chars().count();
     let max_len = a_len.max(b_len);
@@ -90,19 +76,6 @@ pub fn text_similarity(a: &str, b: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_cosine_identical() {
-        let vec = vec![1.0, 2.0, 3.0];
-        let sim = cosine_similarity(&vec, &vec);
-        assert!((sim - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_cosine_orthogonal() {
-        let sim = cosine_similarity(&[1.0, 0.0], &[0.0, 1.0]);
-        assert!((sim - 0.0).abs() < 0.001);
-    }
 
     #[test]
     fn test_jaccard_identical() {

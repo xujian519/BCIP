@@ -15,11 +15,9 @@ chrono = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 reqwest = { version = "0.12", features = ["json"], default-features = false }
 tokio = { workspace = true, features = ["rt", "macros", "process", "io-util", "fs"] }
 regex = { workspace = true }
-tracing = { workspace = true }
 base64 = { workspace = true }
 
 # LiteParse: PDF 解析引擎（通过 feature gate 启用）
@@ -27,12 +25,6 @@ liteparse = { path = "../liteparse", default-features = false, optional = true }
 
 [features]
 default = []
-search-tools = []
-analysis-tools = []
-review-tools = []
-drafting-tools = []
-management-tools = []
-evaluation-tools = []
 document-pdf = ["liteparse"]
 
 [dev-dependencies]

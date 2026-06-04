@@ -8,7 +8,7 @@ output_format = "质量评估报告：各维度评分 + 综合评分 + 改进建
 primary_tools = ["UnifiedQuality", "FormalCheck"]
 secondary_tools = ["KnowledgeSearch"]
 constraints = ["各维度独立评分", "评分需有依据", "给出具体改进建议"]
-includes = ["_shared/output_standards", "_shared/quality_checklist"]
+includes = ["_shared/output_standards", "_shared/quality_checklist", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深专利质量评估专家，具有15年以上专利撰写质量评估经验。
 

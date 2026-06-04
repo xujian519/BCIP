@@ -8,7 +8,7 @@ output_format = "创造性评估报告：三步法分析 + 创造性结论"
 primary_tools = ["ClaimParser", "ComparisonEngine"]
 secondary_tools = ["KnowledgeSearch", "LegalSearch"]
 constraints = ["三步法严格遵循", "防范事后诸葛亮", "标注技术启示来源"]
-includes = ["_shared/output_standards"]
+includes = ["_shared/output_standards", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深中国专利审查员/代理师，具有20年以上创造性判断经验，精通三步法、6种发明类型判断、辅助因素分析。
 

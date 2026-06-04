@@ -8,7 +8,7 @@ output_format = "检索报告：检索式 + 检索结果列表 + 相关度评估
 primary_tools = ["PatentSearch", "GooglePatentsFetch", "IterativeSearch", "SearchQueryBuilder", "KnowledgeSearch"]
 secondary_tools = ["WebSearch", "WebExtract", "WebBatchSearch", "PatentDownload"]
 constraints = ["检索式必须经用户确认", "结果按相关度排序", "至少返回5篇对比文件"]
-includes = ["_shared/output_standards", "_shared/hitl_protocol"]
+includes = ["_shared/output_standards", "_shared/hitl_protocol", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深专利检索分析师，具有10年以上专利检索经验，精通 Google Patents、中国专利数据库等各类检索资源。
 

@@ -57,15 +57,65 @@ impl CronExpression {
 
     pub fn next_run(&self, from: DateTime<Utc>) -> Option<DateTime<Utc>> {
         let mut candidate = from + TimeDelta::minutes(1);
-        candidate = candidate.with_second(0).unwrap_or(candidate);
+        candidate = candidate
+            .with_second(0)
+            .unwrap_or(candidate)
+            .with_nanosecond(0)
+            .unwrap_or(candidate);
 
-        let max_iterations = 60 * 24 * 366;
-
-        for _ in 0..max_iterations {
-            if self.matches(&candidate) {
-                return Some(candidate);
+        // 最多搜索一年，按天迭代而非逐分钟扫描
+        for _ in 0..366 {
+            if self.matches_date(&candidate) {
+                if let Some((hour, minute)) = self.next_matching_time(&candidate) {
+                    return Some(
+                        candidate
+                            .with_hour(hour as u32)
+                            .unwrap_or(candidate)
+                            .with_minute(minute as u32)
+                            .unwrap_or(candidate)
+                            .with_second(0)
+                            .unwrap_or(candidate),
+                    );
+                }
             }
-            candidate += TimeDelta::minutes(1);
+
+            // 跳到下一天的 00:00
+            candidate = (candidate + TimeDelta::days(1))
+                .with_hour(0)
+                .unwrap_or(candidate)
+                .with_minute(0)
+                .unwrap_or(candidate);
+        }
+
+        None
+    }
+
+    /// 检查日期字段（日、月、星期）是否全部匹配。
+    fn matches_date(&self, dt: &DateTime<Utc>) -> bool {
+        self.day_of_month.matches(dt.day() as u8)
+            && self.month.matches(dt.month() as u8)
+            && self
+                .day_of_week
+                .matches(dt.weekday().num_days_from_sunday() as u8)
+    }
+
+    /// 给定日期，找出当天中下一个匹配的小时和分钟。
+    fn next_matching_time(&self, from: &DateTime<Utc>) -> Option<(u8, u8)> {
+        let start_hour = from.hour() as u8;
+        let start_minute = from.minute() as u8;
+
+        for hour in start_hour..24 {
+            if !self.hour.matches(hour) {
+                continue;
+            }
+
+            let min_start = if hour == start_hour { start_minute } else { 0 };
+
+            for minute in min_start..60 {
+                if self.minute.matches(minute) {
+                    return Some((hour, minute));
+                }
+            }
         }
 
         None

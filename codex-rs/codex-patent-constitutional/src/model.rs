@@ -24,6 +24,12 @@ pub struct ConstitutionalRule {
 }
 
 /// 规则检查类型（tagged enum，按 type 字段区分）。
+///
+/// ⚠️ 实现状态说明：
+/// - 已完整实现：`StructuralAnalysis`、`KeywordBlocklist`、`CategoryDetection`、
+///   `PatternAnalysis`、`SpecificationAnalysis`、`SectionStructure`
+/// - 尚未实现：其余变体当前在 engine 中走 fallback，返回固定 0.5 置信度。
+///   需要后续结合 LLM 辅助完成深度检查逻辑。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum RuleCheck {

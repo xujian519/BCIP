@@ -6,7 +6,7 @@ use codex_patent_knowledge::UnifiedSearch;
 use codex_patent_knowledge::VectorIndex;
 
 #[test]
-#[ignore = "requires local patent_kg.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_open_knowledge_graph() {
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db");
     assert!(kg.is_ok(), "Should open patent_kg.db");
@@ -17,7 +17,7 @@ fn test_open_knowledge_graph() {
 }
 
 #[test]
-#[ignore = "requires local patent_kg.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_search_knowledge_graph() {
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
     let results = kg.search_nodes("新颖性", None, 5).unwrap();
@@ -25,7 +25,7 @@ fn test_search_knowledge_graph() {
 }
 
 #[test]
-#[ignore = "requires local laws.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_open_law_database() {
     let db = LawDatabase::open("../codex-patent-assets/laws.db");
     assert!(db.is_ok(), "Should open laws.db");
@@ -35,7 +35,7 @@ fn test_open_law_database() {
 }
 
 #[test]
-#[ignore = "requires local laws.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_search_law_database() {
     let db = LawDatabase::open("../codex-patent-assets/laws.db").unwrap();
     let results = db.search_by_name("专利法", 10).unwrap();
@@ -43,7 +43,7 @@ fn test_search_law_database() {
 }
 
 #[test]
-#[ignore = "requires local card-index.json (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_load_card_index() {
     let idx = CardIndex::load("../codex-patent-assets/card-index.json");
     assert!(idx.is_ok(), "Should load card-index.json");
@@ -53,7 +53,7 @@ fn test_load_card_index() {
 }
 
 #[test]
-#[ignore = "requires local assets (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_unified_search() {
     let search = UnifiedSearch::new(
         Some("../codex-patent-assets/patent_kg.db"),
@@ -70,7 +70,7 @@ fn test_unified_search() {
 }
 
 #[test]
-#[ignore = "requires local assets (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_knowledge_status() {
     let search = UnifiedSearch::new(
         Some("../codex-patent-assets/patent_kg.db"),
@@ -84,7 +84,7 @@ fn test_knowledge_status() {
 }
 
 #[test]
-#[ignore = "requires local semantic index (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_vector_index_open() {
     let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite");
     assert!(idx.is_ok(), "Should open semantic index");
@@ -94,7 +94,7 @@ fn test_vector_index_open() {
 }
 
 #[test]
-#[ignore = "requires local semantic index (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_vector_index_search() {
     let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite").unwrap();
     // 零向量 norm=0 → search 返回空（查询无意义时行为正确）
@@ -104,7 +104,7 @@ fn test_vector_index_search() {
 }
 
 #[test]
-#[ignore = "requires local semantic index (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_vector_index_search_relevant() {
     let idx = VectorIndex::open("../codex-patent-assets/.yunpat-semantic-index.sqlite").unwrap();
     // 用 1.0 在第一维，模拟查询
@@ -119,7 +119,7 @@ fn test_vector_index_search_relevant() {
 }
 
 #[test]
-#[ignore = "requires local assets (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_unified_search_status_with_vector() {
     let search = UnifiedSearch::with_vector(
         Some("../codex-patent-assets/patent_kg.db"),
@@ -138,7 +138,7 @@ fn test_unified_search_status_with_vector() {
 }
 
 #[test]
-#[ignore = "requires local patent_kg.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_graph_traverse() {
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
     // 先获取一个节点
@@ -160,7 +160,7 @@ fn test_graph_traverse() {
 }
 
 #[test]
-#[ignore = "requires local patent_kg.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_graph_traverse_with_filter() {
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
     let nodes = kg.search_nodes("创造性", None, 1).unwrap();
@@ -181,7 +181,7 @@ fn test_graph_traverse_with_filter() {
 }
 
 #[test]
-#[ignore = "requires local patent_kg.db (gitignored)"]
+#[cfg(feature = "integration-tests")]
 fn test_graph_find_path() {
     let kg = SqliteKnowledgeGraph::open("../codex-patent-assets/patent_kg.db").unwrap();
     let nodes_a = kg.search_nodes("新颖性", None, 1).unwrap();

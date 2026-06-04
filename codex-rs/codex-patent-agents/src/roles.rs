@@ -173,15 +173,13 @@ pub fn find_skills_shared_dir() -> Option<PathBuf> {
     }
 
     let candidates = [
+        Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets/skills/_shared")),
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("codex-patent-skills/assets/_shared")),
-        Some(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../codex-patent-skills/assets/_shared"),
-        ),
+            .map(|p| p.join("codex-patent-agents/assets/skills/_shared")),
         Some(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../../codex-patent-skills/assets/_shared"),
+                .join("../codex-patent-agents/assets/skills/_shared"),
         ),
     ];
 
@@ -295,7 +293,11 @@ impl PatentAgentRole {
             Self::InfringementChecker => &[ToolDomain::Search],
             Self::InvalidityChecker => &[ToolDomain::Quality],
             Self::Reviewer => &[ToolDomain::Document, ToolDomain::Legal],
-            Self::QualityChecker => &[ToolDomain::Document, ToolDomain::Drafting],
+            Self::QualityChecker => &[
+                ToolDomain::Document,
+                ToolDomain::Drafting,
+                ToolDomain::Legal,
+            ],
         }
     }
 

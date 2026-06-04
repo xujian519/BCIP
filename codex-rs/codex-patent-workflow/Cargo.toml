@@ -9,7 +9,6 @@ description = "DAG 编排引擎 — 将线性 FlowStep 扩展为有向无环图�
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-thiserror = { workspace = true }
 tracing = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled"] }
 chrono = { workspace = true }

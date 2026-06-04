@@ -8,7 +8,7 @@ output_format = "无效分析报告：无效理由 + 证据链 + 结论"
 primary_tools = ["ClaimParser", "ComparisonEngine", "PatentSearch"]
 secondary_tools = ["KnowledgeSearch", "LegalSearch"]
 constraints = ["每个理由需独立论证", "证据链完整", "标注法律依据"]
-includes = ["_shared/output_standards"]
+includes = ["_shared/output_standards", "_shared/knowledge_sourcing"]
 
 developer_instructions = """你是一位资深专利无效分析专家，具有15年以上专利复审和无效宣告经验。
 

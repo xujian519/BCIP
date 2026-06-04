@@ -140,7 +140,7 @@ impl PlanGenerator for SimplePlanGenerator {
     }
 
     fn generate(&self, _goal: &str) -> Result<codex_patent_workflow::plan::ExecutionPlan, String> {
-        Err("SimplePlanGenerator not implemented".to_string())
+        Err("workflow planning is not yet available".to_string())
     }
 
     fn generate_with_hint(
@@ -148,6 +148,6 @@ impl PlanGenerator for SimplePlanGenerator {
         _goal: &str,
         _hint: &codex_patent_workflow::plan::RoutingHint,
     ) -> Result<codex_patent_workflow::plan::ExecutionPlan, String> {
-        Err("SimplePlanGenerator not implemented".to_string())
+        Err("workflow planning is not yet available".to_string())
     }
 }

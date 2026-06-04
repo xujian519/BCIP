@@ -126,17 +126,17 @@ fn backoff_delay_ms(attempt: u32) -> u64 {
 
 pub struct EmbeddingClient {
     base_url: String,
-    api_key: String,
+    api_key: Option<String>,
     model: String,
     client: reqwest::blocking::Client,
     cache: Mutex<HashMap<String, Vec<f32>>>,
 }
 
 impl EmbeddingClient {
-    pub fn new(base_url: &str, api_key: &str, model: &str) -> Self {
+    pub fn new(base_url: &str, api_key: Option<String>, model: &str) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
-            api_key: api_key.to_string(),
+            api_key,
             model: model.to_string(),
             client: reqwest::blocking::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
@@ -148,10 +148,10 @@ impl EmbeddingClient {
 
     pub fn from_env() -> Option<Self> {
         let base_url =
-            std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8009".into());
-        let api_key = std::env::var("BCIP_MLX_API_KEY").ok()?;
+            std::env::var("BCIP_MLX_URL").unwrap_or_else(|_| "http://localhost:8766".into());
+        let api_key = std::env::var("BCIP_MLX_API_KEY").ok();
         let model = std::env::var("BCIP_MLX_MODEL").unwrap_or_else(|_| "bge-m3-mlx-8bit".into());
-        Some(Self::new(&base_url, &api_key, &model))
+        Some(Self::new(&base_url, api_key, &model))
     }
 
     pub fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
@@ -208,10 +208,11 @@ impl EmbeddingClient {
             "input": text,
         });
 
-        let resp = self
-            .client
-            .post(format!("{}/v1/embeddings", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
+        let mut req = self.client.post(format!("{}/v1/embeddings", self.base_url));
+        if let Some(ref key) = self.api_key {
+            req = req.header("Authorization", format!("Bearer {key}"));
+        }
+        let resp = req
             .json(&body)
             .send()
             .map_err(|e| format!("embedding 请求失败: {e}"))?;
@@ -240,11 +241,10 @@ impl EmbeddingClient {
     }
 
     pub fn health_check(&self) -> bool {
-        self.client
-            .get(format!("{}/v1/models", self.base_url))
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .send()
-            .map(|r| r.status().is_success())
-            .unwrap_or(false)
+        let mut req = self.client.get(format!("{}/v1/models", self.base_url));
+        if let Some(ref key) = self.api_key {
+            req = req.header("Authorization", format!("Bearer {key}"));
+        }
+        req.send().map(|r| r.status().is_success()).unwrap_or(false)
     }
 }

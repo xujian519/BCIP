@@ -4,8 +4,10 @@
 //! 意图（继续/停止）、以及所需分析深度（普通/深度/超级思考）。
 //! 用于 Agent 响应策略的动态调整。
 
+use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::LazyLock;
 
 const NEGATIVE_PATTERNS: &[&str] = &[
     r"(?i)不对",
@@ -15,8 +17,8 @@ const NEGATIVE_PATTERNS: &[&str] = &[
     r"(?i)怎么搞的",
     r"(?i)wrong",
     r"(?i)incorrect",
-    r"(?i)doesn['’]t work",
-    r"(?i)doesn['’]t make sense",
+    r"(?i)doesn['']t work",
+    r"(?i)doesn['']t make sense",
 ];
 
 const KEEP_GOING_PATTERNS: &[&str] = &[
@@ -38,6 +40,27 @@ const ULTRATHINK_PATTERNS: &[&str] = &[
     r"(?i)仔细分析",
     r"(?i)深入分析",
 ];
+
+static NEGATIVE_REGEXES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    NEGATIVE_PATTERNS
+        .iter()
+        .filter_map(|p| Regex::new(p).ok())
+        .collect()
+});
+
+static KEEP_GOING_REGEXES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    KEEP_GOING_PATTERNS
+        .iter()
+        .filter_map(|p| Regex::new(p).ok())
+        .collect()
+});
+
+static ULTRATHINK_REGEXES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    ULTRATHINK_PATTERNS
+        .iter()
+        .filter_map(|p| Regex::new(p).ok())
+        .collect()
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum EffortLevel {
@@ -75,14 +98,7 @@ impl EffortLevel {
 
 /// 判断用户输入是否表达沮丧/不满情绪
 pub fn is_frustrated(text: &str) -> bool {
-    for pattern in NEGATIVE_PATTERNS {
-        if let Ok(re) = regex::Regex::new(pattern)
-            && re.is_match(text)
-        {
-            return true;
-        }
-    }
-    false
+    NEGATIVE_REGEXES.iter().any(|re| re.is_match(text))
 }
 
 /// 判断用户输入是否表达继续执行的意愿
@@ -90,28 +106,18 @@ pub fn wants_continue(text: &str) -> bool {
     if is_frustrated(text) {
         return false;
     }
-    for pattern in KEEP_GOING_PATTERNS {
-        if let Ok(re) = regex::Regex::new(pattern)
-            && re.is_match(text)
-        {
-            return true;
-        }
-    }
-    false
+    KEEP_GOING_REGEXES.iter().any(|re| re.is_match(text))
 }
 
 /// 判断用户输入是否要求升级分析深度
 ///
 /// 返回建议的 EffortLevel，如果不需要升级则返回 None。
 pub fn would_upgrade_effort(text: &str) -> Option<EffortLevel> {
-    for pattern in ULTRATHINK_PATTERNS {
-        if let Ok(re) = regex::Regex::new(pattern)
-            && re.is_match(text)
-        {
-            return Some(EffortLevel::from_user_prompt(text));
-        }
+    if ULTRATHINK_REGEXES.iter().any(|re| re.is_match(text)) {
+        Some(EffortLevel::from_user_prompt(text))
+    } else {
+        None
     }
-    None
 }
 
 /// 根据用户输入选择最合适的响应策略
