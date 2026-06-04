@@ -1,10 +1,10 @@
+use crate::resilience::RecoveryContext;
 use codex_protocol::AgentPath;
 use codex_protocol::ThreadId;
 use codex_protocol::error::CodexErr;
 use codex_protocol::error::Result;
 use codex_protocol::protocol::SessionSource;
 use codex_protocol::protocol::SubAgentSource;
-use crate::resilience::RecoveryContext;
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -276,6 +276,7 @@ impl AgentRegistry {
 
     fn try_increment_spawned(&self, max_threads: usize) -> bool {
         let mut current = self.total_count.load(Ordering::Acquire);
+        let mut retries = 0u32;
         loop {
             if current >= max_threads {
                 return false;
@@ -287,7 +288,14 @@ impl AgentRegistry {
                 Ordering::Acquire,
             ) {
                 Ok(_) => return true,
-                Err(updated) => current = updated,
+                Err(updated) => {
+                    current = updated;
+                    retries += 1;
+                    if retries >= 64 {
+                        return false;
+                    }
+                    std::hint::spin_loop();
+                }
             }
         }
     }

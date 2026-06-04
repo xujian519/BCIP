@@ -25,29 +25,30 @@ pub fn tokenize(text: &str) -> Vec<Token> {
     for (i, ch) in text.char_indices() {
         if ch.is_whitespace() || is_cjk_punctuation(ch) {
             if !current_token.is_empty() {
+                let end = i;
                 tokens.push(Token {
-                    text: current_token.clone(),
+                    text: std::mem::take(&mut current_token),
                     start: current_start,
-                    end: i,
+                    end,
                 });
-                current_token.clear();
             }
             current_start = i + ch.len_utf8();
         } else if is_cjk_char(ch) {
             if !current_token.is_empty() {
+                let end = i;
                 tokens.push(Token {
-                    text: current_token.clone(),
+                    text: std::mem::take(&mut current_token),
                     start: current_start,
-                    end: i,
+                    end,
                 });
-                current_token.clear();
             }
+            let next = i + ch.len_utf8();
             tokens.push(Token {
-                text: ch.to_string(),
+                text: text[i..next].to_string(),
                 start: i,
-                end: i + ch.len_utf8(),
+                end: next,
             });
-            current_start = i + ch.len_utf8();
+            current_start = next;
         } else {
             if current_token.is_empty() {
                 current_start = i;

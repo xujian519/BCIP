@@ -149,7 +149,7 @@ impl LawDatabase {
         params: P,
     ) -> Result<Vec<LawDocument>, String> {
         let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
-        let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
             .query_map(params, |row| {
                 Ok(LawDocument {
@@ -165,7 +165,7 @@ impl LawDatabase {
                 })
             })
             .map_err(|e| format!("{e}"))?;
-        let mut laws = Vec::new();
+        let mut laws = Vec::with_capacity(64);
         for result in rows {
             match result {
                 Ok(law) => laws.push(law),

@@ -11,8 +11,8 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use super::agent_bridge::AgentExecutor;
-use super::checkpoint::Checkpoint;
 use super::checkpoint::generate_run_id;
+use super::checkpoint::Checkpoint;
 use super::checkpoint::CheckpointStore;
 use super::flow::FlowResult;
 use super::flow::FlowStatus;
@@ -33,6 +33,8 @@ pub struct GraphExecution {
     pub run_id: String,
     pub node_results: Vec<GraphNodeResult>,
 }
+
+const MAX_PARALLEL_CAP: usize = 32;
 
 /// DAG 图执行器 — 按拓扑层级并行执行 FlowGraph 节点
 pub struct GraphExecutor {
@@ -81,9 +83,9 @@ impl GraphExecutor {
         self
     }
 
-    /// 设置同层最大并行节点数（默认 4）。
+    /// 设置同层最大并行节点数（默认 4，上限 32）。
     pub fn with_max_parallel(mut self, limit: usize) -> Self {
-        self.max_parallel = limit.max(1);
+        self.max_parallel = limit.max(1).min(MAX_PARALLEL_CAP);
         self
     }
 
@@ -214,7 +216,11 @@ impl GraphExecutor {
                     },
                 ) {
                     self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id, &run_id, node_results.len(), FlowStatus::Suspended, &node_results,
+                        &graph.id,
+                        &run_id,
+                        node_results.len(),
+                        FlowStatus::Suspended,
+                        &node_results,
                     ));
                     suspended = true;
                     break;
@@ -231,7 +237,11 @@ impl GraphExecutor {
                     }
                     if !handled {
                         self.save_checkpoint(&self.build_checkpoint(
-                            &graph.id, &run_id, node_results.len(), FlowStatus::Failed, &node_results,
+                            &graph.id,
+                            &run_id,
+                            node_results.len(),
+                            FlowStatus::Failed,
+                            &node_results,
                         ));
                         failed = true;
                         break;
@@ -264,8 +274,13 @@ impl GraphExecutor {
                             let agent = agent_exec.clone();
                             let code = code_exec.clone();
                             s.spawn(move || {
-                                let result =
-                                    execute_step_from_parts(&step, &tool, &agent, &code, max_retries);
+                                let result = execute_step_from_parts(
+                                    &step,
+                                    &tool,
+                                    &agent,
+                                    &code,
+                                    max_retries,
+                                );
                                 let _ = tx.send((node_id, result));
                             });
                         }
@@ -325,19 +340,31 @@ impl GraphExecutor {
                 }
 
                 self.save_checkpoint(&self.build_checkpoint(
-                    &graph.id, &run_id, node_results.len(), FlowStatus::Running, &node_results,
+                    &graph.id,
+                    &run_id,
+                    node_results.len(),
+                    FlowStatus::Running,
+                    &node_results,
                 ));
 
                 if level_suspended {
                     self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id, &run_id, node_results.len(), FlowStatus::Suspended, &node_results,
+                        &graph.id,
+                        &run_id,
+                        node_results.len(),
+                        FlowStatus::Suspended,
+                        &node_results,
                     ));
                     suspended = true;
                     break;
                 }
                 if level_failed {
                     self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id, &run_id, node_results.len(), FlowStatus::Failed, &node_results,
+                        &graph.id,
+                        &run_id,
+                        node_results.len(),
+                        FlowStatus::Failed,
+                        &node_results,
                     ));
                     failed = true;
                     break;
@@ -459,7 +486,12 @@ fn execute_step_from_parts(
             })),
             error: None,
         }),
-        FlowStep::HumanApproval { title, description, timeout_secs, timeout_action } => Ok(StepResult {
+        FlowStep::HumanApproval {
+            title,
+            description,
+            timeout_secs,
+            timeout_action,
+        } => Ok(StepResult {
             step_index: 0,
             success: true,
             output: Some(serde_json::json!({

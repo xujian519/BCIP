@@ -146,13 +146,17 @@ impl AgentBus {
             });
         }
 
-        let result = self.transport.send(message.clone()).await;
-        if let Ok(mut history) = self.history.try_write() {
+        // Record history before transport send to avoid losing messages
+        // if the lock is contended during the send phase.
+        {
+            let mut history = self.history.write().await;
             if history.len() >= self.max_history {
                 history.pop_front();
             }
-            history.push_back(message);
+            history.push_back(message.clone());
         }
+
+        let result = self.transport.send(message).await;
         match result {
             Ok(n) => Ok(n),
             Err(TransportError::SendFailed(_)) => Ok(0),
@@ -252,7 +256,7 @@ impl AgentBus {
             attempts += 1;
             if attempts >= config.max_retries {
                 tracing::warn!(attempts, "send_with_retry exhausted, moving to DLQ");
-                self.record_dead_letter(message);
+                self.record_dead_letter(message).await;
                 return Err(BusError::RetryExhausted { attempts });
             }
 
@@ -263,13 +267,12 @@ impl AgentBus {
         }
     }
 
-    fn record_dead_letter(&self, message: AgentBusMessage) {
-        if let Ok(mut dlq) = self.dead_letter.try_write() {
-            if dlq.len() >= DEFAULT_DLQ_CAPACITY {
-                dlq.pop_front();
-            }
-            dlq.push_back(message);
+    async fn record_dead_letter(&self, message: AgentBusMessage) {
+        let mut dlq = self.dead_letter.write().await;
+        if dlq.len() >= DEFAULT_DLQ_CAPACITY {
+            dlq.pop_front();
         }
+        dlq.push_back(message);
     }
 
     pub(crate) async fn dead_letter_queue(&self) -> Vec<AgentBusMessage> {
@@ -280,7 +283,10 @@ impl AgentBus {
         self.dead_letter.read().await.len()
     }
 
-    pub(crate) async fn replay_dead_letter(&self, message_id: uuid::Uuid) -> Result<usize, BusError> {
+    pub(crate) async fn replay_dead_letter(
+        &self,
+        message_id: uuid::Uuid,
+    ) -> Result<usize, BusError> {
         let msg = {
             let dlq = self.dead_letter.try_read();
             match dlq {
@@ -372,7 +378,10 @@ impl AgentBus {
     // ── Task tracking ─────────────────────────────────────────────
 
     pub(crate) async fn track_task(&self, descriptor: TaskDescriptor) {
-        self.pending_tasks.write().await.insert(descriptor.task_id, descriptor);
+        self.pending_tasks
+            .write()
+            .await
+            .insert(descriptor.task_id, descriptor);
     }
 
     pub(crate) async fn complete_task(&self, task_id: &uuid::Uuid) -> Option<TaskDescriptor> {
@@ -422,7 +431,10 @@ impl AgentBus {
         for (_, descriptor) in tasks.iter() {
             if &descriptor.assigned_to == dead_agent {
                 if let Some(ref role) = descriptor.agent_role {
-                    by_role.entry(role.clone()).or_default().push(descriptor.clone());
+                    by_role
+                        .entry(role.clone())
+                        .or_default()
+                        .push(descriptor.clone());
                 }
             }
         }
@@ -485,9 +497,11 @@ mod tests {
         let from = test_path("agent");
 
         bus.publish(from.clone(), "test.topic", serde_json::json!("data1"))
-            .await.unwrap();
+            .await
+            .unwrap();
         bus.publish(from.clone(), "test.topic", serde_json::json!("data2"))
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let filter = MessageFilter {
             topic: Some("test.topic".to_string()),
@@ -505,7 +519,8 @@ mod tests {
 
         for i in 0..5 {
             bus.publish(from.clone(), "test", serde_json::json!(i))
-                .await.unwrap();
+                .await
+                .unwrap();
         }
 
         let all = bus.history(MessageFilter::default()).await;
@@ -521,7 +536,8 @@ mod tests {
         let to = test_path("b");
 
         bus.send_direct(from.clone(), to.clone(), serde_json::json!("hello"))
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let msg = rx.try_recv().unwrap();
         assert_eq!(msg.from, from);
@@ -537,7 +553,8 @@ mod tests {
         // No subscribers — message should still be recorded
         let from = test_path("lonely");
         bus.publish(from, "orphan.topic", serde_json::json!("data"))
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let h = bus
             .history(MessageFilter {
@@ -715,12 +732,13 @@ mod tests {
     async fn oversized_payload_rejected() {
         let bus = AgentBus::new(16, 100);
         let big_payload = serde_json::json!("x".repeat(DEFAULT_MAX_PAYLOAD_BYTES + 1));
-        let result = bus.send(AgentBusMessage::direct(
-            test_path("a"),
-            test_path("b"),
-            big_payload,
-        ))
-        .await;
+        let result = bus
+            .send(AgentBusMessage::direct(
+                test_path("a"),
+                test_path("b"),
+                big_payload,
+            ))
+            .await;
         match result {
             Err(BusError::PayloadTooLarge { size, max }) => {
                 assert!(size > max);
@@ -733,12 +751,13 @@ mod tests {
     #[tokio::test]
     async fn normal_payload_accepted() {
         let bus = AgentBus::new(16, 100);
-        let result = bus.send(AgentBusMessage::direct(
-            test_path("a"),
-            test_path("b"),
-            serde_json::json!({"key": "value"}),
-        ))
-        .await;
+        let result = bus
+            .send(AgentBusMessage::direct(
+                test_path("a"),
+                test_path("b"),
+                serde_json::json!({"key": "value"}),
+            ))
+            .await;
         assert!(result.is_ok());
     }
 

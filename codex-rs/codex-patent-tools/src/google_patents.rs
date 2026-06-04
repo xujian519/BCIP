@@ -8,8 +8,11 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use regex::Regex;
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 const MAX_RETRIES: u32 = 2;
 const REQUEST_TIMEOUT_SECS: u64 = 30;
@@ -18,6 +21,13 @@ const CB_RESET_TIMEOUT_SECS: u64 = 120;
 const CB_HALF_OPEN_MAX: u32 = 2;
 const BACKOFF_BASE_SECS: u64 = 2;
 const BACKOFF_MAX_SECS: u64 = 60;
+
+fn epoch_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CbState {
@@ -50,10 +60,7 @@ impl InlineCb {
             1 => {
                 let opened = self.opened_at.load(Ordering::Relaxed);
                 if opened > 0 {
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
+                    let now = epoch_secs();
                     if now.saturating_sub(opened) >= CB_RESET_TIMEOUT_SECS {
                         self.state.store(2, Ordering::Relaxed);
                         self.half_open_calls.store(1, Ordering::Relaxed);
@@ -107,30 +114,31 @@ impl InlineCb {
 
     fn trip_open(&self) {
         self.state.store(1, Ordering::Relaxed);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        self.opened_at.store(now, Ordering::Relaxed);
+        self.opened_at.store(epoch_secs(), Ordering::Relaxed);
     }
 }
 
 static GOOGLE_PATENTS_CB: OnceLock<InlineCb> = OnceLock::new();
+static SHARED_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 fn get_cb() -> &'static InlineCb {
     GOOGLE_PATENTS_CB.get_or_init(InlineCb::new)
 }
 
+fn get_client() -> &'static reqwest::Client {
+    SHARED_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .pool_max_idle_per_host(4)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
+}
+
 fn backoff_delay_secs(attempt: u32) -> u64 {
     let raw = BACKOFF_BASE_SECS * 2u64.pow(attempt);
     raw.min(BACKOFF_MAX_SECS)
-}
-
-fn build_client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 #[derive(Debug, Deserialize)]
@@ -171,8 +179,8 @@ pub async fn fetch_google_patents(input: GooglePatentsInput) -> Result<Vec<Paten
         input.limit
     );
 
-    let client = build_client();
-    let body = fetch_with_retry(&client, &url).await?;
+    let client = get_client();
+    let body = fetch_with_retry(client, &url).await?;
 
     cb.record_success();
     parse_patent_results(&body, input.limit)
@@ -230,10 +238,15 @@ async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String,
 }
 
 fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, String> {
+    static PN_RE: OnceLock<Regex> = OnceLock::new();
+    static BLOCK_RE: OnceLock<Regex> = OnceLock::new();
+    let pn_re = PN_RE
+        .get_or_init(|| Regex::new(r#"(CN|US|EP|WO|JP|KR|DE|GB|FR)\d{6,12}[A-Z]?\d?"#).unwrap());
+    let block_re = BLOCK_RE
+        .get_or_init(|| Regex::new(r"(?is)<search-result[^>]*>(.*?)</search-result>").unwrap());
+
     let mut results = Vec::new();
-    let pn_re = regex::Regex::new(r#"(CN|US|EP|WO|JP|KR|DE|GB|FR)\d{6,12}[A-Z]?\d?"#).unwrap();
     let mut seen = std::collections::HashSet::new();
-    let block_re = regex::Regex::new(r"(?is)<search-result[^>]*>(.*?)</search-result>").unwrap();
 
     for cap in pn_re.captures_iter(html) {
         if results.len() >= limit {
@@ -273,12 +286,14 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
 }
 
 fn extract_title(block: &str) -> String {
-    let h3_re = regex::Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").unwrap();
+    static H3_RE: OnceLock<Regex> = OnceLock::new();
+    static TITLE_RE: OnceLock<Regex> = OnceLock::new();
+    let h3_re = H3_RE.get_or_init(|| Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").unwrap());
     if let Some(cap) = h3_re.captures(block) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
-    // Fallback: class containing "title"
-    let re = regex::Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#).unwrap();
+    let re =
+        TITLE_RE.get_or_init(|| Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#).unwrap());
     if let Some(cap) = re.captures(block) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
@@ -286,11 +301,15 @@ fn extract_title(block: &str) -> String {
 }
 
 fn extract_abstract(segment: &str) -> String {
-    let re = regex::Regex::new(r#"(?is)class="[^"]*abstract[^"]*"[^>]*>(.*?)<"#).unwrap();
+    static ABSTRACT_RE: OnceLock<Regex> = OnceLock::new();
+    static SNIPPET_RE: OnceLock<Regex> = OnceLock::new();
+    let re = ABSTRACT_RE
+        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*abstract[^"]*"[^>]*>(.*?)<"#).unwrap());
     if let Some(cap) = re.captures(segment) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
-    let re2 = regex::Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#).unwrap();
+    let re2 = SNIPPET_RE
+        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#).unwrap());
     if let Some(cap) = re2.captures(segment) {
         return clean_html_text(cap.get(1).unwrap().as_str());
     }
@@ -298,14 +317,17 @@ fn extract_abstract(segment: &str) -> String {
 }
 
 fn extract_assignee(segment: &str) -> Option<String> {
-    let re = regex::Regex::new(r#"(?is)class="[^"]*assignee[^"]*"[^>]*>(.*?)<"#).unwrap();
+    static ASSIGNEE_RE: OnceLock<Regex> = OnceLock::new();
+    let re = ASSIGNEE_RE
+        .get_or_init(|| Regex::new(r#"(?is)class="[^"]*assignee[^"]*"[^>]*>(.*?)<"#).unwrap());
     re.captures(segment)
         .map(|cap| clean_html_text(cap.get(1).unwrap().as_str()))
         .filter(|s| !s.is_empty())
 }
 
 fn extract_date(segment: &str) -> Option<String> {
-    let re = regex::Regex::new(r"\b(\d{4})-(\d{2})-(\d{2})\b").unwrap();
+    static DATE_RE: OnceLock<Regex> = OnceLock::new();
+    let re = DATE_RE.get_or_init(|| Regex::new(r"\b(\d{4})-(\d{2})-(\d{2})\b").unwrap());
     re.captures(segment).map(|cap| {
         format!(
             "{}-{}-{}",
@@ -317,18 +339,18 @@ fn extract_date(segment: &str) -> Option<String> {
 }
 
 fn clean_html_text(raw: &str) -> String {
-    let stripped = regex::Regex::new(r"<[^>]*>")
-        .unwrap()
-        .replace_all(raw, "")
-        .to_string();
-    let decoded = stripped
+    static TAG_RE: OnceLock<Regex> = OnceLock::new();
+    let stripped = TAG_RE
+        .get_or_init(|| Regex::new(r"<[^>]*>").unwrap())
+        .replace_all(raw, "");
+    let s = stripped
         .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
         .replace("&nbsp;", " ");
-    decoded.trim().to_string()
+    s.trim().to_string()
 }
 
 fn urlencoding(s: &str) -> String {
@@ -351,7 +373,7 @@ pub async fn download_patent(input: PatentDownloadInput) -> Result<String, Strin
         "https://patentimages.storage.googleapis.com/pdfs/{}.pdf",
         input.patent_number
     );
-    let client = reqwest::Client::new();
+    let client = get_client();
     let resp = client
         .get(&url)
         .header("User-Agent", "Mozilla/5.0")

@@ -4,6 +4,8 @@
 
 use rusqlite::Connection;
 use rusqlite::OpenFlags;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::path::Path;
 
 /// 文本块及其向量嵌入
@@ -27,6 +29,7 @@ pub struct ScoredChunk {
 /// BGE-M3 语义向量索引（1024 维）
 pub struct VectorIndex {
     chunks: Vec<EmbeddedChunk>,
+    norms: Vec<f32>,
     dim: usize,
 }
 
@@ -70,7 +73,12 @@ impl VectorIndex {
             chunks.push(row);
         }
 
-        Ok(Self { chunks, dim })
+        let norms: Vec<f32> = chunks
+            .iter()
+            .map(|c| dot_product(&c.embedding, &c.embedding).sqrt())
+            .collect();
+
+        Ok(Self { chunks, norms, dim })
     }
 
     /// 返回索引中的向量总数
@@ -88,7 +96,8 @@ impl VectorIndex {
         self.dim
     }
 
-    /// 对查询向量做余弦相似度搜索，返回 Top-K
+    /// 对查询向量做余弦相似度搜索，返回 Top-K。
+    /// 使用 min-heap 实现 O(n·log k) 选择，避免全排序。
     pub fn search(&self, query_embedding: &[f32], top_k: usize) -> Vec<ScoredChunk> {
         if self.chunks.is_empty() || query_embedding.is_empty() {
             return Vec::new();
@@ -99,31 +108,67 @@ impl VectorIndex {
             return Vec::new();
         }
 
-        let mut scored: Vec<ScoredChunk> = self
-            .chunks
-            .iter()
-            .map(|chunk| {
+        // Min-heap: keeps the worst score at the top for eviction.
+        struct HeapEntry {
+            score: f64,
+            idx: usize,
+        }
+        impl PartialEq for HeapEntry {
+            fn eq(&self, other: &Self) -> bool {
+                self.score == other.score
+            }
+        }
+        impl Eq for HeapEntry {}
+        impl PartialOrd for HeapEntry {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl Ord for HeapEntry {
+            fn cmp(&self, other: &Self) -> Ordering {
+                // Min-heap: lower score = greater ordering
+                other
+                    .score
+                    .partial_cmp(&self.score)
+                    .unwrap_or(Ordering::Equal)
+            }
+        }
+
+        let mut heap: BinaryHeap<HeapEntry> = BinaryHeap::with_capacity(top_k);
+
+        for (i, chunk) in self.chunks.iter().enumerate() {
+            let norm = self.norms[i];
+            let score = if norm == 0.0 {
+                0.0
+            } else {
                 let dot = dot_product(query_embedding, &chunk.embedding);
-                let norm = dot_product(&chunk.embedding, &chunk.embedding).sqrt();
-                let score = if norm == 0.0 {
-                    0.0
-                } else {
-                    (dot / (query_norm * norm)) as f64
-                };
-                ScoredChunk {
-                    chunk: chunk.clone(),
-                    score,
+                (dot / (query_norm * norm)) as f64
+            };
+
+            if heap.len() < top_k {
+                heap.push(HeapEntry { score, idx: i });
+            } else if let Some(top) = heap.peek() {
+                if score > top.score {
+                    heap.pop();
+                    heap.push(HeapEntry { score, idx: i });
                 }
+            }
+        }
+
+        let mut results: Vec<ScoredChunk> = heap
+            .into_iter()
+            .map(|entry| ScoredChunk {
+                chunk: self.chunks[entry.idx].clone(),
+                score: entry.score,
             })
             .collect();
 
-        scored.sort_by(|a, b| {
+        results.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        scored.truncate(top_k);
-        scored
+        results
     }
 }
 

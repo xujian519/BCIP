@@ -4,16 +4,26 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 const CACHE_MAX: usize = 1000;
+const CACHE_EVICT_BATCH: usize = 100;
 const MAX_RETRIES: u32 = 2;
 const CB_FAILURE_THRESHOLD: u32 = 5;
 const CB_RESET_TIMEOUT_SECS: u64 = 30;
 const CB_HALF_OPEN_MAX: u32 = 3;
 const BACKOFF_BASE_MS: u64 = 200;
 const BACKOFF_MAX_MS: u64 = 5_000;
+
+fn epoch_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CbState {
@@ -46,10 +56,7 @@ impl InlineCb {
             1 => {
                 let opened = self.opened_at.load(Ordering::Relaxed);
                 if opened > 0 {
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
+                    let now = epoch_secs();
                     if now.saturating_sub(opened) >= CB_RESET_TIMEOUT_SECS {
                         self.state.store(2, Ordering::Relaxed);
                         self.half_open_calls.store(1, Ordering::Relaxed);
@@ -103,11 +110,7 @@ impl InlineCb {
 
     fn trip_open(&self) {
         self.state.store(1, Ordering::Relaxed);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        self.opened_at.store(now, Ordering::Relaxed);
+        self.opened_at.store(epoch_secs(), Ordering::Relaxed);
     }
 }
 
@@ -158,7 +161,11 @@ impl EmbeddingClient {
                 return Ok(cached.clone());
             }
             if cache.len() >= CACHE_MAX {
-                cache.clear();
+                // Evict oldest batch instead of clearing everything
+                let keys: Vec<String> = cache.keys().take(CACHE_EVICT_BATCH).cloned().collect();
+                for key in keys {
+                    cache.remove(&key);
+                }
             }
         }
 
@@ -190,7 +197,9 @@ impl EmbeddingClient {
             }
         }
 
-        Err(format!("embedding failed after {MAX_RETRIES} retries: {last_error}"))
+        Err(format!(
+            "embedding failed after {MAX_RETRIES} retries: {last_error}"
+        ))
     }
 
     fn embed_once(&self, text: &str) -> Result<Vec<f32>, String> {
@@ -210,7 +219,10 @@ impl EmbeddingClient {
         let status = resp.status();
         if !status.is_success() {
             let text = resp.text().unwrap_or_default();
-            return Err(format!("embedding HTTP {status}: {}", &text[..text.len().min(200)]));
+            return Err(format!(
+                "embedding HTTP {status}: {}",
+                &text[..text.len().min(200)]
+            ));
         }
 
         let json: serde_json::Value = resp
