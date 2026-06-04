@@ -16,11 +16,11 @@ async fn offline_model_info_without_tool_output_override() {
         TestModelsEndpoint::new(Vec::new()),
     );
 
-    let model_info = manager.get_model_info("gpt-5.2", &config).await;
+    let model_info = manager.get_model_info("deepseek-v4-pro", &config).await;
 
     assert_eq!(
         model_info.truncation_policy,
-        TruncationPolicyConfig::bytes(/*limit*/ 10_000)
+        TruncationPolicyConfig::tokens(/*limit*/ 10_000)
     );
 }
 
@@ -36,7 +36,7 @@ async fn offline_model_info_with_tool_output_override() {
         TestModelsEndpoint::new(Vec::new()),
     );
 
-    let model_info = manager.get_model_info("gpt-5.4", &config).await;
+    let model_info = manager.get_model_info("deepseek-v4-pro", &config).await;
 
     assert_eq!(
         model_info.truncation_policy,

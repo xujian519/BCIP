@@ -300,9 +300,7 @@ async fn emit_reasoning_item_done(
         content,
         encrypted_content: None,
     };
-    let _ = tx_event
-        .send(Ok(ResponseEvent::OutputItemDone(item)))
-        .await;
+    let _ = tx_event.send(Ok(ResponseEvent::OutputItemDone(item))).await;
 }
 
 async fn emit_pending_tool_calls(
