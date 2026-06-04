@@ -36,7 +36,8 @@
         "default-src": "'self' asset: http://asset.localhost tauri: https://tauri.localhost",
         "script-src": "'self' 'unsafe-eval'",
         "style-src": "'self' 'unsafe-inline'",
-        "connect-src": "ipc: http://ipc.localhost tauri: https://tauri.localhost ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:* https://api.deepseek.com https://open.bigmodel.cn https://api.moonshot.cn",
+        "connect-src": "'self' asset: http://asset.localhost ipc: http://ipc.localhost tauri: https://tauri.localhost ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:* https://api.deepseek.com https://open.bigmodel.cn https://api.moonshot.cn",
+        "worker-src": "'self' blob: asset: http://asset.localhost",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "font-src": "'self' data:"
       }

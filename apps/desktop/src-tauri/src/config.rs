@@ -36,7 +36,7 @@ pub struct EmbeddingConfig {
     pub api_key: Option<String>,
 }
 
-const DEFAULT_MLX_URL: &str = "http://127.0.0.1:8009";
+const DEFAULT_MLX_URL: &str = "http://127.0.0.1:8766";
 const DEFAULT_MLX_MODEL: &str = "bge-m3-mlx-8bit";
 const DEFAULT_ASSETS_REL: &str = "codex-rs/codex-patent-assets";
 
@@ -241,13 +241,22 @@ fn resolve_bcip_assets_dir() -> Option<String> {
         }
     }
 
-    // Tauri .app 包中捆绑的资产: Contents/Resources/codex-patent-assets/
+    // Tauri .app 包中捆绑的资产:
+    //   tauri.conf.json resources=["target/codex-patent-assets/"] 打包后位于
+    //   Contents/Resources/target/codex-patent-assets/。
+    //   同时也检查不含 /target/ 前缀的路径作为 fallback。
     if let Ok(exe) = std::env::current_exe() {
         if let Some(exe_dir) = exe.parent() {
-            let bundle_assets = exe_dir.join("../Resources/codex-patent-assets");
-            if bundle_assets.is_dir() {
-                if let Ok(canonical) = bundle_assets.canonicalize() {
-                    return Some(canonical.to_string_lossy().into_owned());
+            let resources = exe_dir.join("../Resources");
+            for rel in [
+                "target/codex-patent-assets",
+                "codex-patent-assets",
+            ] {
+                let candidate = resources.join(rel);
+                if candidate.is_dir() {
+                    if let Ok(canonical) = candidate.canonicalize() {
+                        return Some(canonical.to_string_lossy().into_owned());
+                    }
                 }
             }
         }
@@ -331,7 +340,7 @@ pub fn read_omlx_settings() -> Option<OmlxSettingsSnapshot> {
         .server
         .as_ref()
         .and_then(|server| server.port)
-        .unwrap_or(8009);
+        .unwrap_or(8766);
     let api_key = parsed
         .auth
         .as_ref()
@@ -383,7 +392,7 @@ mod tests {
     #[test]
     fn parses_omlx_settings_url() {
         let json = r#"{
-            "server": { "host": "127.0.0.1", "port": 8009 },
+            "server": { "host": "127.0.0.1", "port": 8766 },
             "auth": { "api_key": "test-key" }
         }"#;
         let parsed: OmlxSettingsFile = serde_json::from_str(json).expect("parse omlx settings");
@@ -396,8 +405,8 @@ mod tests {
             .server
             .as_ref()
             .and_then(|server| server.port)
-            .unwrap_or(8009);
-        assert_eq!(format!("http://{host}:{port}"), "http://127.0.0.1:8009");
+            .unwrap_or(8766);
+        assert_eq!(format!("http://{host}:{port}"), "http://127.0.0.1:8766");
         assert_eq!(
             parsed.auth.as_ref().and_then(|auth| auth.api_key.clone()),
             Some("test-key".to_string())
@@ -407,7 +416,7 @@ mod tests {
     #[test]
     fn default_embedding_model_is_bge_m3_mlx_8bit() {
         assert_eq!(DEFAULT_MLX_MODEL, "bge-m3-mlx-8bit");
-        assert_eq!(DEFAULT_MLX_URL, "http://127.0.0.1:8009");
+        assert_eq!(DEFAULT_MLX_URL, "http://127.0.0.1:8766");
     }
 
     #[test]

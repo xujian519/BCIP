@@ -208,6 +208,272 @@
         "text",
         "image"
       ],
+      "supports_image_detail_original": true,
+      "truncation_policy": {
+        "mode": "tokens",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": true,
+      "context_window": 128000,
+      "max_context_window": 128000,
+      "auto_compact_token_limit": 100000,
+      "reasoning_summary_format": "default",
+      "default_reasoning_summary": "none",
+      "slug": "glm-4.6v",
+      "display_name": "GLM 4.6V",
+      "description": "智谱多模态视觉模型（图像+文本+工具调用）。需 model_provider = ZhiPuVLM，API 模型名 glm-4.6v。",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses"
+        },
+        {
+          "effort": "medium",
+          "description": "Balanced reasoning"
+        },
+        {
+          "effort": "high",
+          "description": "Deep reasoning for complex problems"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "minimal_client_version": "0.0.1",
+      "supported_in_api": true,
+      "availability_nux": null,
+      "upgrade": null,
+      "priority": 28,
+      "base_instructions": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n# Personality\n\nYou are a pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed about ongoing actions without unnecessary detail.\n\n## Values\n- Clarity: You communicate reasoning explicitly and concretely.\n- Pragmatism: You keep the end goal and momentum in mind.\n- Rigor: You expect technical arguments to be coherent and defensible.\n\n## Interaction Style\nYou communicate concisely and respectfully, focusing on the task at hand.",
+      "model_messages": {
+        "instructions_template": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n{{ personality }}\n\n# General\nAs an expert coding agent, your primary focus is writing code, answering questions, and helping the user complete their task in the current environment.\n\n- When searching for text or files, prefer using rg or rg --files.\n- Parallelize tool calls whenever possible.\n",
+        "instructions_variables": {
+          "personality_default": "",
+          "personality_friendly": "# Personality\n\nYou are warm, collaborative, and deeply pragmatic. You communicate kindly while staying focused on the work.\n",
+          "personality_pragmatic": "# Personality\n\nYou are a deeply pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed without unnecessary detail.\n"
+        }
+      },
+      "experimental_supported_tools": [],
+      "available_in_plans": [
+        "free",
+        "plus",
+        "pro"
+      ],
+      "supports_search_tool": true,
+      "service_tiers": [],
+      "additional_speed_tiers": [],
+      "supports_reasoning_summaries": false,
+      "is_default": false
+    },
+    {
+      "prefer_websockets": false,
+      "support_verbosity": false,
+      "default_verbosity": "low",
+      "apply_patch_tool_type": "freeform",
+      "web_search_tool_type": "text_and_image",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
+      "supports_image_detail_original": true,
+      "truncation_policy": {
+        "mode": "tokens",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": true,
+      "context_window": 128000,
+      "max_context_window": 128000,
+      "auto_compact_token_limit": 100000,
+      "reasoning_summary_format": "default",
+      "default_reasoning_summary": "none",
+      "slug": "glm-4.6v-flash",
+      "display_name": "GLM 4.6V Flash",
+      "description": "智谱轻量多模态（图像+文本），性价比高。需 model_provider = ZhiPuVLM，API 模型名 glm-4.6v-flash。",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses"
+        },
+        {
+          "effort": "medium",
+          "description": "Balanced reasoning"
+        },
+        {
+          "effort": "high",
+          "description": "Deep reasoning for complex problems"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "minimal_client_version": "0.0.1",
+      "supported_in_api": true,
+      "availability_nux": null,
+      "upgrade": null,
+      "priority": 29,
+      "base_instructions": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n# Personality\n\nYou are a pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed about ongoing actions without unnecessary detail.\n\n## Values\n- Clarity: You communicate reasoning explicitly and concretely.\n- Pragmatism: You keep the end goal and momentum in mind.\n- Rigor: You expect technical arguments to be coherent and defensible.\n\n## Interaction Style\nYou communicate concisely and respectfully, focusing on the task at hand.",
+      "model_messages": {
+        "instructions_template": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n{{ personality }}\n\n# General\nAs an expert coding agent, your primary focus is writing code, answering questions, and helping the user complete their task in the current environment.\n\n- When searching for text or files, prefer using rg or rg --files.\n- Parallelize tool calls whenever possible.\n",
+        "instructions_variables": {
+          "personality_default": "",
+          "personality_friendly": "# Personality\n\nYou are warm, collaborative, and deeply pragmatic. You communicate kindly while staying focused on the work.\n",
+          "personality_pragmatic": "# Personality\n\nYou are a deeply pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed without unnecessary detail.\n"
+        }
+      },
+      "experimental_supported_tools": [],
+      "available_in_plans": [
+        "free",
+        "plus",
+        "pro"
+      ],
+      "supports_search_tool": true,
+      "service_tiers": [],
+      "additional_speed_tiers": [],
+      "supports_reasoning_summaries": false,
+      "is_default": false
+    },
+    {
+      "prefer_websockets": false,
+      "support_verbosity": false,
+      "default_verbosity": "low",
+      "apply_patch_tool_type": "freeform",
+      "web_search_tool_type": "text_and_image",
+      "input_modalities": [
+        "text"
+      ],
+      "supports_image_detail_original": false,
+      "truncation_policy": {
+        "mode": "tokens",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": true,
+      "context_window": 205000,
+      "max_context_window": 205000,
+      "auto_compact_token_limit": 180000,
+      "reasoning_summary_format": "default",
+      "default_reasoning_summary": "none",
+      "slug": "glm-4.7",
+      "display_name": "GLM 4.7",
+      "description": "智谱编程文本模型（仅文本）。model_provider = ZhiPu，API 模型名 glm-4.7。",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses"
+        },
+        {
+          "effort": "medium",
+          "description": "Balanced reasoning"
+        },
+        {
+          "effort": "high",
+          "description": "Deep reasoning for complex problems"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "minimal_client_version": "0.0.1",
+      "supported_in_api": true,
+      "availability_nux": null,
+      "upgrade": null,
+      "priority": 31,
+      "base_instructions": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n# Personality\n\nYou are a pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed about ongoing actions without unnecessary detail.\n\n## Values\n- Clarity: You communicate reasoning explicitly and concretely.\n- Pragmatism: You keep the end goal and momentum in mind.\n- Rigor: You expect technical arguments to be coherent and defensible.\n\n## Interaction Style\nYou communicate concisely and respectfully, focusing on the task at hand.",
+      "model_messages": {
+        "instructions_template": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n{{ personality }}\n\n# General\nAs an expert coding agent, your primary focus is writing code, answering questions, and helping the user complete their task in the current environment.\n\n- When searching for text or files, prefer using rg or rg --files.\n- Parallelize tool calls whenever possible.\n",
+        "instructions_variables": {
+          "personality_default": "",
+          "personality_friendly": "# Personality\n\nYou are warm, collaborative, and deeply pragmatic. You communicate kindly while staying focused on the work.\n",
+          "personality_pragmatic": "# Personality\n\nYou are a deeply pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed without unnecessary detail.\n"
+        }
+      },
+      "experimental_supported_tools": [],
+      "available_in_plans": [
+        "free",
+        "plus",
+        "pro"
+      ],
+      "supports_search_tool": true,
+      "service_tiers": [],
+      "additional_speed_tiers": [],
+      "supports_reasoning_summaries": false,
+      "is_default": false
+    },
+    {
+      "prefer_websockets": false,
+      "support_verbosity": false,
+      "default_verbosity": "low",
+      "apply_patch_tool_type": "freeform",
+      "web_search_tool_type": "text_and_image",
+      "input_modalities": [
+        "text"
+      ],
+      "supports_image_detail_original": false,
+      "truncation_policy": {
+        "mode": "tokens",
+        "limit": 10000
+      },
+      "supports_parallel_tool_calls": true,
+      "context_window": 205000,
+      "max_context_window": 205000,
+      "auto_compact_token_limit": 180000,
+      "reasoning_summary_format": "default",
+      "default_reasoning_summary": "none",
+      "slug": "glm-4.7-flash",
+      "display_name": "GLM 4.7 Flash",
+      "description": "智谱快速文本模型（仅文本，官方有免费额度）。model_provider = ZhiPu，API 模型名 glm-4.7-flash。",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses"
+        },
+        {
+          "effort": "medium",
+          "description": "Balanced reasoning"
+        },
+        {
+          "effort": "high",
+          "description": "Deep reasoning for complex problems"
+        }
+      ],
+      "shell_type": "shell_command",
+      "visibility": "list",
+      "minimal_client_version": "0.0.1",
+      "supported_in_api": true,
+      "availability_nux": null,
+      "upgrade": null,
+      "priority": 32,
+      "base_instructions": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n# Personality\n\nYou are a pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed about ongoing actions without unnecessary detail.\n\n## Values\n- Clarity: You communicate reasoning explicitly and concretely.\n- Pragmatism: You keep the end goal and momentum in mind.\n- Rigor: You expect technical arguments to be coherent and defensible.\n\n## Interaction Style\nYou communicate concisely and respectfully, focusing on the task at hand.",
+      "model_messages": {
+        "instructions_template": "You are BCIP Agent, an intelligent coding agent. You and the user share one workspace, and your job is to collaborate with them until their goal is genuinely handled.\n\nRespond in plain text only - do not output JSON, XML, or any structured format. Your responses should be natural language.\n\n{{ personality }}\n\n# General\nAs an expert coding agent, your primary focus is writing code, answering questions, and helping the user complete their task in the current environment.\n\n- When searching for text or files, prefer using rg or rg --files.\n- Parallelize tool calls whenever possible.\n",
+        "instructions_variables": {
+          "personality_default": "",
+          "personality_friendly": "# Personality\n\nYou are warm, collaborative, and deeply pragmatic. You communicate kindly while staying focused on the work.\n",
+          "personality_pragmatic": "# Personality\n\nYou are a deeply pragmatic, effective software engineer. You communicate efficiently, keeping the user clearly informed without unnecessary detail.\n"
+        }
+      },
+      "experimental_supported_tools": [],
+      "available_in_plans": [
+        "free",
+        "plus",
+        "pro"
+      ],
+      "supports_search_tool": true,
+      "service_tiers": [],
+      "additional_speed_tiers": [],
+      "supports_reasoning_summaries": false,
+      "is_default": false
+    },
+    {
+      "prefer_websockets": false,
+      "support_verbosity": false,
+      "default_verbosity": "low",
+      "apply_patch_tool_type": "freeform",
+      "web_search_tool_type": "text_and_image",
+      "input_modalities": [
+        "text",
+        "image"
+      ],
       "supports_image_detail_original": false,
       "truncation_policy": {
         "mode": "tokens",

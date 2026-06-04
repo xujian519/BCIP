@@ -1,50 +1,58 @@
 # BCIP Agent 专用配置（~/.bcip）
 # 与本地 Codex 桌面版（~/.codex）完全隔离。
-# 默认经本地 LiteLLM 代理 (8788) 使用 GLM / Kimi 编程套餐；如需直连第三方，请改 base_url / env_key。
+# 默认 DeepSeek / 智谱 GLM / Kimi 直连官方 API；本地 LiteLLM 代理为可选。
 
-model_provider = "LocalProxy"
-model = "glm-5.1"
+model_provider = "DeepSeek"
+model = "deepseek-v4-pro"
 model_reasoning_effort = "medium"
 disable_response_storage = true
 model_context_window = 200000
 model_auto_compact_token_limit = 180000
 prevent_idle_sleep = true
 
-[model_providers.LocalProxy]
-name = "本地代理 (GLM + Kimi 编程套餐)"
-wire_api = "chat"
-base_url = "http://127.0.0.1:8788/v1/"
-env_key = "OPENAI_API_KEY"
-
 [model_providers.DeepSeek]
-name = "DeepSeek"
+name = "DeepSeek (直连)"
 wire_api = "chat"
 base_url = "https://api.deepseek.com/v1/"
 env_key = "DEEPSEEK_API_KEY"
 
 [model_providers.ZhiPu]
-name = "智谱 GLM"
+name = "智谱 GLM 编程 (直连)"
+wire_api = "chat"
+base_url = "https://open.bigmodel.cn/api/coding/paas/v4"
+env_key = "ZHIPU_API_KEY"
+
+[model_providers.ZhiPuVLM]
+name = "智谱 GLM 视觉 (直连)"
 wire_api = "chat"
 base_url = "https://open.bigmodel.cn/api/paas/v4/"
 env_key = "ZHIPU_API_KEY"
 
 [model_providers.Kimi]
-name = "Kimi Code"
+name = "Kimi (直连)"
+wire_api = "chat"
+base_url = "https://api.kimi.com/coding/v1"
+env_key = "KIMI_CODE_API_KEY"
+
+[model_providers.KimiDirect]
+name = "Kimi Moonshot (直连)"
 wire_api = "chat"
 base_url = "https://api.moonshot.cn/v1/"
-env_key = "KIMI_CODE_API_KEY"
+env_key = "MOONSHOT_API_KEY"
+
+# 可选：本地 LiteLLM（8788）；未启动时会出现 502
+[model_providers.LocalProxy]
+name = "本地代理 (8788，可选)"
+wire_api = "chat"
+base_url = "http://127.0.0.1:8788/v1/"
+env_key = "OPENAI_API_KEY"
+
+[embedding]
+url = "http://127.0.0.1:8766"
+model = "bge-m3-mlx-8bit"
 
 [features]
 js_repl = false
 
 [desktop]
 auto_connect = true
-
-# 内置知识库与 BGE-M3 语义检索（桌面端启动 bcip 时会注入 BCIP_* 环境变量）
-# [assets]
-# dir = "/Users/you/projects/BCIP/codex-rs/codex-patent-assets"
-#
-# [embedding]
-# url = "http://127.0.0.1:8009"
-# model = "bge-m3-mlx-8bit"
-# api_key = "your-omlx-api-key"

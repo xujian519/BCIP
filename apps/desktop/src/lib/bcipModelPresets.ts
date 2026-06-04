@@ -11,17 +11,42 @@ const BCIP_MODEL_ENTRIES: Array<{
   {
     model: 'glm-5.1',
     displayName: 'GLM 5.1',
-    description: '经本地 LiteLLM 代理 (8788)，推荐默认',
+    description: '智谱编程 API，仅文本（model_provider = ZhiPu）',
+  },
+  {
+    model: 'glm-4.6v',
+    displayName: 'GLM 4.6V',
+    description: '智谱多模态：图像+文本+工具（model_provider = ZhiPuVLM）',
+  },
+  {
+    model: 'glm-4.6v-flash',
+    displayName: 'GLM 4.6V Flash',
+    description: '智谱轻量多模态（model_provider = ZhiPuVLM）',
+  },
+  {
+    model: 'glm-4.7',
+    displayName: 'GLM 4.7',
+    description: '智谱编程文本（model_provider = ZhiPu）',
+  },
+  {
+    model: 'glm-4.7-flash',
+    displayName: 'GLM 4.7 Flash',
+    description: '智谱快速文本（model_provider = ZhiPu）',
   },
   {
     model: 'kimi-for-coding',
     displayName: 'Kimi 编程',
-    description: '经本地 LiteLLM 代理 (8788)',
+    description: 'Kimi 直连（config: model_provider = Kimi）',
+  },
+  {
+    model: 'deepseek-v4-pro',
+    displayName: 'DeepSeek V4 Pro',
+    description: 'DeepSeek 直连（config: model_provider = DeepSeek）',
   },
   {
     model: 'deepseek-chat',
     displayName: 'DeepSeek Chat',
-    description: '经本地代理或直连 DeepSeek',
+    description: 'DeepSeek 直连',
   },
   {
     model: 'glm-4-flash',
@@ -31,10 +56,12 @@ const BCIP_MODEL_ENTRIES: Array<{
 ];
 
 export const BCIP_MODEL_PROVIDERS: Array<{ id: string; name: string }> = [
-  { id: 'LocalProxy', name: '本地代理 (8788)' },
   { id: 'DeepSeek', name: 'DeepSeek 直连' },
-  { id: 'ZhiPu', name: '智谱 GLM' },
-  { id: 'Kimi', name: 'Kimi' },
+  { id: 'ZhiPu', name: '智谱 GLM 编程' },
+  { id: 'ZhiPuVLM', name: '智谱 GLM 视觉（多模态）' },
+  { id: 'Kimi', name: 'Kimi 直连' },
+  { id: 'KimiDirect', name: 'Kimi Moonshot 直连' },
+  { id: 'LocalProxy', name: '本地代理 (8788，可选)' },
 ];
 
 export const STANDARD_REASONING_EFFORTS: ReasoningEffort[] = [

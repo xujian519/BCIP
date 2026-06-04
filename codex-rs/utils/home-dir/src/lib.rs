@@ -11,21 +11,39 @@ pub const BCIP_HOME_DIR_NAME: &str = ".bcip";
 /// BCIP 首次启动时写入的 `config.toml`（不含插件/MCP，避免与 Codex 桌面混用）。
 const DEFAULT_CONFIG_TOML: &str = r#"# YunPat Agent 专用配置（~/.bcip）
 # 与本地 Codex 桌面版（~/.codex）完全隔离。
-# 默认经本地 LiteLLM 代理 (8788) 使用 GLM / Kimi 编程套餐；如需直连第三方，请改 base_url / env_key。
+# 默认 DeepSeek / GLM / Kimi 直连；本地 LiteLLM 代理 (8788) 为可选。
 
-model_provider = "LocalProxy"
-model = "glm-5.1"
+model_provider = "DeepSeek"
+model = "deepseek-v4-pro"
 model_reasoning_effort = "medium"
 disable_response_storage = true
 model_context_window = 200000
 model_auto_compact_token_limit = 180000
 prevent_idle_sleep = true
 
-[model_providers.LocalProxy]
-name = "本地代理 (GLM + Kimi 编程套餐)"
+[model_providers.DeepSeek]
+name = "DeepSeek (直连)"
 wire_api = "chat"
-base_url = "http://127.0.0.1:8788/v1/"
-env_key = "OPENAI_API_KEY"
+base_url = "https://api.deepseek.com/v1/"
+env_key = "DEEPSEEK_API_KEY"
+
+[model_providers.ZhiPu]
+name = "智谱 GLM 编程 (直连)"
+wire_api = "chat"
+base_url = "https://open.bigmodel.cn/api/coding/paas/v4"
+env_key = "ZHIPU_API_KEY"
+
+[model_providers.ZhiPuVLM]
+name = "智谱 GLM 视觉 (直连)"
+wire_api = "chat"
+base_url = "https://open.bigmodel.cn/api/paas/v4/"
+env_key = "ZHIPU_API_KEY"
+
+[model_providers.Kimi]
+name = "Kimi (直连)"
+wire_api = "chat"
+base_url = "https://api.kimi.com/coding/v1"
+env_key = "KIMI_CODE_API_KEY"
 
 [features]
 js_repl = false

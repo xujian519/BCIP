@@ -26,6 +26,10 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // react-pdf 将 pdfjs-dist 作为直接依赖捆绑（当前 5.4.x），而项目顶层安装了
+      // 不同版本（5.7.x）。将所有 pdfjs-dist 导入统一解析到 react-pdf 的嵌套版本，
+      // 确保 worker 与主库版本一致，避免 PDF 预览运行时报错。
+      "pdfjs-dist": path.resolve(__dirname, "node_modules/react-pdf/node_modules/pdfjs-dist"),
       "@eigenpal/docx-editor-react/dist/styles.css":
         path.resolve(__dirname, "node_modules/@eigenpal/docx-editor-react/dist/styles.css"),
     },
