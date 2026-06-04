@@ -9540,13 +9540,14 @@ async fn fatal_tool_error_stops_turn_and_reports_error() {
         .expect("tool call present");
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
     let err = router
-        .dispatch_tool_call_with_code_mode_result(
+        .dispatch_tool_call_with_terminal_outcome(
             Arc::clone(&session),
             Arc::clone(&turn_context),
             CancellationToken::new(),
             tracker,
             call,
             ToolCallSource::Direct,
+            Arc::new(std::sync::atomic::AtomicBool::new(false)),
         )
         .await
         .err()

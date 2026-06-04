@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use crate::config::Config;
 use crate::session::tests::make_session_and_context;
@@ -373,13 +374,14 @@ async fn extension_tool_executors_are_model_visible_and_dispatchable() -> anyhow
     })?
     .expect("function_call should produce a tool call");
     let result = router
-        .dispatch_tool_call_with_code_mode_result(
+        .dispatch_tool_call_with_terminal_outcome(
             Arc::new(session),
             Arc::new(turn),
             CancellationToken::new(),
             Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call,
             ToolCallSource::Direct,
+            Arc::new(AtomicBool::new(false)),
         )
         .await?;
 

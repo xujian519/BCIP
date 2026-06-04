@@ -392,20 +392,20 @@ async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
     let turn = Arc::new(turn);
 
     registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             Arc::clone(&session),
             Arc::clone(&turn),
             "ok-call",
             ok_tool.clone(),
-        ))
+        ), None)
         .await?;
     let err = match registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             Arc::clone(&session),
             Arc::clone(&turn),
             "failing-call",
             failing_tool.clone(),
-        ))
+        ), None)
         .await
     {
         Ok(_) => panic!("failing handler should return an error"),

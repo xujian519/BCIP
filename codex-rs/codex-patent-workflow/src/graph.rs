@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use super::flow::FlowStatus;
 use super::flow::FlowStep;
+#[cfg(test)]
 use super::flow::HumanApprovalTimeoutAction;
 use super::flow::StepResult;
 

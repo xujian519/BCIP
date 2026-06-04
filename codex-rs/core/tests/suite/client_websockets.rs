@@ -1330,7 +1330,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         panic!("expected TokenCount event");
     };
     pretty_assertions::assert_eq!(
-        event_json,
+        serde_json::to_value(&event).expect("serialize token count event"),
         json!({
             "info": null,
             "rate_limits": {

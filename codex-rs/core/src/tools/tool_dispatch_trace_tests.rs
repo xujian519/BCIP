@@ -79,17 +79,17 @@ async fn dispatch_lifecycle_trace_records_direct_and_code_mode_requesters() -> a
     let turn = Arc::new(turn);
 
     registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             Arc::clone(&session),
             Arc::clone(&turn),
             "direct-call",
             "test_tool",
             ToolCallSource::Direct,
             "{}",
-        ))
+        ), None)
         .await?;
     registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             session,
             turn,
             "code-mode-call",
@@ -99,7 +99,7 @@ async fn dispatch_lifecycle_trace_records_direct_and_code_mode_requesters() -> a
                 runtime_tool_call_id: "tool-1".to_string(),
             },
             "{}",
-        ))
+        ), None)
         .await?;
 
     let replayed = codex_rollout_trace::replay_bundle(single_bundle_dir(temp.path())?)?;
@@ -158,14 +158,14 @@ async fn dispatch_lifecycle_trace_records_unsupported_tool_failures() -> anyhow:
     let turn = Arc::new(turn);
 
     let result = registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             session,
             turn,
             "unsupported-call",
             "missing_tool",
             ToolCallSource::Direct,
             "{}",
-        ))
+        ), None)
         .await;
 
     assert!(matches!(result, Err(FunctionCallError::RespondToModel(_))));
@@ -190,7 +190,7 @@ async fn dispatch_lifecycle_trace_records_incompatible_payload_failures() -> any
     let turn = Arc::new(turn);
 
     let result = registry
-        .dispatch_any(test_invocation_with_payload(
+        .dispatch_any_with_terminal_outcome(test_invocation_with_payload(
             session,
             turn,
             "incompatible-call",
@@ -199,7 +199,7 @@ async fn dispatch_lifecycle_trace_records_incompatible_payload_failures() -> any
             ToolPayload::Custom {
                 input: "{}".to_string(),
             },
-        ))
+        ), None)
         .await;
 
     assert!(matches!(result, Err(FunctionCallError::Fatal(_))));
@@ -222,14 +222,14 @@ async fn missing_code_mode_wait_traces_only_the_wait_tool_call() -> anyhow::Resu
     let turn = Arc::new(turn);
 
     registry
-        .dispatch_any(test_invocation(
+        .dispatch_any_with_terminal_outcome(test_invocation(
             session,
             turn,
             "wait-call",
             WAIT_TOOL_NAME,
             ToolCallSource::Direct,
             r#"{"cell_id":"noop","terminate":true}"#,
-        ))
+        ), None)
         .await?;
 
     let replayed = codex_rollout_trace::replay_bundle(single_bundle_dir(temp.path())?)?;
