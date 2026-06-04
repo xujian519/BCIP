@@ -2,60 +2,184 @@
 //!
 //! 封装从 Google Patents 获取专利数据的底层逻辑，包括 HTML 抓取、
 //! 重试机制、HTML 解析等。提供 [`fetch_google_patents`] 和 [`download_patent`] 两个核心入口。
+//!
+//! 内置熔断器保护：连续3次失败后熔断，120秒后半开探测。
 
 use serde::Deserialize;
 use serde::Serialize;
 
-/// 最大重试次数（429 时指数退避）。
-const MAX_RETRIES: u32 = 2;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::OnceLock;
 
-/// Google Patents 检索输入参数。
+const MAX_RETRIES: u32 = 2;
+const REQUEST_TIMEOUT_SECS: u64 = 30;
+const CB_FAILURE_THRESHOLD: u32 = 3;
+const CB_RESET_TIMEOUT_SECS: u64 = 120;
+const CB_HALF_OPEN_MAX: u32 = 2;
+const BACKOFF_BASE_SECS: u64 = 2;
+const BACKOFF_MAX_SECS: u64 = 60;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CbState {
+    Closed,
+    Open,
+    HalfOpen,
+}
+
+struct InlineCb {
+    state: AtomicU32,
+    consecutive_failures: AtomicU32,
+    opened_at: AtomicU64,
+    half_open_calls: AtomicU32,
+}
+
+impl InlineCb {
+    const fn new() -> Self {
+        Self {
+            state: AtomicU32::new(0),
+            consecutive_failures: AtomicU32::new(0),
+            opened_at: AtomicU64::new(0),
+            half_open_calls: AtomicU32::new(0),
+        }
+    }
+
+    fn current_state(&self) -> CbState {
+        let raw = self.state.load(Ordering::Relaxed);
+        match raw {
+            0 => CbState::Closed,
+            1 => {
+                let opened = self.opened_at.load(Ordering::Relaxed);
+                if opened > 0 {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    if now.saturating_sub(opened) >= CB_RESET_TIMEOUT_SECS {
+                        self.state.store(2, Ordering::Relaxed);
+                        self.half_open_calls.store(1, Ordering::Relaxed);
+                        return CbState::HalfOpen;
+                    }
+                }
+                CbState::Open
+            }
+            2 => CbState::HalfOpen,
+            _ => CbState::Closed,
+        }
+    }
+
+    fn allow_request(&self) -> bool {
+        match self.current_state() {
+            CbState::Closed => true,
+            CbState::Open => false,
+            CbState::HalfOpen => {
+                let calls = self.half_open_calls.fetch_add(1, Ordering::Relaxed);
+                calls < CB_HALF_OPEN_MAX
+            }
+        }
+    }
+
+    fn record_success(&self) {
+        self.consecutive_failures.store(0, Ordering::Relaxed);
+        if self.current_state() == CbState::HalfOpen {
+            let calls = self.half_open_calls.load(Ordering::Relaxed);
+            if calls >= CB_HALF_OPEN_MAX {
+                self.state.store(0, Ordering::Relaxed);
+                self.opened_at.store(0, Ordering::Relaxed);
+                self.half_open_calls.store(0, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn record_failure(&self) {
+        let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
+        match self.current_state() {
+            CbState::Closed => {
+                if failures >= CB_FAILURE_THRESHOLD {
+                    self.trip_open();
+                }
+            }
+            CbState::HalfOpen => {
+                self.trip_open();
+            }
+            CbState::Open => {}
+        }
+    }
+
+    fn trip_open(&self) {
+        self.state.store(1, Ordering::Relaxed);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.opened_at.store(now, Ordering::Relaxed);
+    }
+}
+
+static GOOGLE_PATENTS_CB: OnceLock<InlineCb> = OnceLock::new();
+
+fn get_cb() -> &'static InlineCb {
+    GOOGLE_PATENTS_CB.get_or_init(InlineCb::new)
+}
+
+fn backoff_delay_secs(attempt: u32) -> u64 {
+    let raw = BACKOFF_BASE_SECS * 2u64.pow(attempt);
+    raw.min(BACKOFF_MAX_SECS)
+}
+
+fn build_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 #[derive(Debug, Deserialize)]
 pub struct GooglePatentsInput {
-    /// 检索查询字符串。
     pub query: String,
-    /// 返回结果数量上限（默认 10）。
     #[serde(default = "default_limit")]
     pub limit: usize,
-    /// 专利号码（可选，用于精确匹配）。
     pub patent_number: Option<String>,
 }
 
-/// 返回默认搜索限制数量（10）。
 pub fn default_limit() -> usize {
     10
 }
 
-/// Google Patents 搜索结果条目。
 #[derive(Debug, Serialize, Clone)]
 pub struct PatentResult {
-    /// 专利号码。
     pub patent_number: String,
-    /// 专利标题。
     pub title: String,
-    /// 摘要文本。
     pub abstract_text: String,
-    /// 专利权人。
     pub assignee: Option<String>,
-    /// 申请日期。
     pub filing_date: Option<String>,
-    /// 公开/公告日期。
     pub publication_date: Option<String>,
 }
 
 pub async fn fetch_google_patents(input: GooglePatentsInput) -> Result<Vec<PatentResult>, String> {
+    let cb = get_cb();
+
+    if !cb.allow_request() {
+        return Err(format!(
+            "Google Patents circuit breaker open (failures >= {CB_FAILURE_THRESHOLD}), \
+             retry after {CB_RESET_TIMEOUT_SECS}s"
+        ));
+    }
+
     let url = format!(
         "https://patents.google.com/?q={}&num={}",
         urlencoding(&input.query),
         input.limit
     );
 
-    let client = reqwest::Client::new();
+    let client = build_client();
     let body = fetch_with_retry(&client, &url).await?;
+
+    cb.record_success();
     parse_patent_results(&body, input.limit)
 }
 
 async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String, String> {
+    let cb = get_cb();
     let mut attempt = 0;
     loop {
         let resp = client
@@ -63,20 +187,29 @@ async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String,
             .header("User-Agent", "Mozilla/5.0 BCIP-Patent-Search/1.0")
             .send()
             .await
-            .map_err(|e| format!("HTTP error: {e}"))?;
+            .map_err(|e| {
+                cb.record_failure();
+                format!("HTTP error: {e}")
+            })?;
 
         if resp.status().is_success() {
-            return resp.text().await.map_err(|e| format!("read body: {e}"));
+            return resp.text().await.map_err(|e| {
+                cb.record_failure();
+                format!("read body: {e}")
+            });
         }
 
         let status = resp.status().as_u16();
-        if status == 429 && attempt < MAX_RETRIES {
-            let delay = std::time::Duration::from_secs(2u64.pow(attempt));
+        let is_retryable = status == 429 || status >= 500;
+        if is_retryable && attempt < MAX_RETRIES {
+            cb.record_failure();
+            let delay = std::time::Duration::from_secs(backoff_delay_secs(attempt));
             tokio::time::sleep(delay).await;
             attempt += 1;
             continue;
         }
 
+        cb.record_failure();
         let suggestion = match status {
             429 => "请求频率超限，请稍后重试或使用 WebSearch 替代".to_string(),
             403 => "访问被拒绝，请尝试使用 PatentSearch 替代".to_string(),
@@ -90,7 +223,7 @@ async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String,
             "status": status,
             "message": format!("HTTP {status}: {}", &msg[..msg.len().min(200)]),
             "suggestion": suggestion,
-            "retry_possible": status == 429,
+            "retry_possible": is_retryable,
         });
         return Err(err.to_string());
     }

@@ -185,3 +185,4 @@ pub use turn_metadata::build_turn_metadata_header;
 pub mod compact;
 mod memory_usage;
 pub mod otel_init;
+mod resilience;

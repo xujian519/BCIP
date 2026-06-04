@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use super::flow::FlowStatus;
 use super::flow::FlowStep;
+use super::flow::HumanApprovalTimeoutAction;
 use super::flow::StepResult;
 
 /// DAG 图节点 — 包含一个工作流步骤
@@ -452,6 +453,8 @@ mod tests {
                     step: FlowStep::HumanApproval {
                         title: "审批".into(),
                         description: "需要人工介入".into(),
+                        timeout_secs: None,
+                        timeout_action: HumanApprovalTimeoutAction::Fail,
                     },
                     label: None,
                 },

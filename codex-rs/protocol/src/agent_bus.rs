@@ -142,6 +142,24 @@ pub enum AgentLiveness {
     Unknown,
 }
 
+/// Describes a task currently in-flight on the bus.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS)]
+pub struct TaskDescriptor {
+    /// Unique task ID.
+    #[schemars(with = "String")]
+    #[ts(type = "string")]
+    pub task_id: Uuid,
+    /// Agent that owns (or owned) this task.
+    pub assigned_to: AgentPath,
+    /// Role of the agent (for reassignment matching).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_role: Option<String>,
+    /// Original TaskRequest message.
+    pub request_message: AgentBusMessage,
+    /// When the task was tracked (Unix milliseconds).
+    pub tracked_at_ms: i64,
+}
+
 impl AgentBusMessage {
     /// Create a new message with auto-generated ID and current timestamp.
     pub fn new(

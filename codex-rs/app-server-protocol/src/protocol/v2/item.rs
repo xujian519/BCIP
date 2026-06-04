@@ -1010,6 +1010,7 @@ pub enum CollabAgentStatus {
     Errored,
     Shutdown,
     NotFound,
+    Restarting,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -1049,6 +1050,10 @@ impl From<CoreAgentStatus> for CollabAgentState {
             },
             CoreAgentStatus::NotFound => Self {
                 status: CollabAgentStatus::NotFound,
+                message: None,
+            },
+            CoreAgentStatus::Restarting => Self {
+                status: CollabAgentStatus::Restarting,
                 message: None,
             },
         }

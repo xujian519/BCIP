@@ -1032,6 +1032,7 @@ impl Session {
                 code_mode_service: crate::tools::code_mode::CodeModeService::new(),
                 environment_manager,
                 agent_bus: Arc::new(crate::agent::AgentBus::default_config()),
+                circuit_breaker_registry: Arc::new(crate::resilience::CircuitBreakerRegistry::new()),
             };
             services
                 .agent_control

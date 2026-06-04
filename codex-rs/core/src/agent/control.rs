@@ -1142,6 +1142,7 @@ impl AgentControl {
             agent_nickname,
             agent_role,
             last_task_message: None,
+            recovery_context: Default::default(),
         };
         Ok((session_source, agent_metadata))
     }

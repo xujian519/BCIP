@@ -11,6 +11,7 @@ use crate::exec_policy::ExecPolicyManager;
 use crate::guardian::GuardianRejection;
 use crate::guardian::GuardianRejectionCircuitBreaker;
 use crate::mcp::McpManager;
+use crate::resilience::CircuitBreakerRegistry;
 use crate::tools::code_mode::CodeModeService;
 use crate::tools::network_approval::NetworkApprovalService;
 use crate::tools::sandboxing::ApprovalStore;
@@ -83,4 +84,5 @@ pub(crate) struct SessionServices {
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     /// AgentBus for cross-agent messaging.
     pub(crate) agent_bus: Arc<crate::agent::AgentBus>,
+    pub(crate) circuit_breaker_registry: Arc<CircuitBreakerRegistry>,
 }

@@ -1563,6 +1563,8 @@ pub enum AgentStatus {
     Shutdown,
     /// Agent is not found.
     NotFound,
+    /// Agent is restarting after a failure.
+    Restarting,
 }
 
 /// Turn kinds that reject same-turn steering.

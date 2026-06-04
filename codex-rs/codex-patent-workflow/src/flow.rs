@@ -21,6 +21,10 @@ pub enum FlowStep {
     HumanApproval {
         title: String,
         description: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        timeout_secs: Option<u64>,
+        #[serde(default)]
+        timeout_action: HumanApprovalTimeoutAction,
     },
     ToolCall {
         tool_name: String,
@@ -50,6 +54,14 @@ pub enum FlowStatus {
     Suspended,
     Completed,
     Failed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum HumanApprovalTimeoutAction {
+    #[default]
+    Fail,
+    AutoApprove,
 }
 
 /// 步骤执行结果

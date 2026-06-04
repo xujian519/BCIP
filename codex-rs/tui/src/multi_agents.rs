@@ -582,6 +582,7 @@ fn status_summary_spans(status: &CollabAgentState) -> Vec<Span<'static>> {
         }
         CollabAgentStatus::Shutdown => vec![Span::from("Shutdown")],
         CollabAgentStatus::NotFound => vec![Span::from("Not found").red()],
+        CollabAgentStatus::Restarting => vec![Span::from("Restarting").cyan()],
     }
 }
 

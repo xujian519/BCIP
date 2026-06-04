@@ -280,6 +280,9 @@ impl EventProcessorWithJsonOutput {
                                         codex_app_server_protocol::CollabAgentStatus::NotFound => {
                                             CollabAgentStatus::NotFound
                                         }
+                                        codex_app_server_protocol::CollabAgentStatus::Restarting => {
+                                            CollabAgentStatus::Restarting
+                                        }
                                     },
                                     message: state.message,
                                 },

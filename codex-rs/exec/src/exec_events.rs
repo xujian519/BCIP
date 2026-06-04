@@ -235,6 +235,7 @@ pub enum CollabAgentStatus {
     Errored,
     Shutdown,
     NotFound,
+    Restarting,
 }
 
 /// Last known state of a collab agent.

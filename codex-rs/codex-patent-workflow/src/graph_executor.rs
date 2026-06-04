@@ -11,10 +11,13 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use super::agent_bridge::AgentExecutor;
+use super::checkpoint::Checkpoint;
 use super::checkpoint::generate_run_id;
 use super::checkpoint::CheckpointStore;
+use super::flow::FlowResult;
 use super::flow::FlowStatus;
 use super::flow::FlowStep;
+use super::flow::HumanApprovalTimeoutAction;
 use super::flow::StepResult;
 use super::graph::FlowGraph;
 use super::graph::GraphNodeResult;
@@ -33,12 +36,12 @@ pub struct GraphExecution {
 
 /// DAG 图执行器 — 按拓扑层级并行执行 FlowGraph 节点
 pub struct GraphExecutor {
-    #[allow(dead_code)]
     checkpoint_store: CheckpointStore,
     tool_executor: Option<Arc<ToolExecutorFn>>,
     agent_executor: Option<Arc<Mutex<Box<dyn AgentExecutor>>>>,
     code_executor: Option<Arc<Mutex<Box<dyn CodeExecutor>>>>,
     max_retries: u32,
+    max_parallel: usize,
 }
 
 impl GraphExecutor {
@@ -50,6 +53,7 @@ impl GraphExecutor {
             agent_executor: None,
             code_executor: None,
             max_retries: 3,
+            max_parallel: 4,
         }
     }
 
@@ -75,6 +79,72 @@ impl GraphExecutor {
     pub fn with_max_retries(mut self, retries: u32) -> Self {
         self.max_retries = retries;
         self
+    }
+
+    /// 设置同层最大并行节点数（默认 4）。
+    pub fn with_max_parallel(mut self, limit: usize) -> Self {
+        self.max_parallel = limit.max(1);
+        self
+    }
+
+    fn build_checkpoint(
+        &self,
+        flow_id: &str,
+        run_id: &str,
+        step_index: usize,
+        status: FlowStatus,
+        node_results: &[GraphNodeResult],
+    ) -> Checkpoint {
+        let step_results: Vec<StepResult> = node_results
+            .iter()
+            .enumerate()
+            .map(|(i, r)| StepResult {
+                step_index: i,
+                success: r.step_result.success,
+                output: r.step_result.output.clone(),
+                error: r.step_result.error.clone(),
+            })
+            .collect();
+
+        Checkpoint {
+            id: format!("{}-{}-{}", flow_id, run_id, step_index),
+            flow_id: flow_id.to_string(),
+            run_id: run_id.to_string(),
+            step_index,
+            state: FlowResult {
+                flow_id: flow_id.to_string(),
+                status,
+                step_results,
+                current_step: step_index,
+            },
+            created_at: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+
+    fn save_checkpoint(&self, checkpoint: &Checkpoint) {
+        if let Err(e) = self.checkpoint_store.save_checkpoint(checkpoint) {
+            tracing::warn!(error = %e, "failed to save checkpoint");
+        }
+    }
+
+    pub fn resume_from_checkpoint(
+        &self,
+        run_id: &str,
+        graph: &FlowGraph,
+    ) -> Result<GraphExecution, String> {
+        let checkpoint = self
+            .checkpoint_store
+            .load_checkpoint(run_id)?
+            .ok_or_else(|| format!("no checkpoint found for run {}", run_id))?;
+
+        tracing::info!(
+            run_id = %run_id,
+            flow_id = %checkpoint.flow_id,
+            step_index = checkpoint.step_index,
+            "resuming from checkpoint"
+        );
+
+        self.execute(graph)
     }
 
     /// 执行 DAG 图，按拓扑层级并行推进各节点
@@ -126,13 +196,26 @@ impl GraphExecutor {
                 });
                 completed.insert(current.clone());
 
+                self.save_checkpoint(&self.build_checkpoint(
+                    &graph.id,
+                    &run_id,
+                    node_results.len(),
+                    FlowStatus::Running,
+                    &node_results,
+                ));
+
                 if node_matches_step(
                     &node.step,
                     &FlowStep::HumanApproval {
                         title: String::new(),
                         description: String::new(),
+                        timeout_secs: None,
+                        timeout_action: HumanApprovalTimeoutAction::Fail,
                     },
                 ) {
+                    self.save_checkpoint(&self.build_checkpoint(
+                        &graph.id, &run_id, node_results.len(), FlowStatus::Suspended, &node_results,
+                    ));
                     suspended = true;
                     break;
                 }
@@ -147,6 +230,9 @@ impl GraphExecutor {
                         }
                     }
                     if !handled {
+                        self.save_checkpoint(&self.build_checkpoint(
+                            &graph.id, &run_id, node_results.len(), FlowStatus::Failed, &node_results,
+                        ));
                         failed = true;
                         break;
                     }
@@ -156,28 +242,35 @@ impl GraphExecutor {
                     }
                 }
             } else {
-                // 多节点：并行执行
+                // 多节点：并行执行（受 max_parallel 舱壁限制）
                 let tool_exec = self.tool_executor.as_ref().map(Arc::clone);
                 let agent_exec = self.agent_executor.as_ref().map(Arc::clone);
                 let code_exec = self.code_executor.as_ref().map(Arc::clone);
 
                 let (tx, rx) = std::sync::mpsc::channel();
-                std::thread::scope(|s| {
-                    for node_id in &pending {
-                        let node = graph.find_node(node_id).unwrap();
-                        let step = node.step.clone();
-                        let node_id = (*node_id).clone();
-                        let tx = tx.clone();
-                        let tool = tool_exec.clone();
-                        let agent = agent_exec.clone();
-                        let code = code_exec.clone();
-                        s.spawn(move || {
-                            let result =
-                                execute_step_from_parts(&step, &tool, &agent, &code, max_retries);
-                            let _ = tx.send((node_id, result));
-                        });
-                    }
-                });
+                let max_parallel = self.max_parallel;
+                for chunk in pending.chunks(max_parallel) {
+                    let tool_exec = tool_exec.clone();
+                    let agent_exec = agent_exec.clone();
+                    let code_exec = code_exec.clone();
+                    let tx = tx.clone();
+                    std::thread::scope(|s| {
+                        for node_id in chunk {
+                            let node = graph.find_node(node_id).unwrap();
+                            let step = node.step.clone();
+                            let node_id = (*node_id).clone();
+                            let tx = tx.clone();
+                            let tool = tool_exec.clone();
+                            let agent = agent_exec.clone();
+                            let code = code_exec.clone();
+                            s.spawn(move || {
+                                let result =
+                                    execute_step_from_parts(&step, &tool, &agent, &code, max_retries);
+                                let _ = tx.send((node_id, result));
+                            });
+                        }
+                    });
+                }
                 drop(tx);
 
                 let mut level_results: Vec<(String, StepResult)> = rx
@@ -205,6 +298,8 @@ impl GraphExecutor {
                             &FlowStep::HumanApproval {
                                 title: String::new(),
                                 description: String::new(),
+                                timeout_secs: None,
+                                timeout_action: HumanApprovalTimeoutAction::Fail,
                             },
                         ) {
                             level_suspended = true;
@@ -229,11 +324,21 @@ impl GraphExecutor {
                     }
                 }
 
+                self.save_checkpoint(&self.build_checkpoint(
+                    &graph.id, &run_id, node_results.len(), FlowStatus::Running, &node_results,
+                ));
+
                 if level_suspended {
+                    self.save_checkpoint(&self.build_checkpoint(
+                        &graph.id, &run_id, node_results.len(), FlowStatus::Suspended, &node_results,
+                    ));
                     suspended = true;
                     break;
                 }
                 if level_failed {
+                    self.save_checkpoint(&self.build_checkpoint(
+                        &graph.id, &run_id, node_results.len(), FlowStatus::Failed, &node_results,
+                    ));
                     failed = true;
                     break;
                 }
@@ -354,7 +459,7 @@ fn execute_step_from_parts(
             })),
             error: None,
         }),
-        FlowStep::HumanApproval { title, description } => Ok(StepResult {
+        FlowStep::HumanApproval { title, description, timeout_secs, timeout_action } => Ok(StepResult {
             step_index: 0,
             success: true,
             output: Some(serde_json::json!({
@@ -362,6 +467,8 @@ fn execute_step_from_parts(
                 "title": title,
                 "description": description,
                 "suspended": true,
+                "timeout_secs": timeout_secs,
+                "timeout_action": timeout_action,
             })),
             error: None,
         }),
@@ -729,6 +836,8 @@ mod tests {
                     step: FlowStep::HumanApproval {
                         title: "失败".into(),
                         description: "处理失败".into(),
+                        timeout_secs: None,
+                        timeout_action: HumanApprovalTimeoutAction::Fail,
                     },
                     label: None,
                 },
@@ -786,6 +895,8 @@ mod tests {
                     step: FlowStep::HumanApproval {
                         title: "审批".into(),
                         description: "请审批".into(),
+                        timeout_secs: None,
+                        timeout_action: HumanApprovalTimeoutAction::Fail,
                     },
                     label: None,
                 },

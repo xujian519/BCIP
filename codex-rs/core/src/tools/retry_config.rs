@@ -39,14 +39,11 @@ impl ToolRetryPolicy {
     }
 }
 
-/// 指数退避 + 抖动。
+/// 指数退避 + 抖动（委托到 `ExponentialBackoff`）。
 pub fn backoff(base: Duration, attempt: u32) -> Duration {
-    let exp = 2u64.saturating_pow(attempt);
-    let millis = base.as_millis() as u64;
-    let raw = millis.saturating_mul(exp);
-    let jitter = (raw as f64) * 0.1;
-    let jittered = raw as f64 + (jitter * rand::random::<f64>() * 2.0 - jitter);
-    Duration::from_millis(jittered as u64)
+    let preset =
+        crate::resilience::ExponentialBackoff::new(base.as_millis() as u64, 30_000, 2.0, 0.1);
+    preset.delay_for_attempt(attempt)
 }
 
 // ── 静态策略配置表 ──

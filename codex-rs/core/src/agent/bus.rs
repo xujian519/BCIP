@@ -14,6 +14,7 @@ use codex_protocol::agent_bus::AgentBusMessageType;
 use codex_protocol::agent_bus::AgentBusRecipient;
 use codex_protocol::agent_bus::AgentLiveness;
 use codex_protocol::agent_bus::HeartbeatConfig;
+use codex_protocol::agent_bus::TaskDescriptor;
 use codex_protocol::transport::LocalTransport;
 use codex_protocol::transport::Transport;
 use codex_protocol::transport::TransportError;
@@ -80,6 +81,8 @@ pub(crate) struct AgentBus {
     history: Arc<RwLock<VecDeque<AgentBusMessage>>>,
     dead_letter: Arc<RwLock<VecDeque<AgentBusMessage>>>,
     liveness: Arc<RwLock<HashMap<AgentPath, LivenessState>>>,
+    pending_tasks: Arc<RwLock<HashMap<uuid::Uuid, TaskDescriptor>>>,
+    on_unresponsive: Option<Arc<dyn Fn(AgentPath) + Send + Sync>>,
     max_history: usize,
     max_payload_bytes: usize,
 }
@@ -96,6 +99,8 @@ impl AgentBus {
             history: Arc::new(RwLock::new(VecDeque::with_capacity(max_history))),
             dead_letter: Arc::new(RwLock::new(VecDeque::with_capacity(DEFAULT_DLQ_CAPACITY))),
             liveness: Arc::new(RwLock::new(HashMap::new())),
+            pending_tasks: Arc::new(RwLock::new(HashMap::new())),
+            on_unresponsive: None,
             max_history,
             max_payload_bytes: DEFAULT_MAX_PAYLOAD_BYTES,
         }
@@ -333,19 +338,99 @@ impl AgentBus {
             .collect()
     }
 
+    pub(crate) fn set_on_unresponsive(&mut self, callback: Arc<dyn Fn(AgentPath) + Send + Sync>) {
+        self.on_unresponsive = Some(callback);
+    }
+
     pub(crate) async fn check_liveness(&self, config: &HeartbeatConfig) {
         let mut liveness = self.liveness.write().await;
         let timeout = std::time::Duration::from_secs(config.timeout_secs);
         let now = Instant::now();
+        let mut newly_unresponsive: Vec<AgentPath> = Vec::new();
 
-        for state in liveness.values_mut() {
+        for (path, state) in liveness.iter_mut() {
             if now.duration_since(state.last_seen) > timeout {
                 state.missed_count += 1;
-                if state.missed_count >= config.max_missed {
+                if state.missed_count >= config.max_missed
+                    && state.status != AgentLiveness::Unresponsive
+                {
                     state.status = AgentLiveness::Unresponsive;
+                    newly_unresponsive.push(path.clone());
                 }
             }
         }
+        drop(liveness);
+
+        if let Some(ref callback) = self.on_unresponsive {
+            for path in newly_unresponsive {
+                tracing::warn!(agent = %path, "agent became unresponsive, triggering callback");
+                callback(path);
+            }
+        }
+    }
+
+    // ── Task tracking ─────────────────────────────────────────────
+
+    pub(crate) async fn track_task(&self, descriptor: TaskDescriptor) {
+        self.pending_tasks.write().await.insert(descriptor.task_id, descriptor);
+    }
+
+    pub(crate) async fn complete_task(&self, task_id: &uuid::Uuid) -> Option<TaskDescriptor> {
+        self.pending_tasks.write().await.remove(task_id)
+    }
+
+    pub(crate) async fn pending_tasks_for(&self, path: &AgentPath) -> Vec<TaskDescriptor> {
+        self.pending_tasks
+            .read()
+            .await
+            .values()
+            .filter(|t| &t.assigned_to == path)
+            .cloned()
+            .collect()
+    }
+
+    pub(crate) async fn reassign_orphaned_tasks(
+        &self,
+        dead_agent: &AgentPath,
+        new_agent: &AgentPath,
+    ) -> usize {
+        let mut tasks = self.pending_tasks.write().await;
+        let mut reassigned = 0;
+        for (_, descriptor) in tasks.iter_mut() {
+            if &descriptor.assigned_to == dead_agent {
+                descriptor.assigned_to = new_agent.clone();
+                reassigned += 1;
+            }
+        }
+        if reassigned > 0 {
+            tracing::info!(
+                dead_agent = %dead_agent,
+                new_agent = %new_agent,
+                reassigned,
+                "reassigned orphaned tasks"
+            );
+        }
+        reassigned
+    }
+
+    pub(crate) async fn orphaned_tasks_by_role(
+        &self,
+        dead_agent: &AgentPath,
+    ) -> HashMap<String, Vec<TaskDescriptor>> {
+        let tasks = self.pending_tasks.read().await;
+        let mut by_role: HashMap<String, Vec<TaskDescriptor>> = HashMap::new();
+        for (_, descriptor) in tasks.iter() {
+            if &descriptor.assigned_to == dead_agent {
+                if let Some(ref role) = descriptor.agent_role {
+                    by_role.entry(role.clone()).or_default().push(descriptor.clone());
+                }
+            }
+        }
+        by_role
+    }
+
+    pub(crate) async fn pending_task_count(&self) -> usize {
+        self.pending_tasks.read().await.len()
     }
 }
 
@@ -655,6 +740,118 @@ mod tests {
         ))
         .await;
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn track_and_complete_task() {
+        let bus = AgentBus::default_config();
+        let agent = test_path("worker");
+        let task_id = uuid::Uuid::new_v4();
+
+        let descriptor = TaskDescriptor {
+            task_id,
+            assigned_to: agent.clone(),
+            agent_role: Some("search".to_string()),
+            request_message: AgentBusMessage::direct(
+                test_path("orchestrator"),
+                agent.clone(),
+                serde_json::json!("search patent"),
+            ),
+            tracked_at_ms: 1000,
+        };
+
+        bus.track_task(descriptor).await;
+        assert_eq!(bus.pending_task_count().await, 1);
+
+        let pending = bus.pending_tasks_for(&agent).await;
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].task_id, task_id);
+
+        let completed = bus.complete_task(&task_id).await;
+        assert!(completed.is_some());
+        assert_eq!(bus.pending_task_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn reassign_orphaned_tasks() {
+        let bus = AgentBus::default_config();
+        let dead_agent = test_path("worker-1");
+        let new_agent = test_path("worker-2");
+
+        for i in 0..3 {
+            let descriptor = TaskDescriptor {
+                task_id: uuid::Uuid::new_v4(),
+                assigned_to: dead_agent.clone(),
+                agent_role: Some("search".to_string()),
+                request_message: AgentBusMessage::direct(
+                    test_path("orchestrator"),
+                    dead_agent.clone(),
+                    serde_json::json!(format!("task-{i}")),
+                ),
+                tracked_at_ms: 1000 + i as i64,
+            };
+            bus.track_task(descriptor).await;
+        }
+
+        let other_task = TaskDescriptor {
+            task_id: uuid::Uuid::new_v4(),
+            assigned_to: test_path("other"),
+            agent_role: Some("search".to_string()),
+            request_message: AgentBusMessage::direct(
+                test_path("orchestrator"),
+                test_path("other"),
+                serde_json::json!("other-task"),
+            ),
+            tracked_at_ms: 2000,
+        };
+        bus.track_task(other_task).await;
+
+        assert_eq!(bus.pending_task_count().await, 4);
+
+        let reassigned = bus.reassign_orphaned_tasks(&dead_agent, &new_agent).await;
+        assert_eq!(reassigned, 3);
+
+        assert_eq!(bus.pending_tasks_for(&dead_agent).await.len(), 0);
+        assert_eq!(bus.pending_tasks_for(&new_agent).await.len(), 3);
+        assert_eq!(bus.pending_task_count().await, 4);
+    }
+
+    #[tokio::test]
+    async fn orphaned_tasks_by_role() {
+        let bus = AgentBus::default_config();
+        let dead_agent = test_path("dead-worker");
+
+        for i in 0..2 {
+            let descriptor = TaskDescriptor {
+                task_id: uuid::Uuid::new_v4(),
+                assigned_to: dead_agent.clone(),
+                agent_role: Some("search".to_string()),
+                request_message: AgentBusMessage::direct(
+                    test_path("orch"),
+                    dead_agent.clone(),
+                    serde_json::json!(i),
+                ),
+                tracked_at_ms: 1000,
+            };
+            bus.track_task(descriptor).await;
+        }
+
+        let descriptor = TaskDescriptor {
+            task_id: uuid::Uuid::new_v4(),
+            assigned_to: dead_agent.clone(),
+            agent_role: Some("analysis".to_string()),
+            request_message: AgentBusMessage::direct(
+                test_path("orch"),
+                dead_agent.clone(),
+                serde_json::json!("analyze"),
+            ),
+            tracked_at_ms: 2000,
+        };
+        bus.track_task(descriptor).await;
+
+        let by_role = bus.orphaned_tasks_by_role(&dead_agent).await;
+        assert_eq!(by_role.get("search").map(|v| v.len()), Some(2));
+        assert_eq!(by_role.get("analysis").map(|v| v.len()), Some(1));
     }
 }
 

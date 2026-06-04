@@ -2,11 +2,20 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use rand::Rng;
 use tracing::error;
 
-const INITIAL_DELAY_MS: u64 = 200;
-const BACKOFF_FACTOR: f64 = 2.0;
+/// Legacy backoff preset used by SSE reconnection and compaction retries.
+///
+/// Equivalent to `ExponentialBackoff::aggressive()` but preserved as a
+/// standalone function for backward compatibility.
+static BACKOFF_PRESET: std::sync::OnceLock<crate::resilience::ExponentialBackoff> =
+    std::sync::OnceLock::new();
+
+fn backoff_preset() -> &'static crate::resilience::ExponentialBackoff {
+    BACKOFF_PRESET.get_or_init(|| {
+        crate::resilience::ExponentialBackoff::new(200, 30_000, 2.0, 0.1)
+    })
+}
 
 /// Emit structured feedback metadata as key/value pairs.
 ///
@@ -83,10 +92,7 @@ pub(crate) fn emit_feedback_auth_recovery_tags(
 }
 
 pub fn backoff(attempt: u64) -> Duration {
-    let exp = BACKOFF_FACTOR.powi(attempt.saturating_sub(1) as i32);
-    let base = (INITIAL_DELAY_MS as f64 * exp) as u64;
-    let jitter = rand::rng().random_range(0.9..1.1);
-    Duration::from_millis((base as f64 * jitter) as u64)
+    backoff_preset().delay_for_attempt(attempt as u32)
 }
 
 pub(crate) fn error_or_panic(message: impl std::string::ToString) {

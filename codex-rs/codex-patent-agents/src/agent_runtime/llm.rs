@@ -9,6 +9,133 @@ pub(crate) const REQUEST_TIMEOUT_SECS: u64 = 120;
 #[allow(dead_code)]
 pub(crate) const DEFAULT_TEMPERATURE: f32 = 0.7;
 
+const CB_FAILURE_THRESHOLD: u32 = 5;
+const CB_RESET_TIMEOUT_SECS: u64 = 60;
+const CB_HALF_OPEN_MAX: u32 = 3;
+const BACKOFF_BASE_MS: u64 = 1000;
+const BACKOFF_MAX_MS: u64 = 30_000;
+
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::OnceLock;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CbState {
+    Closed,
+    Open,
+    HalfOpen,
+}
+
+struct InlineCircuitBreaker {
+    state: AtomicU32,
+    consecutive_failures: AtomicU32,
+    opened_at: AtomicU64,
+    half_open_calls: AtomicU32,
+}
+
+impl InlineCircuitBreaker {
+    const fn new() -> Self {
+        Self {
+            state: AtomicU32::new(0),
+            consecutive_failures: AtomicU32::new(0),
+            opened_at: AtomicU64::new(0),
+            half_open_calls: AtomicU32::new(0),
+        }
+    }
+
+    fn current_state(&self) -> CbState {
+        let raw = self.state.load(Ordering::Relaxed);
+        match raw {
+            0 => CbState::Closed,
+            1 => {
+                let opened = self.opened_at.load(Ordering::Relaxed);
+                if opened > 0 {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+                    if now.saturating_sub(opened) >= CB_RESET_TIMEOUT_SECS {
+                        self.state.store(2, Ordering::Relaxed);
+                        self.half_open_calls.store(1, Ordering::Relaxed);
+                        return CbState::HalfOpen;
+                    }
+                }
+                CbState::Open
+            }
+            2 => CbState::HalfOpen,
+            _ => CbState::Closed,
+        }
+    }
+
+    fn allow_request(&self) -> bool {
+        match self.current_state() {
+            CbState::Closed => true,
+            CbState::Open => false,
+            CbState::HalfOpen => {
+                let calls = self.half_open_calls.fetch_add(1, Ordering::Relaxed);
+                calls < CB_HALF_OPEN_MAX
+            }
+        }
+    }
+
+    fn record_success(&self) {
+        self.consecutive_failures.store(0, Ordering::Relaxed);
+        if self.current_state() == CbState::HalfOpen {
+            let calls = self.half_open_calls.load(Ordering::Relaxed);
+            if calls >= CB_HALF_OPEN_MAX {
+                self.state.store(0, Ordering::Relaxed);
+                self.opened_at.store(0, Ordering::Relaxed);
+                self.half_open_calls.store(0, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn record_failure(&self) {
+        let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
+        match self.current_state() {
+            CbState::Closed => {
+                if failures >= CB_FAILURE_THRESHOLD {
+                    self.trip_open();
+                }
+            }
+            CbState::HalfOpen => {
+                self.trip_open();
+            }
+            CbState::Open => {}
+        }
+    }
+
+    fn trip_open(&self) {
+        self.state.store(1, Ordering::Relaxed);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.opened_at.store(now, Ordering::Relaxed);
+    }
+}
+
+static AGENT_LLM_BREAKER: OnceLock<InlineCircuitBreaker> = OnceLock::new();
+
+fn get_breaker() -> &'static InlineCircuitBreaker {
+    AGENT_LLM_BREAKER.get_or_init(InlineCircuitBreaker::new)
+}
+
+fn backoff_delay_ms(attempt: u32) -> u64 {
+    let exp = 2u64.pow(attempt);
+    let raw = BACKOFF_BASE_MS * exp;
+    let jitter = 1.0 + (rand_pseudo_jitter() * 0.1);
+    ((raw as f64 * jitter) as u64).min(BACKOFF_MAX_MS)
+}
+
+fn rand_pseudo_jitter() -> f64 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
+    let v = (now.wrapping_mul(1103515245).wrapping_add(12345)) as f64;
+    (v / u32::MAX as f64) * 2.0 - 1.0
+}
+
 pub(crate) fn call_llm_with_retry_and_temperature(
     provider: &AgentProvider,
     model: &str,
@@ -17,6 +144,15 @@ pub(crate) fn call_llm_with_retry_and_temperature(
     api_key: &str,
     temperature: f32,
 ) -> Result<String, String> {
+    let breaker = get_breaker();
+
+    if !breaker.allow_request() {
+        return Err(format!(
+            "LLM circuit breaker open (consecutive failures >= {CB_FAILURE_THRESHOLD}), \
+             retry after {CB_RESET_TIMEOUT_SECS}s"
+        ));
+    }
+
     let mut last_error = String::new();
 
     for attempt in 0..=MAX_RETRIES {
@@ -28,10 +164,14 @@ pub(crate) fn call_llm_with_retry_and_temperature(
             api_key,
             temperature,
         ) {
-            Ok(response) => return Ok(response),
+            Ok(response) => {
+                breaker.record_success();
+                return Ok(response);
+            }
             Err(e) => {
                 let is_auth_error = e.contains("401") || e.contains("403");
                 if is_auth_error {
+                    breaker.record_failure();
                     return Err(format!(
                         "Authentication failed (key={}): {e}",
                         mask_api_key(api_key)
@@ -39,8 +179,10 @@ pub(crate) fn call_llm_with_retry_and_temperature(
                 }
 
                 last_error = e;
+                breaker.record_failure();
+
                 if attempt < MAX_RETRIES {
-                    let delay_ms = 1000u64 * 2u64.pow(attempt);
+                    let delay_ms = backoff_delay_ms(attempt);
                     eprintln!(
                         "[bcip-agent] LLM call attempt {}/{} failed, retrying in {delay_ms}ms: {last_error}",
                         attempt + 1,
