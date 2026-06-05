@@ -2,6 +2,8 @@ use crate::config::LiteParseConfig;
 use crate::config::parse_target_pages;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::conversion;
+#[cfg(feature = "direct-convert")]
+use crate::direct_convert;
 use crate::error::LiteParseError;
 use crate::extract;
 use crate::ocr::OcrEngine;
@@ -13,6 +15,7 @@ use crate::ocr_merge;
 use crate::projection;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::render;
+use crate::types::InputFormat;
 use crate::types::ParsedPage;
 use crate::types::PdfInput;
 
@@ -74,7 +77,88 @@ impl LiteParse {
     ///
     /// Use `PdfInput::Path` for files on disk or `PdfInput::Bytes` for
     /// in-memory PDF data (e.g. from a network response or Node.js Buffer).
+    ///
+    /// When the `direct-convert` feature is enabled, structured formats
+    /// (DOCX, PPTX, XLSX, HTML, CSV, plain text) are converted directly to
+    /// Markdown without going through the PDF pipeline.
     pub async fn parse_input(&self, input: PdfInput) -> Result<ParseResult, LiteParseError> {
+        // ── Direct conversion fast-path ──────────────────────────────────
+        #[cfg(feature = "direct-convert")]
+        {
+            let format = Self::detect_format(&input);
+            if format.supports_direct_markdown() {
+                return self.parse_direct(input, &format).await;
+            }
+        }
+        // ── PDF pipeline (existing behaviour) ────────────────────────────
+        self.parse_via_pdf(input).await
+    }
+
+    /// Detect the input format from a `PdfInput`.
+    fn detect_format(input: &PdfInput) -> InputFormat {
+        match input {
+            PdfInput::Path(p) => {
+                let ext = std::path::Path::new(p)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                InputFormat::from_extension(ext)
+            }
+            PdfInput::Bytes(_) => InputFormat::Pdf, // byte inputs go through PDF pipeline
+        }
+    }
+
+    /// Direct conversion path: pure Rust → Markdown, no PDF/LibreOffice.
+    ///
+    /// Falls back to `parse_via_pdf()` if direct conversion fails.
+    #[cfg(feature = "direct-convert")]
+    async fn parse_direct(
+        &self,
+        input: PdfInput,
+        format: &InputFormat,
+    ) -> Result<ParseResult, LiteParseError> {
+        let result = match &input {
+            PdfInput::Path(p) => {
+                match direct_convert::convert_file_direct(p, format) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        // Fall back to PDF pipeline on direct conversion failure
+                        let log = |msg: &str| {
+                            if !self.config.quiet {
+                                eprintln!("{}", msg);
+                            }
+                        };
+                        log(&format!(
+                            "[liteparse] direct convert failed ({}), falling back to PDF pipeline: {}",
+                            format!("{:?}", format),
+                            e
+                        ));
+                        return self.parse_via_pdf(input).await;
+                    }
+                }
+            }
+            PdfInput::Bytes(_) => {
+                // Byte inputs always go through PDF pipeline for now
+                return self.parse_via_pdf(input).await;
+            }
+        };
+
+        Ok(ParseResult {
+            pages: vec![ParsedPage {
+                page_number: 1,
+                page_width: 612.0,
+                page_height: 792.0,
+                text: result.markdown.clone(),
+                text_items: vec![],
+            }],
+            text: result.markdown,
+        })
+    }
+
+    /// PDF pipeline: convert to PDF if needed, then extract via pdfium + OCR.
+    ///
+    /// This is the original `parse_input` logic, unchanged.
+    async fn parse_via_pdf(&self, input: PdfInput) -> Result<ParseResult, LiteParseError> {
         let log = |msg: &str| {
             if !self.config.quiet {
                 eprintln!("{}", msg);
@@ -283,5 +367,23 @@ mod tests {
         let lp = LiteParse::new(cfg);
         assert!(!lp.config().ocr_enabled);
         assert_eq!(lp.config().max_pages, 7);
+    }
+
+    #[test]
+    fn test_detect_format_pdf_path() {
+        let input = PdfInput::Path("test.pdf".to_string());
+        assert_eq!(LiteParse::detect_format(&input), InputFormat::Pdf);
+    }
+
+    #[test]
+    fn test_detect_format_docx_path() {
+        let input = PdfInput::Path("document.docx".to_string());
+        assert_eq!(LiteParse::detect_format(&input), InputFormat::Docx);
+    }
+
+    #[test]
+    fn test_detect_format_bytes_always_pdf() {
+        let input = PdfInput::Bytes(vec![1, 2, 3]);
+        assert_eq!(LiteParse::detect_format(&input), InputFormat::Pdf);
     }
 }

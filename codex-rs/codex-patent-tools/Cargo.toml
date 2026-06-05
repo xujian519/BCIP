@@ -26,6 +26,7 @@ liteparse = { path = "../liteparse", default-features = false, optional = true }
 [features]
 default = []
 document-pdf = ["liteparse"]
+document-pdf-direct = ["document-pdf", "liteparse/direct-convert"]
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

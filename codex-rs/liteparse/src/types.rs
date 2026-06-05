@@ -1,6 +1,63 @@
 use serde::Serialize;
 use std::collections::HashMap;
 
+/// Detected input format for routing to the appropriate parser.
+///
+/// Determines whether a file goes through the direct Markdown conversion
+/// fast-path or the traditional PDF pipeline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InputFormat {
+    /// PDF files — use pdfium extraction pipeline.
+    Pdf,
+    /// DOCX (Office Open XML) — direct Rust XML parser via anytomd.
+    Docx,
+    /// Legacy DOC / ODT / RTF / Pages — fallback to LibreOffice → PDF.
+    Doc,
+    /// PPTX presentations — direct via anytomd.
+    Pptx,
+    /// XLSX spreadsheets — direct via anytomd.
+    Xlsx,
+    /// Image files (PNG, JPEG, TIFF, etc.) — OCR pipeline.
+    Image,
+    /// Plain text (TXT, MD, LOG) — zero-overhead passthrough.
+    Text,
+    /// HTML files — direct via anytomd.
+    Html,
+    /// CSV/TSV — direct via anytomd.
+    Csv,
+    /// Unsupported format — will return an error.
+    Unsupported(String),
+}
+
+impl InputFormat {
+    /// Determine the input format from a file extension (case-insensitive).
+    pub fn from_extension(ext: &str) -> Self {
+        match ext.to_lowercase().as_str() {
+            "pdf" => Self::Pdf,
+            "docx" | "docm" | "dotx" | "dotm" => Self::Docx,
+            "doc" | "dot" | "odt" | "ott" | "rtf" | "pages" => Self::Doc,
+            "pptx" | "pptm" | "potx" | "potm" => Self::Pptx,
+            "ppt" | "pot" | "odp" | "otp" | "key" => Self::Doc, // legacy binary → LibreOffice
+            "xlsx" | "xlsm" | "xlsb" | "numbers" => Self::Xlsx,
+            "xls" | "ods" | "ots" => Self::Doc, // legacy binary → LibreOffice
+            "csv" | "tsv" => Self::Csv,
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" | "tif" | "webp" | "svg" => Self::Image,
+            "txt" | "md" | "markdown" | "log" => Self::Text,
+            "html" | "htm" => Self::Html,
+            other => Self::Unsupported(other.to_string()),
+        }
+    }
+
+    /// Returns `true` if this format can be converted directly to Markdown
+    /// without going through the PDF pipeline (no LibreOffice/ImageMagick needed).
+    pub fn supports_direct_markdown(&self) -> bool {
+        matches!(
+            self,
+            Self::Docx | Self::Pptx | Self::Xlsx | Self::Html | Self::Csv | Self::Text
+        )
+    }
+}
+
 #[doc(hidden)]
 #[derive(Debug, Clone)]
 pub enum PdfInput {
