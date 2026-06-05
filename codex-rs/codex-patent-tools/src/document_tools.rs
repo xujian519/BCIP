@@ -50,6 +50,22 @@ pub struct ScreenshotInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct DocumentParserInput {
+    /// 文档文件路径。支持 PDF/DOCX/DOC/ODT/RTF/Pages 等。
+    pub file_path: String,
+    /// 是否启用 OCR（用于扫描版文档）。默认 false。
+    pub ocr_enabled: Option<bool>,
+    /// OCR 语言（如 "chi_sim+eng"）。默认 "chi_sim+eng"。
+    pub ocr_language: Option<String>,
+    /// 页面范围（如 "1-5,10"）。None 表示全部页面。
+    pub pages: Option<String>,
+    /// Markdown 中是否插入页码分隔符。默认 true。
+    pub page_breaks: Option<bool>,
+    /// 输出最大字符数。默认 500_000。
+    pub max_chars: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ExportInput {
     pub content: serde_json::Value,
     pub export_type: String, // "claims" / "oa_response" / "specification" / "analysis_report"
@@ -370,6 +386,30 @@ fn format_analysis_report(content: &serde_json::Value) -> String {
 // ── PDF tools: LiteParse implementation (feature-gated) ───────────────
 
 #[cfg(feature = "document-pdf")]
+fn format_as_markdown(
+    pages: &[liteparse::ParsedPage],
+    page_breaks: bool,
+    max_chars: usize,
+) -> String {
+    let mut md = String::new();
+    for (i, page) in pages.iter().enumerate() {
+        if page_breaks && i > 0 {
+            md.push_str("\n---\n\n");
+        }
+        if page_breaks {
+            md.push_str(&format!("<!-- Page {} -->\n\n", page.page_number));
+        }
+        md.push_str(&page.text);
+        md.push('\n');
+    }
+    if md.len() > max_chars {
+        md.truncate(max_chars);
+        md.push_str("\n\n[... 内容已截断 ...]");
+    }
+    md
+}
+
+#[cfg(feature = "document-pdf")]
 impl DocumentTools {
     pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, String> {
         let file_path = input
@@ -508,6 +548,52 @@ impl DocumentTools {
         }))
     }
 
+    pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, String> {
+        let path = std::path::Path::new(&input.file_path);
+        if !path.exists() {
+            return Err(format!("文件不存在: {}", input.file_path));
+        }
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        let mut config = shared_liteparse().config().clone();
+        if let Some(ocr) = input.ocr_enabled {
+            config.ocr_enabled = ocr;
+        }
+        if let Some(ref lang) = input.ocr_language {
+            config.ocr_language = lang.clone();
+        }
+        if let Some(ref pages) = input.pages {
+            config.target_pages = Some(pages.clone());
+        }
+        config.quiet = true;
+
+        let lp = liteparse::LiteParse::new(config);
+        let result = lp
+            .parse(&input.file_path)
+            .await
+            .map_err(|e| format!("文档解析失败: {e}"))?;
+
+        let page_breaks = input.page_breaks.unwrap_or(true);
+        let max_chars = input.max_chars.unwrap_or(500_000);
+        let markdown = format_as_markdown(&result.pages, page_breaks, max_chars);
+        let truncated = markdown.len() >= max_chars;
+
+        Ok(serde_json::json!({
+            "tool": "DocumentParser",
+            "file_path": input.file_path,
+            "source_format": ext,
+            "markdown": markdown,
+            "page_count": result.pages.len(),
+            "char_count": markdown.chars().count(),
+            "ocr_enabled": input.ocr_enabled.unwrap_or(false),
+            "truncated": truncated,
+        }))
+    }
+
     pub async fn pdf_screenshot(input: ScreenshotInput) -> Result<serde_json::Value, String> {
         let mut config = shared_liteparse().config().clone();
         if let Some(dpi) = input.dpi {
@@ -578,6 +664,15 @@ impl DocumentTools {
             "hint": "enable feature 'document-pdf' for real OCR via LiteParse",
         }))
     }
+
+    pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, String> {
+        Ok(serde_json::json!({
+            "tool": "DocumentParser",
+            "file_path": input.file_path,
+            "supported_formats": ["pdf", "docx", "doc", "odt", "rtf", "pages"],
+            "hint": "enable feature 'document-pdf' for real document parsing",
+        }))
+    }
 }
 
 // ── Tool registration ──────────────────────────────────────────────────
@@ -627,6 +722,14 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: ExportInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             DocumentTools::export_tool(parsed)
+        })
+    });
+
+    t.insert("DocumentParser".into(), |input| {
+        Box::pin(async move {
+            let parsed: DocumentParserInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::document_parser(parsed).await
         })
     });
 

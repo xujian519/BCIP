@@ -142,6 +142,67 @@ mod liteparse_tests {
         assert_eq!(result["language"], "eng");
         assert!(result["text"].is_string());
     }
+
+    #[tokio::test]
+    async fn test_document_parser_pdf_file() {
+        let tools = register_document_tools();
+        let handler = tools.get("DocumentParser").unwrap();
+
+        let input = serde_json::json!({
+            "file_path": minimal_pdf_path().to_str().unwrap(),
+        });
+        let result = handler(input).await.unwrap();
+        assert_eq!(result["tool"], "DocumentParser");
+        assert_eq!(result["source_format"], "pdf");
+        assert!(result["markdown"].is_string());
+        assert!(result["page_count"].as_u64().unwrap() >= 1);
+        assert!(result["char_count"].as_u64().unwrap() > 0);
+        assert_eq!(result["ocr_enabled"], false);
+        assert_eq!(result["truncated"], false);
+    }
+
+    #[tokio::test]
+    async fn test_document_parser_page_breaks_false() {
+        let tools = register_document_tools();
+        let handler = tools.get("DocumentParser").unwrap();
+
+        let input = serde_json::json!({
+            "file_path": minimal_pdf_path().to_str().unwrap(),
+            "page_breaks": false,
+        });
+        let result = handler(input).await.unwrap();
+        let markdown = result["markdown"].as_str().unwrap();
+        assert!(!markdown.contains("<!-- Page"));
+        assert!(!markdown.contains("---"));
+    }
+
+    #[tokio::test]
+    async fn test_document_parser_nonexistent_file() {
+        let tools = register_document_tools();
+        let handler = tools.get("DocumentParser").unwrap();
+
+        let input = serde_json::json!({
+            "file_path": "/nonexistent/path/to/file.pdf",
+        });
+        let result = handler(input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("文件不存在"));
+    }
+
+    #[tokio::test]
+    async fn test_document_parser_max_chars_truncation() {
+        let tools = register_document_tools();
+        let handler = tools.get("DocumentParser").unwrap();
+
+        let input = serde_json::json!({
+            "file_path": minimal_pdf_path().to_str().unwrap(),
+            "max_chars": 10,
+        });
+        let result = handler(input).await.unwrap();
+        assert_eq!(result["truncated"], true);
+        let markdown = result["markdown"].as_str().unwrap();
+        assert!(markdown.contains("内容已截断"));
+    }
 }
 
 // ── Non-feature tests (always run) ─────────────────────────────────────
@@ -205,5 +266,27 @@ mod stub_tests {
         let result = handler(input).await.unwrap();
         let stats = &result["stats"];
         assert!(stats["cjk_chars"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_document_parser_registered() {
+        let tools = register_document_tools();
+        assert!(
+            tools.contains_key("DocumentParser"),
+            "DocumentParser should always be registered"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_document_parser_stub() {
+        let tools = register_document_tools();
+        let handler: &ToolHandler = tools.get("DocumentParser").unwrap();
+
+        let input = serde_json::json!({
+            "file_path": "/tmp/test.pdf",
+        });
+        let result = handler(input).await.unwrap();
+        assert_eq!(result["tool"], "DocumentParser");
+        assert!(result["hint"].is_string());
     }
 }
