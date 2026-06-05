@@ -25,6 +25,7 @@ pub mod paths;
 pub mod refresh_pipeline;
 pub mod search;
 pub mod search_eval;
+pub mod semantic_memory;
 pub mod synonym;
 pub mod vector_index;
 
@@ -43,3 +44,5 @@ pub use search::SearchMode;
 pub use search::UnifiedSearch;
 pub use search_eval::SearchEval;
 pub use vector_index::VectorIndex;
+pub use semantic_memory::MemoryEntry;
+pub use semantic_memory::SemanticMemoryStore;

@@ -15,8 +15,10 @@
 pub mod agent_manifest;
 pub mod agent_runtime;
 pub mod bcip_roles;
+pub mod feedback_loop;
 pub mod knowledge_context;
 pub mod learning;
+pub mod model_router;
 pub mod provider_router;
 pub mod reflection;
 pub mod roles;

@@ -16,6 +16,7 @@ pub mod legal_reasoning;
 pub mod oa;
 pub mod oa_feedback;
 pub mod oa_pattern;
+pub mod output_evaluator;
 pub mod quality;
 pub mod quality_rules;
 pub mod retrieval;

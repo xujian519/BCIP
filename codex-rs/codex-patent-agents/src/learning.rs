@@ -69,6 +69,14 @@ impl LearningStore {
         Self { feedback_dir }
     }
 
+    /// 返回 home 根目录（feedback_dir 的父目录）
+    pub fn home_dir(&self) -> PathBuf {
+        self.feedback_dir
+            .parent()
+            .unwrap_or(&self.feedback_dir)
+            .to_path_buf()
+    }
+
     pub fn record_feedback(&self, data: FeedbackData) -> Result<(), PatentError> {
         let path = self.feedback_dir.join("feedback.jsonl");
         let mut file = std::fs::OpenOptions::new()
