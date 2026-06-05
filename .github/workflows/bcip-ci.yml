@@ -182,11 +182,15 @@ jobs:
         with:
           workspaces: codex-rs -> target
 
-      - name: Build dependencies
-        run: cargo build --release -j 2 --workspace --exclude codex-v8-poc
-
-      - name: Build codex-cli
-        run: cargo build -p codex-cli --release -j 2
+      - name: Build BCIP crates
+        run: |
+          cargo build --release -j 2 \
+            -p codex-patent-core -p codex-patent-domain -p codex-patent-knowledge \
+            -p codex-patent-tools -p codex-patent-agents \
+            -p codex-patent-constitutional -p codex-patent-text -p codex-patent-scheduler \
+            -p codex-im-protocol -p codex-im-common -p codex-im-bridge \
+            -p codex-im-telegram -p codex-im-feishu \
+            -p codex-api
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
