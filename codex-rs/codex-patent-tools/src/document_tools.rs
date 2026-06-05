@@ -233,18 +233,77 @@ impl DocumentTools {
 
         // Determine if we need binary detection based on extension
         const TEXT_EXTENSIONS: &[&str] = &[
-            "md", "txt", "csv", "tsv", "json", "xml", "yaml", "yml", "toml",
-            "ini", "cfg", "conf", "log", "rs", "py", "js", "ts", "tsx", "jsx",
-            "html", "htm", "css", "scss", "less", "sh", "bash", "zsh", "sql",
-            "gitignore", "env", "properties", "gradle", "cmake", "makefile",
-            "dockerfile", "r", "go", "java", "kt", "swift", "c", "cpp", "h",
-            "hpp", "rb", "php", "lua", "pl", "ex", "exs", "erl", "clj",
-            "vue", "svelte", "graphql", "proto", "tf", "hcl",
+            "md",
+            "txt",
+            "csv",
+            "tsv",
+            "json",
+            "xml",
+            "yaml",
+            "yml",
+            "toml",
+            "ini",
+            "cfg",
+            "conf",
+            "log",
+            "rs",
+            "py",
+            "js",
+            "ts",
+            "tsx",
+            "jsx",
+            "html",
+            "htm",
+            "css",
+            "scss",
+            "less",
+            "sh",
+            "bash",
+            "zsh",
+            "sql",
+            "gitignore",
+            "env",
+            "properties",
+            "gradle",
+            "cmake",
+            "makefile",
+            "dockerfile",
+            "r",
+            "go",
+            "java",
+            "kt",
+            "swift",
+            "c",
+            "cpp",
+            "h",
+            "hpp",
+            "rb",
+            "php",
+            "lua",
+            "pl",
+            "ex",
+            "exs",
+            "erl",
+            "clj",
+            "vue",
+            "svelte",
+            "graphql",
+            "proto",
+            "tf",
+            "hcl",
         ];
         // Common filenames without extension that are always text
         const TEXT_FILENAMES: &[&str] = &[
-            "Makefile", "Dockerfile", "Vagrantfile", "Gemfile", "Rakefile",
-            "Cargo.toml", "Cargo.lock", "go.mod", "go.sum", "requirements.txt",
+            "Makefile",
+            "Dockerfile",
+            "Vagrantfile",
+            "Gemfile",
+            "Rakefile",
+            "Cargo.toml",
+            "Cargo.lock",
+            "go.mod",
+            "go.sum",
+            "requirements.txt",
         ];
 
         let ext = path
@@ -252,10 +311,7 @@ impl DocumentTools {
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
-        let filename = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         let is_text_ext = TEXT_EXTENSIONS.contains(&ext.as_str());
         let is_text_filename = TEXT_FILENAMES.contains(&filename);
@@ -269,8 +325,7 @@ impl DocumentTools {
 
         if needs_binary_check {
             // Read only the first 8KB for binary detection (not the whole file)
-            let file = std::fs::File::open(path)
-                .map_err(|e| format!("读取文件失败: {e}"))?;
+            let file = std::fs::File::open(path).map_err(|e| format!("读取文件失败: {e}"))?;
             let mut buf = [0u8; 8192];
             let bytes_read = std::io::Read::read(&mut std::io::BufReader::new(file), &mut buf)
                 .map_err(|e| format!("读取文件失败: {e}"))?;
@@ -282,8 +337,7 @@ impl DocumentTools {
             }
         }
 
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| format!("读取文件失败: {e}"))?;
+        let content = std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {e}"))?;
 
         let max_chars = input.max_chars.unwrap_or(500_000);
         let original_char_count = content.chars().count();
@@ -317,12 +371,7 @@ impl DocumentTools {
     /// Check if the path is safe to read. Blocks sensitive system/user paths.
     fn check_path_security(path: &std::path::Path) -> Result<(), String> {
         // Block well-known sensitive directories
-        const BLOCKED_PREFIXES: &[&str] = &[
-            "/etc/passwd",
-            "/etc/shadow",
-            "/etc/ssh",
-            "/.ssh/",
-        ];
+        const BLOCKED_PREFIXES: &[&str] = &["/etc/passwd", "/etc/shadow", "/etc/ssh", "/.ssh/"];
         let path_str = path.to_string_lossy();
         // Also check the canonical (resolved) path to catch symlinks
         let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -330,7 +379,10 @@ impl DocumentTools {
 
         for blocked in BLOCKED_PREFIXES {
             if path_str.contains(blocked) || canonical_str.contains(blocked) {
-                return Err(format!("出于安全考虑，不允许读取该路径: {}", path.display()));
+                return Err(format!(
+                    "出于安全考虑，不允许读取该路径: {}",
+                    path.display()
+                ));
             }
         }
         // Block home-directory sensitive folders

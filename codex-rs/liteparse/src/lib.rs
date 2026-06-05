@@ -24,12 +24,12 @@ pub mod search;
 pub mod types;
 
 // ── Internal modules (available for binding crates, hidden from docs) ──
-#[cfg(feature = "direct-convert")]
-#[doc(hidden)]
-pub mod direct_convert;
 #[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
 pub mod conversion;
+#[cfg(feature = "direct-convert")]
+#[doc(hidden)]
+pub mod direct_convert;
 #[doc(hidden)]
 pub mod extract;
 #[doc(hidden)]

@@ -47,8 +47,9 @@ pub fn convert_file_direct(
         | InputFormat::Html
         | InputFormat::Csv => {
             let options = anytomd::ConversionOptions::default();
-            let result = anytomd::convert_file(path, &options)
-                .map_err(|e| LiteParseError::Conversion(format!("direct conversion failed: {e}")))?;
+            let result = anytomd::convert_file(path, &options).map_err(|e| {
+                LiteParseError::Conversion(format!("direct conversion failed: {e}"))
+            })?;
             Ok(DirectConvertResult {
                 markdown: result.markdown,
                 source_format: format.clone(),
@@ -86,8 +87,9 @@ pub fn convert_bytes_direct(
         | InputFormat::Html
         | InputFormat::Csv => {
             let options = anytomd::ConversionOptions::default();
-            let result = anytomd::convert_bytes(data, ext, &options)
-                .map_err(|e| LiteParseError::Conversion(format!("direct conversion failed: {e}")))?;
+            let result = anytomd::convert_bytes(data, ext, &options).map_err(|e| {
+                LiteParseError::Conversion(format!("direct conversion failed: {e}"))
+            })?;
             Ok(DirectConvertResult {
                 markdown: result.markdown,
                 source_format: format.clone(),

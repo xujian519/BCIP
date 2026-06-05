@@ -285,11 +285,17 @@ impl PatentAgentRole {
     /// 此角色的辅助工具域（可通过 ToolSearch 发现）。
     pub fn secondary_domains(&self) -> &'static [ToolDomain] {
         match self {
-            Self::Retriever => &[ToolDomain::Legal, ToolDomain::Analysis, ToolDomain::Document],
+            Self::Retriever => &[
+                ToolDomain::Legal,
+                ToolDomain::Analysis,
+                ToolDomain::Document,
+            ],
             Self::Analyzer => &[ToolDomain::Search, ToolDomain::Document],
             Self::Writer => &[ToolDomain::Quality, ToolDomain::Search, ToolDomain::Legal],
             Self::NoveltyChecker => &[ToolDomain::Legal, ToolDomain::Document],
-            Self::CreativityChecker => &[ToolDomain::Legal, ToolDomain::Search, ToolDomain::Document],
+            Self::CreativityChecker => {
+                &[ToolDomain::Legal, ToolDomain::Search, ToolDomain::Document]
+            }
             Self::InfringementChecker => &[ToolDomain::Search, ToolDomain::Document],
             Self::InvalidityChecker => &[ToolDomain::Quality, ToolDomain::Document],
             Self::Reviewer => &[ToolDomain::Document, ToolDomain::Legal],
