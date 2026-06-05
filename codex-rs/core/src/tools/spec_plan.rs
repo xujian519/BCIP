@@ -527,6 +527,11 @@ fn add_shell_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Planne
     let features = turn_context.features.get();
     let environment_mode = turn_context.tool_environment_mode();
     if !environment_mode.has_environment() {
+        tracing::warn!(
+            "Shell tools disabled: no execution environment configured for session \
+             (environment_mode={:?})",
+            environment_mode,
+        );
         return;
     }
 

@@ -36,6 +36,14 @@ pub struct MarkdownInput {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ReadFileInput {
+    /// 文件路径（绝对路径或相对于工作目录的路径）
+    pub file_path: String,
+    /// 最大字符数。默认 500_000
+    pub max_chars: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct TemplateInput {
     pub template_id: String,
     pub variables: Option<std::collections::HashMap<String, String>>,
@@ -196,6 +204,149 @@ impl DocumentTools {
             },
             "format_options": input.format_options,
         }))
+    }
+
+    /// Read a local text file and return its content.
+    pub fn read_file(input: ReadFileInput) -> Result<serde_json::Value, String> {
+        let path = std::path::Path::new(&input.file_path);
+        if !path.exists() {
+            return Err(format!("文件不存在: {}", input.file_path));
+        }
+        if !path.is_file() {
+            return Err(format!("路径不是文件: {}", input.file_path));
+        }
+
+        // Security: block sensitive paths
+        Self::check_path_security(path)?;
+
+        // File size pre-check to avoid OOM
+        const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024; // 100 MB
+        let file_size = std::fs::metadata(path)
+            .map_err(|e| format!("读取文件元数据失败: {e}"))?
+            .len();
+        if file_size > MAX_FILE_BYTES {
+            return Err(format!(
+                "文件过大（{} MB），超过最大限制（100 MB）",
+                file_size / (1024 * 1024)
+            ));
+        }
+
+        // Determine if we need binary detection based on extension
+        const TEXT_EXTENSIONS: &[&str] = &[
+            "md", "txt", "csv", "tsv", "json", "xml", "yaml", "yml", "toml",
+            "ini", "cfg", "conf", "log", "rs", "py", "js", "ts", "tsx", "jsx",
+            "html", "htm", "css", "scss", "less", "sh", "bash", "zsh", "sql",
+            "gitignore", "env", "properties", "gradle", "cmake", "makefile",
+            "dockerfile", "r", "go", "java", "kt", "swift", "c", "cpp", "h",
+            "hpp", "rb", "php", "lua", "pl", "ex", "exs", "erl", "clj",
+            "vue", "svelte", "graphql", "proto", "tf", "hcl",
+        ];
+        // Common filenames without extension that are always text
+        const TEXT_FILENAMES: &[&str] = &[
+            "Makefile", "Dockerfile", "Vagrantfile", "Gemfile", "Rakefile",
+            "Cargo.toml", "Cargo.lock", "go.mod", "go.sum", "requirements.txt",
+        ];
+
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+
+        let is_text_ext = TEXT_EXTENSIONS.contains(&ext.as_str());
+        let is_text_filename = TEXT_FILENAMES.contains(&filename);
+        // Files with no extension (not dotfiles like .gitignore which have extension "gitignore")
+        let no_ext = path.extension().is_none() && !filename.starts_with('.');
+        // Dotfiles like .gitignore — extension() returns Some("gitignore") which is in TEXT_EXTENSIONS
+        let is_dotfile_with_known_ext = filename.starts_with('.') && is_text_ext;
+
+        let needs_binary_check =
+            !is_text_ext && !is_text_filename && !no_ext && !is_dotfile_with_known_ext;
+
+        if needs_binary_check {
+            // Read only the first 8KB for binary detection (not the whole file)
+            let file = std::fs::File::open(path)
+                .map_err(|e| format!("读取文件失败: {e}"))?;
+            let mut buf = [0u8; 8192];
+            let bytes_read = std::io::Read::read(&mut std::io::BufReader::new(file), &mut buf)
+                .map_err(|e| format!("读取文件失败: {e}"))?;
+            if buf[..bytes_read].iter().any(|&b| b == 0) {
+                return Err(format!(
+                    "文件 {} 看起来是二进制文件，请使用 DocumentParser 工具处理",
+                    input.file_path
+                ));
+            }
+        }
+
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| format!("读取文件失败: {e}"))?;
+
+        let max_chars = input.max_chars.unwrap_or(500_000);
+        let original_char_count = content.chars().count();
+        let truncated = original_char_count > max_chars;
+        let content = if truncated {
+            let mut s: String = content.chars().take(max_chars).collect();
+            s.push_str(&format!(
+                "\n\n[... 内容已截断，原始文件共 {} 字符 ...]",
+                original_char_count
+            ));
+            s
+        } else {
+            content
+        };
+
+        let stats = codex_patent_text::text_stats(&content);
+        Ok(serde_json::json!({
+            "tool": "ReadFile",
+            "file_path": input.file_path,
+            "content": content,
+            "stats": {
+                "chars": stats.char_count,
+                "words": stats.word_count,
+                "cjk_chars": stats.cjk_char_count,
+                "lines": stats.line_count,
+            },
+            "truncated": truncated,
+        }))
+    }
+
+    /// Check if the path is safe to read. Blocks sensitive system/user paths.
+    fn check_path_security(path: &std::path::Path) -> Result<(), String> {
+        // Block well-known sensitive directories
+        const BLOCKED_PREFIXES: &[&str] = &[
+            "/etc/passwd",
+            "/etc/shadow",
+            "/etc/ssh",
+            "/.ssh/",
+        ];
+        let path_str = path.to_string_lossy();
+        // Also check the canonical (resolved) path to catch symlinks
+        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let canonical_str = canonical.to_string_lossy();
+
+        for blocked in BLOCKED_PREFIXES {
+            if path_str.contains(blocked) || canonical_str.contains(blocked) {
+                return Err(format!("出于安全考虑，不允许读取该路径: {}", path.display()));
+            }
+        }
+        // Block home-directory sensitive folders
+        if let Some(home) = dirs::home_dir() {
+            let sensitive = [".ssh", ".gnupg", ".aws", ".kube"];
+            for s in &sensitive {
+                let sensitive_path = home.join(s);
+                if canonical.starts_with(&sensitive_path) {
+                    return Err(format!(
+                        "出于安全考虑，不允许读取 {} 目录",
+                        sensitive_path.display()
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn template_library(input: TemplateInput) -> Result<serde_json::Value, String> {
@@ -707,6 +858,14 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
             let parsed: MarkdownInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
             DocumentTools::markdown_parser(parsed)
+        })
+    });
+
+    t.insert("ReadFile".into(), |input| {
+        Box::pin(async move {
+            let parsed: ReadFileInput =
+                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
+            DocumentTools::read_file(parsed)
         })
     });
 

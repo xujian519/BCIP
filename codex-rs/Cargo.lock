@@ -3703,6 +3703,7 @@ dependencies = [
  "codex-patent-knowledge",
  "codex-patent-text",
  "codex-web-search",
+ "dirs",
  "futures",
  "liteparse",
  "pretty_assertions",

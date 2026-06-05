@@ -158,6 +158,7 @@ fn tool_description(name: &str) -> String {
         "PdfTools" => "PDF处理 — 专利文档文本提取与解析".into(),
         "OcrBridge" => "OCR识别 — 专利附图/扫描件文字识别".into(),
         "MarkdownParser" => "Markdown解析 — CJK文本统计与结构分析".into(),
+        "ReadFile" => "文件读取 — 读取本地文本文件内容（.md/.txt/.csv/.json/.xml/.yaml等）。file_path为文件路径，max_chars限制最大字符数（默认500000）".into(),
         "DocumentParser" => "文档解析 — 将 PDF/DOCX/DOC/ODT/RTF/Pages 等文档解析为 Markdown 格式文本。支持 OCR 和页面范围选择。注意：与 DocxTools 方向相反，DocxTools 是生成 DOCX，本工具是解析文档为 Markdown".into(),
         "TemplateLibrary" => "模板库 — 审查意见答复/无效宣告/复审请求/专利申请标准模板".into(),
         "ClaimsStructure" => "权利要求结构 — 法第26条第4款（独立/从属层次分析）".into(),
@@ -374,6 +375,9 @@ fn tool_parameters(name: &str) -> serde_json::Value {
         }
         "MarkdownParser" => {
             json!({"type":"object","properties":{"text":{"type":"string","description":"Markdown文本"},"format_options":{"type":"array","items":{"type":"string"},"description":"格式化选项"}},"required":["text"]})
+        }
+        "ReadFile" => {
+            json!({"type":"object","properties":{"file_path":{"type":"string","description":"文件路径（绝对路径或相对路径）"},"max_chars":{"type":"integer","description":"最大字符数（默认500000）"}},"required":["file_path"]})
         }
         "DocumentParser" => {
             json!({"type":"object","properties":{"file_path":{"type":"string","description":"文档文件路径。支持 PDF/DOCX/DOC/ODT/RTF/Pages 等"},"ocr_enabled":{"type":"boolean","description":"是否启用 OCR（扫描版文档）。默认 false"},"ocr_language":{"type":"string","description":"OCR 语言（如 chi_sim+eng）。默认 chi_sim+eng"},"pages":{"type":"string","description":"指定页面范围（如 1-5,10）。不填表示全部"},"page_breaks":{"type":"boolean","description":"Markdown 中是否插入页码分隔符。默认 true"},"max_chars":{"type":"integer","description":"输出最大字符数。默认 500000"}},"required":["file_path"]})
