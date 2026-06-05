@@ -450,7 +450,6 @@ impl AgentBus {
 mod tests {
     use super::*;
     use codex_protocol::agent_bus::AgentBusMessageType;
-    use codex_protocol::agent_bus::MessagePriority;
     use pretty_assertions::assert_eq;
 
     fn test_path(name: &str) -> AgentPath {

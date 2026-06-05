@@ -220,7 +220,6 @@ impl HealthReport {
 mod tests {
     use super::*;
     use crate::resilience::CircuitBreakerRegistry;
-    use crate::resilience::RecoveryContext;
 
     fn test_agent_health(
         path: &str,

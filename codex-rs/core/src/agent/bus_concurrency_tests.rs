@@ -2,7 +2,6 @@
 
 use super::*;
 use codex_protocol::agent_bus::AgentBusMessageType;
-use codex_protocol::agent_bus::MessagePriority;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
