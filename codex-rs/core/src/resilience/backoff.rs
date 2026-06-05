@@ -95,7 +95,7 @@ mod tests {
         let bo = ExponentialBackoff::aggressive();
         let mut prev = Duration::ZERO;
         for attempt in 0..8 {
-            let d = bo.delay_for_attempt(attempt);
+            let _d = bo.delay_for_attempt(attempt);
             // 允许 jitter 导致的偶尔回落，但整体趋势应递增
             // 多次采样取最小值来确保单调性
             let samples: Vec<Duration> = (0..20).map(|_| bo.delay_for_attempt(attempt)).collect();
