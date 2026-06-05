@@ -1,4 +1,5 @@
-use super::{Rule, RuleOutput};
+use super::Rule;
+use super::RuleOutput;
 
 // ==================== OA 答复规则 ====================
 

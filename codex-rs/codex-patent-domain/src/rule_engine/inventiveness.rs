@@ -4,7 +4,8 @@ use codex_patent_core::InventionType;
 
 use crate::compare::FeatureMatcher;
 
-use super::{Rule, RuleOutput};
+use super::Rule;
+use super::RuleOutput;
 
 // ==================== 创造性规则 ====================
 

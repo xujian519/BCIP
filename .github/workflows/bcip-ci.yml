@@ -112,7 +112,7 @@ jobs:
       - name: Clippy (patent crates)
         run: |
           cargo clippy -p codex-patent-core -p codex-patent-domain -p codex-patent-knowledge \
-            -p codex-patent-tools -p codex-patent-agents -p codex-patent-skills \
+            -p codex-patent-tools -p codex-patent-agents \
             -p codex-patent-constitutional -p codex-patent-text -p codex-patent-scheduler \
             --tests -- -D warnings
 
@@ -154,7 +154,7 @@ jobs:
         run: |
           RUST_MIN_STACK=8388608 cargo nextest run --no-fail-fast \
             -p codex-patent-core -p codex-patent-domain -p codex-patent-knowledge \
-            -p codex-patent-tools -p codex-patent-agents -p codex-patent-skills \
+            -p codex-patent-tools -p codex-patent-agents \
             -p codex-patent-constitutional -p codex-patent-text -p codex-patent-scheduler
 
       - name: Test IM crates

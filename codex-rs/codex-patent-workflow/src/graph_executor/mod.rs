@@ -23,7 +23,9 @@ mod checkpoint;
 mod code_executor;
 mod step_runner;
 
-pub use code_executor::{CodeExecutionResult, CodeExecutor, NoopCodeExecutor};
+pub use code_executor::CodeExecutionResult;
+pub use code_executor::CodeExecutor;
+pub use code_executor::NoopCodeExecutor;
 
 pub type ToolExecutorFn =
     Box<dyn Fn(&str, &serde_json::Value) -> Result<String, String> + Send + Sync>;
@@ -334,7 +336,8 @@ impl GraphExecutor {
 
 #[cfg(test)]
 mod tests {
-    use super::step_runner::{classify_tool_error, ErrorKind};
+    use super::step_runner::classify_tool_error;
+    use super::step_runner::ErrorKind;
     use super::*;
     use crate::agent_bridge::NoopAgentExecutor;
     use crate::checkpoint::CheckpointStore;

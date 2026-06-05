@@ -1,4 +1,5 @@
-use super::{Rule, RuleOutput};
+use super::Rule;
+use super::RuleOutput;
 
 // ==================== 新颖性规则 ====================
 

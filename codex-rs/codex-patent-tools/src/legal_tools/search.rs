@@ -1,5 +1,8 @@
 use super::types::*;
-use codex_patent_knowledge::{CardIndex, SearchConfig, SearchMode, UnifiedSearch};
+use codex_patent_knowledge::CardIndex;
+use codex_patent_knowledge::SearchConfig;
+use codex_patent_knowledge::SearchMode;
+use codex_patent_knowledge::UnifiedSearch;
 use std::sync::Mutex;
 
 impl super::LegalTools {
