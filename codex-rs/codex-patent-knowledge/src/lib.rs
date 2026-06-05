@@ -43,6 +43,6 @@ pub use search::SearchConfig;
 pub use search::SearchMode;
 pub use search::UnifiedSearch;
 pub use search_eval::SearchEval;
-pub use vector_index::VectorIndex;
 pub use semantic_memory::MemoryEntry;
 pub use semantic_memory::SemanticMemoryStore;
+pub use vector_index::VectorIndex;

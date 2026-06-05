@@ -96,8 +96,10 @@ impl FeedbackLoop {
         let mut global_suggestions = Vec::new();
 
         for (role_id, stats) in &role_stats {
-            let role_feedback: Vec<&FeedbackData> =
-                all_feedback.iter().filter(|f| &f.role_id == role_id).collect();
+            let role_feedback: Vec<&FeedbackData> = all_feedback
+                .iter()
+                .filter(|f| &f.role_id == role_id)
+                .collect();
 
             let preferred_model = self.learning_store.suggest_model(role_id);
             let preferred_provider = suggest_provider(&role_feedback);
@@ -116,8 +118,12 @@ impl FeedbackLoop {
 
             let quality_trend_dir = compute_quality_trend(&role_quality);
 
-            let suggestions =
-                generate_role_suggestions(stats, &preferred_model, &quality_trend_dir, &avoid_providers);
+            let suggestions = generate_role_suggestions(
+                stats,
+                &preferred_model,
+                &quality_trend_dir,
+                &avoid_providers,
+            );
 
             role_recommendations.push(RoleRecommendation {
                 role_id: role_id.clone(),
@@ -153,10 +159,7 @@ impl FeedbackLoop {
     }
 
     /// 持久化策略推荐到磁盘
-    pub fn save_recommendation(
-        &self,
-        recommendation: &PolicyRecommendation,
-    ) -> Result<(), String> {
+    pub fn save_recommendation(&self, recommendation: &PolicyRecommendation) -> Result<(), String> {
         let home = self.learning_store.home_dir();
         let dir = home.join("policy");
         std::fs::create_dir_all(&dir).map_err(|e| format!("create policy dir: {e}"))?;
@@ -240,9 +243,7 @@ fn find_weak_providers(feedback: &[&FeedbackData]) -> Vec<String> {
         std::collections::HashMap::new();
 
     for f in feedback {
-        let entry = provider_stats
-            .entry(f.provider.clone())
-            .or_insert((0, 0));
+        let entry = provider_stats.entry(f.provider.clone()).or_insert((0, 0));
         entry.0 += 1;
         if !f.success {
             entry.1 += 1;
@@ -258,7 +259,7 @@ fn find_weak_providers(feedback: &[&FeedbackData]) -> Vec<String> {
 
 /// 根据错误模式构建重试策略
 fn build_retry_policy(feedback: &[&FeedbackData]) -> RetryPolicy {
-    let failures: Vec<&&FeedbackData> = feedback.iter().filter(|f| !(**f).success).collect();
+    let failures: Vec<&&FeedbackData> = feedback.iter().filter(|f| !f.success).collect();
     let failure_rate = if feedback.is_empty() {
         0.0
     } else {
@@ -266,10 +267,9 @@ fn build_retry_policy(feedback: &[&FeedbackData]) -> RetryPolicy {
     };
 
     // 收集常见错误类别
-    let mut error_counts: std::collections::HashMap<String, u32> =
-        std::collections::HashMap::new();
+    let mut error_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     for f in &failures {
-        if let Some(err) = &(**f).error_category {
+        if let Some(err) = &f.error_category {
             *error_counts.entry(err.clone()).or_insert(0) += 1;
         }
     }
@@ -317,11 +317,8 @@ fn compute_quality_trend(reflections: &[&ReflectionResult]) -> QualityTrend {
     // 比较前半段和后半段的平均质量
     let mid = sorted.len() / 2;
     let recent_avg: f64 = sorted[..mid].iter().map(|r| r.quality_score).sum::<f64>() / mid as f64;
-    let older_avg: f64 = sorted[mid..]
-        .iter()
-        .map(|r| r.quality_score)
-        .sum::<f64>()
-        / (sorted.len() - mid) as f64;
+    let older_avg: f64 =
+        sorted[mid..].iter().map(|r| r.quality_score).sum::<f64>() / (sorted.len() - mid) as f64;
 
     let diff = recent_avg - older_avg;
     if diff > 0.05 {
@@ -392,8 +389,7 @@ fn analyze_failure_patterns(failures: &[FeedbackData]) -> Vec<String> {
     let mut suggestions = Vec::new();
 
     // 错误类别统计
-    let mut error_counts: std::collections::HashMap<String, u32> =
-        std::collections::HashMap::new();
+    let mut error_counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     for f in failures {
         if let Some(ref err) = f.error_category {
             *error_counts.entry(err.clone()).or_insert(0) += 1;
@@ -409,8 +405,7 @@ fn analyze_failure_patterns(failures: &[FeedbackData]) -> Vec<String> {
     }
 
     // 模型失败集中度
-    let mut model_fails: std::collections::HashMap<String, u32> =
-        std::collections::HashMap::new();
+    let mut model_fails: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
     for f in failures {
         *model_fails.entry(f.model.clone()).or_insert(0) += 1;
     }
@@ -561,7 +556,10 @@ mod tests {
         loop_engine.save_recommendation(&rec).unwrap();
 
         let loaded = loop_engine.load_recommendation().unwrap();
-        assert_eq!(loaded.role_recommendations.len(), rec.role_recommendations.len());
+        assert_eq!(
+            loaded.role_recommendations.len(),
+            rec.role_recommendations.len()
+        );
     }
 
     #[test]

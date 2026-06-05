@@ -38,11 +38,13 @@ pub fn search_items(items: &[TextItem], options: &SearchOptions) -> Vec<TextItem
         };
     }
 
+    #[allow(clippy::mut_range_bound)]
     let mut start = 0;
     while start < items.len() {
         let mut combined = String::new();
         let mut found = false;
 
+        #[allow(clippy::mut_range_bound)]
         for end in start..items.len() {
             if end > start {
                 combined.push_str(seps[end]);

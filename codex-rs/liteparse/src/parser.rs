@@ -95,6 +95,7 @@ impl LiteParse {
     }
 
     /// Detect the input format from a `PdfInput`.
+    #[allow(dead_code)]
     fn detect_format(input: &PdfInput) -> InputFormat {
         match input {
             PdfInput::Path(p) => {

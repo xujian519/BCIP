@@ -59,8 +59,8 @@ impl SemanticMemoryStore {
     /// 存储一条经验记忆
     pub fn store(&self, entry: MemoryEntry) -> Result<(), String> {
         let path = self.storage_dir.join(format!("{}.json", entry.id));
-        let json = serde_json::to_string_pretty(&entry)
-            .map_err(|e| format!("serialize memory: {e}"))?;
+        let json =
+            serde_json::to_string_pretty(&entry).map_err(|e| format!("serialize memory: {e}"))?;
         std::fs::write(&path, json).map_err(|e| format!("write memory: {e}"))?;
 
         // 如果 embedding 服务可用，生成并缓存向量
@@ -136,20 +136,20 @@ impl SemanticMemoryStore {
                 e.role == role
                     && e.success
                     && e.quality_score >= 0.7
-                    && task_type.map_or(true, |tt| e.task_type.contains(tt))
+                    && task_type.is_none_or(|tt| e.task_type.contains(tt))
             })
             .collect();
-        results.sort_by(|a, b| b.quality_score.partial_cmp(&a.quality_score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.quality_score
+                .partial_cmp(&a.quality_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(limit);
         Ok(results)
     }
 
     /// 获取失败案例（用于避免重复错误）
-    pub fn recall_failures(
-        &self,
-        role: &str,
-        limit: usize,
-    ) -> Result<Vec<MemoryEntry>, String> {
+    pub fn recall_failures(&self, role: &str, limit: usize) -> Result<Vec<MemoryEntry>, String> {
         let all = self.load_all()?;
         let mut results: Vec<MemoryEntry> = all
             .into_iter()
@@ -169,17 +169,16 @@ impl SemanticMemoryStore {
 
     fn load_all(&self) -> Result<Vec<MemoryEntry>, String> {
         let mut entries = Vec::new();
-        let dir = std::fs::read_dir(&self.storage_dir)
-            .map_err(|e| format!("read memory dir: {e}"))?;
+        let dir =
+            std::fs::read_dir(&self.storage_dir).map_err(|e| format!("read memory dir: {e}"))?;
 
         for entry in dir.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    if let Ok(memory) = serde_json::from_str::<MemoryEntry>(&content) {
-                        entries.push(memory);
-                    }
-                }
+            if path.extension().and_then(|e| e.to_str()) == Some("json")
+                && let Ok(content) = std::fs::read_to_string(&path)
+                && let Ok(memory) = serde_json::from_str::<MemoryEntry>(&content)
+            {
+                entries.push(memory);
             }
         }
 
@@ -192,7 +191,10 @@ impl SemanticMemoryStore {
         query_embedding: &[f32],
         top_k: usize,
     ) -> Result<Vec<RecalledMemory>, String> {
-        let client = self.embedding_client.as_ref().ok_or("embedding client unavailable")?;
+        let client = self
+            .embedding_client
+            .as_ref()
+            .ok_or("embedding client unavailable")?;
 
         let mut scored: Vec<(f64, &MemoryEntry)> = Vec::new();
         for entry in entries {
@@ -254,7 +256,10 @@ impl SemanticMemoryStore {
                 )
                 .to_lowercase();
 
-                let matches = query_terms.iter().filter(|t| text.contains(t.as_str())).count();
+                let matches = query_terms
+                    .iter()
+                    .filter(|t| text.contains(t.as_str()))
+                    .count();
                 let score = if query_terms.is_empty() {
                     0.0
                 } else {
@@ -327,9 +332,15 @@ mod tests {
     fn test_recall_by_role() {
         let (_dir, store) = setup();
 
-        store.store(sample_entry("analyzer", "novelty", true)).unwrap();
-        store.store(sample_entry("writer", "drafting", true)).unwrap();
-        store.store(sample_entry("analyzer", "inventive", false)).unwrap();
+        store
+            .store(sample_entry("analyzer", "novelty", true))
+            .unwrap();
+        store
+            .store(sample_entry("writer", "drafting", true))
+            .unwrap();
+        store
+            .store(sample_entry("analyzer", "inventive", false))
+            .unwrap();
 
         let analyzer = store.recall_by_role("analyzer").unwrap();
         assert_eq!(analyzer.len(), 2);
@@ -342,8 +353,12 @@ mod tests {
     fn test_recall_successes() {
         let (_dir, store) = setup();
 
-        store.store(sample_entry("analyzer", "novelty", true)).unwrap();
-        store.store(sample_entry("analyzer", "inventive", false)).unwrap();
+        store
+            .store(sample_entry("analyzer", "novelty", true))
+            .unwrap();
+        store
+            .store(sample_entry("analyzer", "inventive", false))
+            .unwrap();
 
         let successes = store.recall_successes("analyzer", None, 10).unwrap();
         assert_eq!(successes.len(), 1);
@@ -354,8 +369,12 @@ mod tests {
     fn test_recall_failures() {
         let (_dir, store) = setup();
 
-        store.store(sample_entry("analyzer", "novelty", true)).unwrap();
-        store.store(sample_entry("analyzer", "inventive", false)).unwrap();
+        store
+            .store(sample_entry("analyzer", "novelty", true))
+            .unwrap();
+        store
+            .store(sample_entry("analyzer", "inventive", false))
+            .unwrap();
 
         let failures = store.recall_failures("analyzer", 10).unwrap();
         assert_eq!(failures.len(), 1);

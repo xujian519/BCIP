@@ -96,25 +96,22 @@ impl ModelRouter {
         let complexity = estimate_complexity(task_description);
 
         // 1. 基于历史表现（如果有足够数据）
-        if strategy == RoutingStrategy::PerformanceBased {
-            if let Some(stats) = self.learning_store.get_stats(GroupBy::Role).ok() {
-                if let Some(role_stats) = stats.get(role) {
-                    if role_stats.total_calls >= 5 {
-                        if let Some(model) = self.learning_store.suggest_model(role) {
-                            return RoutingDecision {
-                                recommended_model: model.clone(),
-                                recommended_provider: self.provider_for_model(&model),
-                                fallback_models: self.fallbacks_for(&model, complexity),
-                                strategy_used: RoutingStrategy::PerformanceBased,
-                                reason: format!(
-                                    "基于角色 '{role}' 的 {} 次历史调用，推荐模型",
-                                    role_stats.total_calls
-                                ),
-                            };
-                        }
-                    }
-                }
-            }
+        if strategy == RoutingStrategy::PerformanceBased
+            && let Ok(stats) = self.learning_store.get_stats(GroupBy::Role)
+            && let Some(role_stats) = stats.get(role)
+            && role_stats.total_calls >= 5
+            && let Some(model) = self.learning_store.suggest_model(role)
+        {
+            return RoutingDecision {
+                recommended_model: model.clone(),
+                recommended_provider: self.provider_for_model(&model),
+                fallback_models: self.fallbacks_for(&model, complexity),
+                strategy_used: RoutingStrategy::PerformanceBased,
+                reason: format!(
+                    "基于角色 '{role}' 的 {} 次历史调用，推荐模型",
+                    role_stats.total_calls
+                ),
+            };
         }
 
         // 2. 基于策略和能力匹配
@@ -147,10 +144,7 @@ impl ModelRouter {
             }
             RoutingStrategy::PerformanceBased => {
                 // 已在上面处理，这里是 fallback
-                let b = candidates
-                    .iter()
-                    .min_by_key(|c| c.cost_tier)
-                    .unwrap();
+                let b = candidates.iter().min_by_key(|c| c.cost_tier).unwrap();
                 (b, "数据不足，使用成本优先".to_string())
             }
         };
@@ -170,24 +164,20 @@ impl ModelRouter {
     }
 
     /// 获取降级链（主模型 → 备选1 → 备选2）
-    pub fn degradation_chain(
-        &self,
-        primary_model: &str,
-        role: &str,
-    ) -> Vec<String> {
+    pub fn degradation_chain(&self, primary_model: &str, role: &str) -> Vec<String> {
         let mut chain = vec![primary_model.to_string()];
 
         // 从历史表现中找替代
-        if let Some(model) = self.learning_store.suggest_model(role) {
-            if model != primary_model {
-                chain.push(model);
-            }
+        if let Some(model) = self.learning_store.suggest_model(role)
+            && model != primary_model
+        {
+            chain.push(model);
         }
 
         // 从能力表中找同复杂度的替代
         if let Some(cap) = self.capabilities.get(primary_model) {
             let level = cap.complexity_range;
-            for (_, alt) in &self.capabilities {
+            for alt in self.capabilities.values() {
                 if alt.model_id != primary_model
                     && alt.complexity_range.0 <= level.1
                     && alt.complexity_range.1 >= level.0
@@ -243,22 +233,29 @@ fn estimate_complexity(description: &str) -> TaskComplexity {
 
     // 复杂任务关键词
     let complex_keywords = [
-        "综合分析", "多步推理", "跨领域", "专利撰写", "全面评估",
-        "对比分析", "战略", "规划", "架构设计",
+        "综合分析",
+        "多步推理",
+        "跨领域",
+        "专利撰写",
+        "全面评估",
+        "对比分析",
+        "战略",
+        "规划",
+        "架构设计",
     ];
-    let complex_count = complex_keywords.iter().filter(|k| desc.contains(*k)).count();
+    let complex_count = complex_keywords
+        .iter()
+        .filter(|k| desc.contains(*k))
+        .count();
 
     // 中等任务关键词
     let medium_keywords = [
-        "分析", "评估", "比较", "检索", "审查", "检查",
-        "摘要", "翻译", "改写",
+        "分析", "评估", "比较", "检索", "审查", "检查", "摘要", "翻译", "改写",
     ];
     let medium_count = medium_keywords.iter().filter(|k| desc.contains(*k)).count();
 
     // 简单任务关键词
-    let simple_keywords = [
-        "格式化", "转换", "复制", "简单", "列表", "提取",
-    ];
+    let simple_keywords = ["格式化", "转换", "复制", "简单", "列表", "提取"];
     let simple_count = simple_keywords.iter().filter(|k| desc.contains(*k)).count();
 
     if complex_count > 0 || desc.len() > 500 {
@@ -418,10 +415,12 @@ mod tests {
         let decision = router.route("简单格式化", "writer", RoutingStrategy::CostOptimized);
         assert!(decision.reason.contains("成本优先"));
         // 最低 cost_tier 的模型
-        assert!(decision.recommended_model.contains("turbo")
-            || decision.recommended_model.contains("deepseek-v4-chat")
-            || decision.recommended_model.contains("haiku")
-            || decision.recommended_model.contains("glm"));
+        assert!(
+            decision.recommended_model.contains("turbo")
+                || decision.recommended_model.contains("deepseek-v4-chat")
+                || decision.recommended_model.contains("haiku")
+                || decision.recommended_model.contains("glm")
+        );
     }
 
     #[test]

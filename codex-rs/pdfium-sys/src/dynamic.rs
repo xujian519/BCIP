@@ -20,7 +20,10 @@ const PDFIUM_LIB_DIR: &str = env!("PDFIUM_LIB_DIR");
 macro_rules! load_fn {
     ($lib:expr, $name:literal) => {{
         let sym = unsafe { $lib.get::<*const ()>($name.as_bytes())? };
-        unsafe { std::mem::transmute(*sym) }
+        #[allow(clippy::missing_transmute_annotations)]
+        unsafe {
+            std::mem::transmute(*sym)
+        }
     }};
 }
 
@@ -397,10 +400,10 @@ fn search_paths() -> Vec<PathBuf> {
     }
 
     // 4. Next to the current executable
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            paths.push(exe_dir.join(name));
-        }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        paths.push(exe_dir.join(name));
     }
 
     // 5. Bare library name (system search paths / LD_LIBRARY_PATH / DYLD_LIBRARY_PATH / PATH)

@@ -156,7 +156,8 @@ impl OutputEvaluator {
                 .copied()
                 .unwrap_or_else(|| dim.default_weight());
 
-            let (score, issues) = self.evaluate_dimension(dim, task_description, output, role, domain_keywords);
+            let (score, issues) =
+                self.evaluate_dimension(dim, task_description, output, role, domain_keywords);
             let passed = score >= self.config.pass_threshold;
 
             dimensions.push(DimensionScore {
@@ -168,10 +169,7 @@ impl OutputEvaluator {
             });
         }
 
-        let overall_score = dimensions
-            .iter()
-            .map(|d| d.score * d.weight)
-            .sum::<f64>()
+        let overall_score = dimensions.iter().map(|d| d.score * d.weight).sum::<f64>()
             / dimensions.iter().map(|d| d.weight).sum::<f64>();
 
         let suggestions = generate_suggestions(&dimensions);
@@ -187,12 +185,7 @@ impl OutputEvaluator {
     }
 
     /// 生成 LLM-as-Judge 的 prompt（供外部调用）
-    pub fn llm_judge_prompt(
-        &self,
-        task_description: &str,
-        output: &str,
-        role: &str,
-    ) -> String {
+    pub fn llm_judge_prompt(&self, task_description: &str, output: &str, role: &str) -> String {
         format!(
             "请作为专业评审员评估以下 AI 输出质量。\n\n\
              ## 任务描述\n{task_description}\n\n\
@@ -234,21 +227,15 @@ impl OutputEvaluator {
             EvaluationDimension::Relevance => {
                 evaluate_relevance(task_description, output, &mut issues)
             }
-            EvaluationDimension::Accuracy => {
-                evaluate_accuracy(output, &mut issues)
-            }
+            EvaluationDimension::Accuracy => evaluate_accuracy(output, &mut issues),
             EvaluationDimension::Completeness => {
                 evaluate_completeness(task_description, output, &mut issues)
             }
-            EvaluationDimension::Coherence => {
-                evaluate_coherence(output, &mut issues)
-            }
+            EvaluationDimension::Coherence => evaluate_coherence(output, &mut issues),
             EvaluationDimension::DomainExpertise => {
                 evaluate_domain_expertise(output, role, domain_keywords, &mut issues)
             }
-            EvaluationDimension::Practicality => {
-                evaluate_practicality(output, &mut issues)
-            }
+            EvaluationDimension::Practicality => evaluate_practicality(output, &mut issues),
         };
         (score, issues)
     }
@@ -328,7 +315,9 @@ fn evaluate_completeness(task: &str, output: &str, issues: &mut Vec<String>) -> 
         let sections = output.matches("##").count() + output.matches("\n\n").count();
         if sections < question_marks {
             score -= 0.1 * (question_marks - sections) as f64;
-            issues.push(format!("任务包含 {question_marks} 个问题，输出可能未全部回答"));
+            issues.push(format!(
+                "任务包含 {question_marks} 个问题，输出可能未全部回答"
+            ));
         }
     }
 
@@ -399,8 +388,7 @@ fn evaluate_practicality(output: &str, issues: &mut Vec<String>) -> f64 {
 
     // 实用性标记
     let practicality_markers = [
-        "建议", "方案", "步骤", "实施", "具体", "例如", "如下",
-        "first", "second", "步骤", "方法",
+        "建议", "方案", "步骤", "实施", "具体", "例如", "如下", "first", "second", "步骤", "方法",
     ];
     let has_practical = practicality_markers.iter().any(|m| output.contains(m));
     if has_practical {
@@ -474,11 +462,7 @@ mod tests {
     #[test]
     fn test_llm_judge_prompt() {
         let evaluator = OutputEvaluator::default_evaluator();
-        let prompt = evaluator.llm_judge_prompt(
-            "分析新颖性",
-            "输出内容",
-            "analyzer",
-        );
+        let prompt = evaluator.llm_judge_prompt("分析新颖性", "输出内容", "analyzer");
         assert!(prompt.contains("relevance"));
         assert!(prompt.contains("accuracy"));
         assert!(prompt.contains("JSON"));
@@ -503,19 +487,18 @@ mod tests {
             &[],
         );
 
-        let relevance_dim = result.dimensions.iter().find(|d| d.dimension == EvaluationDimension::Relevance).unwrap();
+        let relevance_dim = result
+            .dimensions
+            .iter()
+            .find(|d| d.dimension == EvaluationDimension::Relevance)
+            .unwrap();
         assert!((relevance_dim.weight - 0.5).abs() < 0.01);
     }
 
     #[test]
     fn test_completeness_incomplete_marker() {
         let evaluator = OutputEvaluator::default_evaluator();
-        let result = evaluator.evaluate(
-            "分析三个问题？如何？为什么？",
-            "待续",
-            "writer",
-            &[],
-        );
+        let result = evaluator.evaluate("分析三个问题？如何？为什么？", "待续", "writer", &[]);
         // "待续" 极短输出 + 未完成标记 → 分数应显著低于通过阈值
         assert!(
             result.overall_score < 0.65,
@@ -523,7 +506,9 @@ mod tests {
             result.overall_score
         );
         // 完整性维度应明确不通过
-        let completeness = result.dimensions.iter()
+        let completeness = result
+            .dimensions
+            .iter()
             .find(|d| d.dimension == EvaluationDimension::Completeness)
             .unwrap();
         assert!(!completeness.passed);

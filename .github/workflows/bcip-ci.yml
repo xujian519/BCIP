@@ -183,7 +183,7 @@ jobs:
           workspaces: codex-rs -> target
 
       - name: Build dependencies
-        run: cargo build --release -j 2
+        run: cargo build --release -j 2 --workspace --exclude codex-v8-poc
 
       - name: Build codex-cli
         run: cargo build -p codex-cli --release -j 2

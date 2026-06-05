@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio::sync::broadcast;
 
 /// Agent 事件类型
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -22,10 +22,7 @@ pub enum AgentEvent {
         parent_id: Option<String>,
     },
     /// Agent 开始执行
-    AgentStarted {
-        agent_id: String,
-        task: String,
-    },
+    AgentStarted { agent_id: String, task: String },
     /// Agent 执行完成
     AgentCompleted {
         agent_id: String,
@@ -114,25 +111,52 @@ impl fmt::Display for AgentEvent {
             Self::AgentStarted { agent_id, task } => {
                 write!(f, "[started] {agent_id}: {task}")
             }
-            Self::AgentCompleted { agent_id, success, duration_ms, .. } => {
+            Self::AgentCompleted {
+                agent_id,
+                success,
+                duration_ms,
+                ..
+            } => {
                 let status = if *success { "✓" } else { "✗" };
                 write!(f, "[completed] {agent_id} {status} ({duration_ms}ms)")
             }
-            Self::AgentOutput { agent_id, output_type, summary } => {
+            Self::AgentOutput {
+                agent_id,
+                output_type,
+                summary,
+            } => {
                 write!(f, "[output] {agent_id} {output_type}: {summary}")
             }
-            Self::CollaborationRequest { from_agent, to_agent, request_type, .. } => {
+            Self::CollaborationRequest {
+                from_agent,
+                to_agent,
+                request_type,
+                ..
+            } => {
                 write!(f, "[collab] {from_agent} → {to_agent}: {request_type}")
             }
-            Self::CollaborationResponse { from_agent, to_agent, success, .. } => {
+            Self::CollaborationResponse {
+                from_agent,
+                to_agent,
+                success,
+                ..
+            } => {
                 let status = if *success { "ok" } else { "fail" };
                 write!(f, "[collab-reply] {from_agent} → {to_agent}: {status}")
             }
-            Self::AgentError { agent_id, error, recoverable } => {
+            Self::AgentError {
+                agent_id,
+                error,
+                recoverable,
+            } => {
                 let rec = if *recoverable { "recoverable" } else { "fatal" };
                 write!(f, "[error] {agent_id}: {error} ({rec})")
             }
-            Self::LearningEvent { event_type, agent_id, .. } => {
+            Self::LearningEvent {
+                event_type,
+                agent_id,
+                ..
+            } => {
                 write!(f, "[learning] {agent_id}: {event_type}")
             }
             Self::Custom { topic, source, .. } => {
@@ -178,10 +202,11 @@ impl EventBus {
         let subs = self.subscribers.lock().await;
         for (_, subscriber) in subs.iter() {
             // 检查 topic 过滤
-            if let Some(ref filter) = subscriber.topic_filter {
-                if !event.topic().starts_with(filter) && filter != "*" {
-                    continue;
-                }
+            if let Some(ref filter) = subscriber.topic_filter
+                && !event.topic().starts_with(filter)
+                && filter != "*"
+            {
+                continue;
             }
             let _ = subscriber.sender.send(event.clone());
         }
@@ -193,7 +218,11 @@ impl EventBus {
     }
 
     /// 按topic 订阅事件
-    pub async fn subscribe(&self, subscriber_id: &str, topic_filter: Option<&str>) -> broadcast::Receiver<AgentEvent> {
+    pub async fn subscribe(
+        &self,
+        subscriber_id: &str,
+        topic_filter: Option<&str>,
+    ) -> broadcast::Receiver<AgentEvent> {
         let (tx, rx) = broadcast::channel(256);
         let mut subs = self.subscribers.lock().await;
         subs.insert(
@@ -237,7 +266,8 @@ mod tests {
             agent_id: "test-1".to_string(),
             role: "analyzer".to_string(),
             parent_id: None,
-        }).await;
+        })
+        .await;
 
         let event = rx.try_recv().unwrap();
         assert!(matches!(event, AgentEvent::AgentSpawned { .. }));
@@ -252,7 +282,8 @@ mod tests {
         bus.publish(AgentEvent::AgentStarted {
             agent_id: "a1".to_string(),
             task: "test".to_string(),
-        }).await;
+        })
+        .await;
 
         // 发布匹配的事件
         bus.publish(AgentEvent::CollaborationRequest {
@@ -260,7 +291,8 @@ mod tests {
             to_agent: "a2".to_string(),
             request_type: "help".to_string(),
             payload: serde_json::json!({}),
-        }).await;
+        })
+        .await;
 
         // 应该只收到匹配的事件
         let event = rx.try_recv().unwrap();
@@ -309,7 +341,8 @@ mod tests {
             topic: "patent.search".to_string(),
             source: "retriever".to_string(),
             payload: serde_json::json!({"query": "AI patent"}),
-        }).await;
+        })
+        .await;
 
         let event = rx.try_recv().unwrap();
         assert_eq!(event.topic(), "patent.search");
@@ -324,7 +357,8 @@ mod tests {
         bus.publish(AgentEvent::AgentStarted {
             agent_id: "a1".to_string(),
             task: "test".to_string(),
-        }).await;
+        })
+        .await;
 
         let event = rx.try_recv().unwrap();
         assert!(matches!(event, AgentEvent::AgentStarted { .. }));

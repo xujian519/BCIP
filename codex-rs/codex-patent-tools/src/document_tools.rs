@@ -329,7 +329,7 @@ impl DocumentTools {
             let mut buf = [0u8; 8192];
             let bytes_read = std::io::Read::read(&mut std::io::BufReader::new(file), &mut buf)
                 .map_err(|e| format!("读取文件失败: {e}"))?;
-            if buf[..bytes_read].iter().any(|&b| b == 0) {
+            if buf[..bytes_read].contains(&0) {
                 return Err(format!(
                     "文件 {} 看起来是二进制文件，请使用 DocumentParser 工具处理",
                     input.file_path

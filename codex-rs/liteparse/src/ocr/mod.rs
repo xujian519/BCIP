@@ -27,6 +27,7 @@ pub struct OcrOptions {
 #[cfg(not(target_arch = "wasm32"))]
 pub trait OcrEngine: Send + Sync {
     fn name(&self) -> &str;
+    #[allow(clippy::type_complexity)]
     fn recognize<'a, 'b: 'a, 'c: 'a>(
         &'a self,
         image_data: &'c [u8],
