@@ -3175,9 +3175,12 @@ dependencies = [
 name = "codex-im-protocol"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "serde",
  "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3641,6 +3644,7 @@ dependencies = [
 name = "codex-patent-domain"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "codex-patent-core",
  "codex-patent-knowledge",
  "pretty_assertions",
@@ -3666,6 +3670,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

@@ -51,11 +51,12 @@ impl<'a> LegalReasoningEngine<'a> {
 
         for start in &start_nodes {
             // BFS 遍历
-            let mut queue = vec![(start.clone(), vec![start.clone()], vec![])];
+            let mut queue = std::collections::VecDeque::new();
+            queue.push_back((start.clone(), vec![start.clone()], vec![]));
             let mut visited = std::collections::HashSet::new();
             visited.insert(start.id.clone());
 
-            while let Some((current, node_path, edge_path)) = queue.pop() {
+            while let Some((current, node_path, edge_path)) = queue.pop_front() {
                 if paths.len() >= limit {
                     break;
                 }
@@ -97,7 +98,7 @@ impl<'a> LegalReasoningEngine<'a> {
                             new_node_path.push(neighbor.clone());
                             let mut new_edge_path = edge_path.clone();
                             new_edge_path.push(edge);
-                            queue.push((neighbor, new_node_path, new_edge_path));
+                            queue.push_back((neighbor, new_node_path, new_edge_path));
                         }
                     }
                 }
