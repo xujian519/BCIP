@@ -146,7 +146,7 @@ jobs:
           workspaces: codex-rs -> target
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.79.7
         with:
           tool: cargo-nextest
 
@@ -256,7 +256,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.79.7
         with:
           tool: cargo-deny
 
