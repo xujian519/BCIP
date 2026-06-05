@@ -65,18 +65,18 @@ impl CronExpression {
 
         // 最多搜索一年，按天迭代而非逐分钟扫描
         for _ in 0..366 {
-            if self.matches_date(&candidate) {
-                if let Some((hour, minute)) = self.next_matching_time(&candidate) {
-                    return Some(
-                        candidate
-                            .with_hour(hour as u32)
-                            .unwrap_or(candidate)
-                            .with_minute(minute as u32)
-                            .unwrap_or(candidate)
-                            .with_second(0)
-                            .unwrap_or(candidate),
-                    );
-                }
+            if self.matches_date(&candidate)
+                && let Some((hour, minute)) = self.next_matching_time(&candidate)
+            {
+                return Some(
+                    candidate
+                        .with_hour(hour as u32)
+                        .unwrap_or(candidate)
+                        .with_minute(minute as u32)
+                        .unwrap_or(candidate)
+                        .with_second(0)
+                        .unwrap_or(candidate),
+                );
             }
 
             // 跳到下一天的 00:00
@@ -121,6 +121,7 @@ impl CronExpression {
         None
     }
 
+    #[allow(dead_code)]
     fn matches(&self, dt: &DateTime<Utc>) -> bool {
         self.minute.matches(dt.minute() as u8)
             && self.hour.matches(dt.hour() as u8)

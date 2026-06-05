@@ -136,17 +136,17 @@ impl CronScheduler {
                         continue;
                     }
 
-                    if let Ok(expr) = CronExpression::parse(&task.cron) {
-                        if let Some(next) = expr.next_run(now) {
-                            let dur = (next - now)
-                                .to_std()
-                                .unwrap_or(std::time::Duration::from_secs(1));
-                            nearest = Some(match nearest {
-                                Some(prev) if dur < prev => dur,
-                                None => dur,
-                                Some(prev) => prev,
-                            });
-                        }
+                    if let Ok(expr) = CronExpression::parse(&task.cron)
+                        && let Some(next) = expr.next_run(now)
+                    {
+                        let dur = (next - now)
+                            .to_std()
+                            .unwrap_or(std::time::Duration::from_secs(1));
+                        nearest = Some(match nearest {
+                            Some(prev) if dur < prev => dur,
+                            None => dur,
+                            Some(prev) => prev,
+                        });
                     }
                 }
 

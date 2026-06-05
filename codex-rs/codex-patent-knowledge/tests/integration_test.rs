@@ -1,8 +1,14 @@
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::CardIndex;
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::LawDatabase;
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::SearchConfig;
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::SqliteKnowledgeGraph;
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::UnifiedSearch;
+#[cfg(feature = "integration-tests")]
 use codex_patent_knowledge::VectorIndex;
 
 #[test]
