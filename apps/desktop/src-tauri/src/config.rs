@@ -195,7 +195,13 @@ pub fn write_bcip_config(partial: PartialBcipConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// 启动 bcip 子进程前注入 BCIP 运行时环境（配置目录、知识库资产、语义嵌入）。
+/// 启动 bcip 子进程前注入 BCIP 运行时环境（配置目录、知识库资产、语义嵌入、API Key）。
+///
+/// API Key 注入策略：
+/// 前端 OnboardingWizard 将用户输入的 API Key 写入 `config.toml` 的顶层 `api_key` 字段，
+/// 但 bcip 后端通过 `model_providers.<Provider>.env_key` 声明的环境变量名（如 `DEEPSEEK_API_KEY`）
+/// 从 `std::env::var` 获取密钥。因此需要在启动子进程前，将 `config.toml` 中的 `api_key`
+/// 映射到对应 provider 的 `env_key` 环境变量中。
 pub fn apply_bcip_runtime_env(cmd: &mut std::process::Command) {
     if let Ok(home) = find_bcip_home() {
         let home_str = path_to_env_value(&home);
@@ -213,6 +219,9 @@ pub fn apply_bcip_runtime_env(cmd: &mut std::process::Command) {
     if let Some(api_key) = embedding.api_key {
         set_env_if_unset(cmd, "BCIP_MLX_API_KEY", &api_key);
     }
+
+    // 将 config.toml 中的 api_key 注入为对应 model_provider 的 env_key 环境变量
+    inject_provider_api_key(cmd);
 }
 
 /// 兼容旧命名；等价于 [`apply_bcip_runtime_env`]。
@@ -374,6 +383,60 @@ fn set_env_if_unset(cmd: &mut std::process::Command, key: &str, value: &str) {
     if env::var(key).is_err() {
         cmd.env(key, value);
     }
+}
+
+/// 从 `config.toml` 读取 `api_key` 和 `model_provider`，将 api_key 注入为对应
+/// `model_providers.<Provider>.env_key` 环境变量。
+///
+/// 流程：
+/// 1. 读取 `config.toml` 中的顶层 `api_key`（前端 OnboardingWizard 写入）
+/// 2. 读取 `model_provider`（如 `"DeepSeek"`）
+/// 3. 查找 `model_providers.<model_provider>.env_key`（如 `"DEEPSEEK_API_KEY"`）
+/// 4. 若 api_key 有效且 env_key 对应的环境变量未设置，则注入
+fn inject_provider_api_key(cmd: &mut std::process::Command) {
+    let config = match read_bcip_config() {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    let api_key = match config.api_key.as_deref() {
+        Some(k) if !k.trim().is_empty() && k.trim() != "local" => k.trim(),
+        _ => return,
+    };
+
+    let provider_name = match config.model_provider.as_deref() {
+        Some(p) if !p.trim().is_empty() => p.trim(),
+        _ => return,
+    };
+
+    // 从 config.toml 的 [model_providers.<name>] 段查找 env_key
+    let env_key = match resolve_model_provider_env_key(provider_name) {
+        Some(k) => k,
+        None => return,
+    };
+
+    set_env_if_unset(cmd, &env_key, api_key);
+}
+
+/// 从 `config.toml` 的 `[model_providers.<name>]` 段读取 `env_key` 字段。
+fn resolve_model_provider_env_key(provider_name: &str) -> Option<String> {
+    let config_path = get_config_path().ok()?;
+    let content = fs::read_to_string(&config_path).ok()?;
+    let root: toml::Value = toml::from_str(&content).ok()?;
+
+    let env_key = root
+        .get("model_providers")?
+        .get(provider_name)?
+        .get("env_key")?
+        .as_str()?
+        .trim()
+        .to_string();
+
+    if env_key.is_empty() {
+        return None;
+    }
+
+    Some(env_key)
 }
 
 /// 桌面首次启动写入 config.toml 的模板内容。
