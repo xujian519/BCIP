@@ -254,8 +254,8 @@ mod tests {
         dir
     }
 
-    #[test]
-    fn test_spawn_agent() {
+    #[tokio::test]
+    async fn test_spawn_agent() {
         let _temp_dir = setup_store();
 
         let input = AgentSpawnInput {
@@ -273,8 +273,8 @@ mod tests {
         assert!(!manifest.agent_id.is_empty());
     }
 
-    #[test]
-    fn test_list_agents() {
+    #[tokio::test]
+    async fn test_list_agents() {
         let _temp_dir = setup_store();
 
         let input1 = AgentSpawnInput {
@@ -284,8 +284,6 @@ mod tests {
             name: None,
             model: None,
         };
-
-        std::thread::sleep(std::time::Duration::from_millis(10));
 
         let input2 = AgentSpawnInput {
             description: "Agent 2".to_string(),
@@ -298,7 +296,7 @@ mod tests {
         PatentAgentRuntime::spawn_agent(input1).unwrap();
         PatentAgentRuntime::spawn_agent(input2).unwrap();
 
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
         let agents = PatentAgentRuntime::list_agents().unwrap();
         assert!(
@@ -309,8 +307,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_cancel_agent() {
+    #[tokio::test]
+    async fn test_cancel_agent() {
         let _temp_dir = setup_store();
 
         let input = AgentSpawnInput {

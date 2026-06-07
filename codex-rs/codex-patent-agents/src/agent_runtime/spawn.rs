@@ -1,4 +1,4 @@
-//! Agent 线程调度、运行、持久化辅助
+//! Agent 异步调度、运行、持久化辅助
 
 use crate::agent_manifest::AgentManifest;
 use crate::agent_manifest::iso8601_now;
@@ -25,66 +25,49 @@ pub(crate) fn spawn_agent_thread(
     prompt: String,
     provider: crate::provider_router::AgentProvider,
 ) -> Result<(), codex_patent_core::PatentError> {
-    let thread_name = format!("bcip-agent-{}", manifest.agent_id);
     let manifest_clone = manifest.clone();
 
-    std::thread::Builder::new()
-        .name(thread_name)
-        .spawn(move || {
-            let mut attempt: u32 = 0;
+    tokio::spawn(async move {
+        let mut attempt: u32 = 0;
 
-            loop {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    run_agent_job(&manifest_clone, prompt.clone(), provider.clone())
-                }));
+        loop {
+            let result = run_agent_job(&manifest_clone, prompt.clone(), provider.clone()).await;
 
-                match result {
-                    Ok(Ok(())) => return,
-                    Ok(Err(ref error)) => {
-                        learning::record_agent_feedback(&manifest_clone, 0, false, Some(error));
-                        let _ = persist_agent_terminal_state(
-                            &manifest_clone,
-                            "failed",
-                            None,
-                            Some(error.clone()),
-                        );
-                        if !should_restart(error) { return; }
-                    }
-                    Err(_) => {
-                        learning::record_agent_feedback(
-                            &manifest_clone,
-                            0,
-                            false,
-                            Some("agent thread panicked"),
-                        );
-                        let _ = persist_agent_terminal_state(
-                            &manifest_clone,
-                            "failed",
-                            None,
-                            Some("agent thread panicked".to_string()),
-                        );
-                    }
-                }
-
-                attempt += 1;
-                if attempt >= MAX_AGENT_RESTARTS {
-                    tracing::warn!(
-                        "[bcip-agent] agent {} exceeded max restarts ({MAX_AGENT_RESTARTS})",
-                        manifest_clone.agent_id
+            match result {
+                Ok(()) => return,
+                Err(ref error) => {
+                    learning::record_agent_feedback(&manifest_clone, 0, false, Some(error));
+                    let _ = persist_agent_terminal_state(
+                        &manifest_clone,
+                        "failed",
+                        None,
+                        Some(error.clone()),
                     );
-                    return;
+                    if !should_restart(error) {
+                        return;
+                    }
                 }
+            }
 
-                let delay_ms = RESTART_BASE_DELAY_MS * 2u64.pow(attempt - 1);
-                tracing::info!(
-                    "[bcip-agent] restarting agent {} (attempt {attempt}/{MAX_AGENT_RESTARTS}, delay {delay_ms}ms)",
+            attempt += 1;
+            if attempt >= MAX_AGENT_RESTARTS {
+                tracing::warn!(
+                    "[bcip-agent] agent {} exceeded max restarts ({MAX_AGENT_RESTARTS})",
                     manifest_clone.agent_id
                 );
-                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                return;
             }
-        })
-        .map(|_| ())
-        .map_err(|e| codex_patent_core::PatentError::Agent(e.to_string()))
+
+            let delay_ms = RESTART_BASE_DELAY_MS * 2u64.pow(attempt - 1);
+            tracing::info!(
+                "[bcip-agent] restarting agent {} (attempt {attempt}/{MAX_AGENT_RESTARTS}, delay {delay_ms}ms)",
+                manifest_clone.agent_id
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
+        }
+    });
+
+    Ok(())
 }
 
 fn should_restart(error: &str) -> bool {
@@ -98,7 +81,7 @@ fn should_restart(error: &str) -> bool {
     !fatal_patterns.iter().any(|p| error_lower.contains(p))
 }
 
-fn run_agent_job(
+async fn run_agent_job(
     manifest: &AgentManifest,
     prompt: String,
     provider: AgentProvider,
@@ -173,7 +156,8 @@ fn run_agent_job(
         &prompt,
         &api_key,
         temperature,
-    )?;
+    )
+    .await?;
 
     append_agent_output(
         &manifest.output_file,
@@ -264,9 +248,6 @@ pub(crate) fn format_agent_terminal_output(
 
     sections.join("")
 }
-
-// ---- 路径解析委托到 codex-patent-knowledge 的 paths 模块 ----
-// 使用统一的路径解析（多策略回退），消除两套独立路径函数。
 
 pub(crate) fn default_kg_path() -> String {
     paths::kg_db_path()

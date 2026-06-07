@@ -10,6 +10,7 @@
 //! 4. **旧默认值 `../codex-patent-assets`** - 保底，可能与 CWD 不匹配
 
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 const CANDIDATE_DIRS: &[&str] = &[
     "codex-patent-assets",          // CWD = codex-rs/
@@ -17,44 +18,48 @@ const CANDIDATE_DIRS: &[&str] = &[
     "codex-rs/codex-patent-assets", // CWD = 项目根目录
 ];
 
-/// 尝试多策略解析 assets 根目录。
-///
-/// 返回第一个检测到包含知识库文件的候选路径，最后回退到旧默认值。
+static CACHED_BASE_DIR: OnceLock<String> = OnceLock::new();
+
+/// 尝试多策略解析 assets 根目录（结果缓存）。
 fn resolve_base_dir() -> String {
-    // 优先级 1：环境变量
-    if let Ok(dir) = std::env::var("BCIP_ASSETS_DIR") {
-        let trimmed = dir.trim().to_string();
-        if !trimmed.is_empty() {
-            tracing::debug!("使用 BCIP_ASSETS_DIR: {trimmed}");
-            return trimmed;
-        }
-    }
+    CACHED_BASE_DIR
+        .get_or_init(|| {
+            // 优先级 1：环境变量
+            if let Ok(dir) = std::env::var("BCIP_ASSETS_DIR") {
+                let trimmed = dir.trim().to_string();
+                if !trimmed.is_empty() {
+                    tracing::debug!("使用 BCIP_ASSETS_DIR: {trimmed}");
+                    return trimmed;
+                }
+            }
 
-    // 优先级 2：尝试已知项目相对路径，检测 patent_kg.db 或 laws.db 是否存在
-    let markers = ["patent_kg.db", "laws.db"];
-    for candidate in CANDIDATE_DIRS {
-        let path = PathBuf::from(candidate);
-        if markers.iter().any(|m| path.join(m).exists()) || path.is_dir() {
-            tracing::debug!("自动检测到 assets 目录: {candidate}");
-            return candidate.to_string();
-        }
-    }
+            // 优先级 2：尝试已知项目相对路径，检测 patent_kg.db 或 laws.db 是否存在
+            let markers = ["patent_kg.db", "laws.db"];
+            for candidate in CANDIDATE_DIRS {
+                let path = PathBuf::from(candidate);
+                if markers.iter().any(|m| path.join(m).exists()) || path.is_dir() {
+                    tracing::debug!("自动检测到 assets 目录: {candidate}");
+                    return candidate.to_string();
+                }
+            }
 
-    // 优先级 3：尝试从可执行文件路径推断（桌面端 bundle）
-    if let Ok(exe) = std::env::current_exe()
-        && let Some(exe_dir) = exe.parent()
-    {
-        let bundle = exe_dir.join("../Resources/codex-patent-assets");
-        if bundle.is_dir() {
-            tracing::debug!("从 bundle 检测到 assets 目录: {}", bundle.display());
-            return bundle.to_string_lossy().into_owned();
-        }
-    }
+            // 优先级 3：尝试从可执行文件路径推断（桌面端 bundle）
+            if let Ok(exe) = std::env::current_exe()
+                && let Some(exe_dir) = exe.parent()
+            {
+                let bundle = exe_dir.join("../Resources/codex-patent-assets");
+                if bundle.is_dir() {
+                    tracing::debug!("从 bundle 检测到 assets 目录: {}", bundle.display());
+                    return bundle.to_string_lossy().into_owned();
+                }
+            }
 
-    // 优先级 4：保底回溯旧默认值（可能不存在，调用方用 .ok() 处理）
-    let fallback = CANDIDATE_DIRS[1]; // "../codex-patent-assets"
-    tracing::warn!("未找到 assets 目录，使用默认值回退: {fallback} (可能不存在)");
-    fallback.to_string()
+            // 优先级 4：保底回溯旧默认值
+            let fallback = CANDIDATE_DIRS[1];
+            tracing::warn!("未找到 assets 目录，使用默认值回退: {fallback} (可能不存在)");
+            fallback.to_string()
+        })
+        .clone()
 }
 
 /// 解析知识库资源路径，优先使用环境变量，再尝试多策略自动检测

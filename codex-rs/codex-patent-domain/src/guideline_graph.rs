@@ -1,10 +1,13 @@
 //! 审查指南图谱与法律知识图谱
 //!
 //! 基于 JSON 文件加载审查指南结构化数据和法律实体关系图。
+//! 加载结果按路径缓存，避免重复文件 I/O 和 JSON 解析。
 
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::Mutex;
+use std::sync::OnceLock;
 
 /// 审查指南元数据
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -116,18 +119,46 @@ pub struct LegalKnowledgeGraph {
     pub relationships: Vec<LegalRelationship>,
 }
 
-/// 从 JSON 文件加载审查指南图谱
+/// 从 JSON 文件加载审查指南图谱（结果按路径缓存）
 pub fn load_guideline_graph(path: &str) -> Result<GuidelineGraph, String> {
+    static CACHE: OnceLock<Mutex<HashMap<String, GuidelineGraph>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+
+    {
+        let guard = cache.lock().unwrap();
+        if let Some(cached) = guard.get(path) {
+            return Ok(cached.clone());
+        }
+    }
+
     let content =
         std::fs::read_to_string(path).map_err(|e| format!("读取审查指南图谱失败 {path}: {e}"))?;
-    serde_json::from_str(&content).map_err(|e| format!("解析审查指南图谱失败: {e}"))
+    let graph: GuidelineGraph =
+        serde_json::from_str(&content).map_err(|e| format!("解析审查指南图谱失败: {e}"))?;
+
+    {
+        let mut guard = cache.lock().unwrap();
+        guard.insert(path.to_string(), graph.clone());
+    }
+    Ok(graph)
 }
 
-/// 从 JSON 文件加载法律知识图谱
+/// 从 JSON 文件加载法律知识图谱（结果按路径缓存）
 pub fn load_legal_graph(
     entities_path: &str,
     rels_path: &str,
 ) -> Result<LegalKnowledgeGraph, String> {
+    static CACHE: OnceLock<Mutex<HashMap<String, LegalKnowledgeGraph>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let cache_key = format!("{entities_path}|{rels_path}");
+
+    {
+        let guard = cache.lock().unwrap();
+        if let Some(cached) = guard.get(&cache_key) {
+            return Ok(cached.clone());
+        }
+    }
+
     let entities_content =
         std::fs::read_to_string(entities_path).map_err(|e| format!("读取法律实体失败: {e}"))?;
     let entities: HashMap<String, LegalEntity> =
@@ -138,10 +169,16 @@ pub fn load_legal_graph(
     let relationships: Vec<LegalRelationship> =
         serde_json::from_str(&rels_content).map_err(|e| format!("解析法律关系失败: {e}"))?;
 
-    Ok(LegalKnowledgeGraph {
+    let graph = LegalKnowledgeGraph {
         entities,
         relationships,
-    })
+    };
+
+    {
+        let mut guard = cache.lock().unwrap();
+        guard.insert(cache_key, graph.clone());
+    }
+    Ok(graph)
 }
 
 #[cfg(test)]

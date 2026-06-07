@@ -129,6 +129,8 @@ impl UnifiedSearch {
     }
 
     /// 构造完整版：包含向量语义索引
+    ///
+    /// 使用 `std::thread::scope` 并行打开 4 个数据库，显著减少首次初始化延迟。
     pub fn with_vector(
         kg_path: Option<&str>,
         law_db_path: Option<&str>,
@@ -138,42 +140,63 @@ impl UnifiedSearch {
         mlx_api_key: Option<&str>,
         mlx_model: Option<&str>,
     ) -> Self {
-        let kg = kg_path
-            .and_then(|p| {
-                SqliteKnowledgeGraph::open(p)
-                    .map_err(|e| {
-                        tracing::warn!("打开知识图谱失败 (路径={p:?}): {e}");
-                        e
-                    })
-                    .ok()
-            })
-            .map(Mutex::new);
-        let law_db = law_db_path.and_then(|p| {
-            LawDatabase::open(p)
-                .map_err(|e| {
-                    tracing::warn!("打开法规数据库失败 (路径={p:?}): {e}");
-                    e
+        let kg_path_owned = kg_path.map(String::from);
+        let law_db_path_owned = law_db_path.map(String::from);
+        let card_index_path_owned = card_index_path.map(String::from);
+        let semantic_index_path_owned = semantic_index_path.map(String::from);
+
+        let (kg, law_db, card_index, vector_index) = std::thread::scope(|s| {
+            let kg_h = s.spawn(move || {
+                kg_path_owned.and_then(|p| {
+                    SqliteKnowledgeGraph::open(&p)
+                        .map_err(|e| {
+                            tracing::warn!("打开知识图谱失败 (路径={p:?}): {e}");
+                            e
+                        })
+                        .ok()
                 })
-                .ok()
-        });
-        let card_index = card_index_path
-            .and_then(|p| {
-                CardIndex::load(p)
-                    .map_err(|e| {
-                        tracing::warn!("加载知识卡片失败 (路径={p:?}): {e}");
-                        e
-                    })
-                    .ok()
-            })
-            .map(Mutex::new);
-        let vector_index = semantic_index_path.and_then(|p| {
-            VectorIndex::open(p)
-                .map_err(|e| {
-                    tracing::warn!("打开语义向量索引失败 (路径={p:?}): {e}");
-                    e
+            });
+            let law_h = s.spawn(move || {
+                law_db_path_owned.and_then(|p| {
+                    LawDatabase::open(&p)
+                        .map_err(|e| {
+                            tracing::warn!("打开法规数据库失败 (路径={p:?}): {e}");
+                            e
+                        })
+                        .ok()
                 })
-                .ok()
+            });
+            let card_h = s.spawn(move || {
+                card_index_path_owned.and_then(|p| {
+                    CardIndex::load(&p)
+                        .map_err(|e| {
+                            tracing::warn!("加载知识卡片失败 (路径={p:?}): {e}");
+                            e
+                        })
+                        .ok()
+                })
+            });
+            let vec_h = s.spawn(move || {
+                semantic_index_path_owned.and_then(|p| {
+                    VectorIndex::open(&p)
+                        .map_err(|e| {
+                            tracing::warn!("打开语义向量索引失败 (路径={p:?}): {e}");
+                            e
+                        })
+                        .ok()
+                })
+            });
+
+            (
+                kg_h.join().unwrap_or(None),
+                law_h.join().unwrap_or(None),
+                card_h.join().unwrap_or(None),
+                vec_h.join().unwrap_or(None),
+            )
         });
+
+        let kg = kg.map(Mutex::new);
+        let card_index = card_index.map(Mutex::new);
         let embedding_client = mlx_base_url.map(|url| {
             EmbeddingClient::new(
                 url,

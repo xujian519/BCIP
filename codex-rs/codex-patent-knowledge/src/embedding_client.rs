@@ -116,6 +116,20 @@ impl InlineCb {
 
 static EMBEDDING_CB: OnceLock<InlineCb> = OnceLock::new();
 
+/// 进程级共享 HTTP 客户端 — 连接池复用，避免每个 EmbeddingClient 实例创建独立 Client。
+static SHARED_BLOCKING_CLIENT: OnceLock<reqwest::blocking::Client> = OnceLock::new();
+
+fn get_shared_client() -> &'static reqwest::blocking::Client {
+    SHARED_BLOCKING_CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .pool_max_idle_per_host(4)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .build()
+            .unwrap_or_else(|_| reqwest::blocking::Client::new())
+    })
+}
+
 fn get_cb() -> &'static InlineCb {
     EMBEDDING_CB.get_or_init(InlineCb::new)
 }
@@ -128,7 +142,6 @@ pub struct EmbeddingClient {
     base_url: String,
     api_key: Option<String>,
     model: String,
-    client: reqwest::blocking::Client,
     cache: Mutex<HashMap<String, Vec<f32>>>,
 }
 
@@ -138,10 +151,6 @@ impl EmbeddingClient {
             base_url: base_url.trim_end_matches('/').to_string(),
             api_key,
             model: model.to_string(),
-            client: reqwest::blocking::Client::builder()
-                .timeout(std::time::Duration::from_secs(30))
-                .build()
-                .expect("embedding client 构建失败"),
             cache: Mutex::new(HashMap::new()),
         }
     }
@@ -208,7 +217,8 @@ impl EmbeddingClient {
             "input": text,
         });
 
-        let mut req = self.client.post(format!("{}/v1/embeddings", self.base_url));
+        let client = get_shared_client();
+        let mut req = client.post(format!("{}/v1/embeddings", self.base_url));
         if let Some(ref key) = self.api_key {
             req = req.header("Authorization", format!("Bearer {key}"));
         }
@@ -241,7 +251,8 @@ impl EmbeddingClient {
     }
 
     pub fn health_check(&self) -> bool {
-        let mut req = self.client.get(format!("{}/v1/models", self.base_url));
+        let client = get_shared_client();
+        let mut req = client.get(format!("{}/v1/models", self.base_url));
         if let Some(ref key) = self.api_key {
             req = req.header("Authorization", format!("Bearer {key}"));
         }

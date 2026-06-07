@@ -63,7 +63,7 @@ impl CheckpointStore {
     pub fn load_checkpoint(&self, run_id: &str) -> Result<Option<Checkpoint>, String> {
         let mut stmt = self
             .conn
-            .prepare(
+            .prepare_cached(
                 "SELECT id, flow_id, run_id, step_index, state, created_at
              FROM checkpoints WHERE run_id = ?1
              ORDER BY created_at DESC LIMIT 1",
@@ -91,7 +91,7 @@ impl CheckpointStore {
     pub fn list_pending(&self, flow_id: &str) -> Result<Vec<Checkpoint>, String> {
         let mut stmt = self
             .conn
-            .prepare(
+            .prepare_cached(
                 "SELECT id, flow_id, run_id, step_index, state, created_at
              FROM checkpoints WHERE flow_id = ?1
              ORDER BY created_at DESC",

@@ -6,6 +6,20 @@
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::LazyLock;
+
+static RE_LINK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>"#).unwrap());
+static RE_ABSTRACT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"摘要.*?[：:]\s*(.*?)(?:主权项|申请日)").unwrap());
+static RE_FIELD_PUB_NUM: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"公开号\s*[：:]\s*([^<\n]+)").unwrap());
+static RE_FIELD_APP_NUM: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"申请号\s*[：:]\s*([^<\n]+)").unwrap());
+static RE_FIELD_APPLICANT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"申请人\s*[：:]\s*([^<\n]+)").unwrap());
+static RE_FIELD_IPC: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"IPC\s*[：:]\s*([^<\n]+)").unwrap());
 
 /// CNIPA 搜索结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,63 +87,53 @@ fn urlencoding(s: &str) -> String {
 /// CNIPA 搜索结果解析器
 pub struct CnipaParser;
 
+fn extract_field_cached(html: &str, re: &LazyLock<Regex>) -> String {
+    re.captures(html)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().trim().to_string())
+        .unwrap_or_default()
+}
+
 impl CnipaParser {
     /// 从 HTML 中提取搜索结果
     pub fn parse_search_results(html: &str) -> Vec<CnipaSearchHit> {
         let mut results = Vec::new();
 
-        if let Ok(re) = Regex::new(r#"<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>"#) {
-            for cap in re.captures_iter(html) {
-                let link = cap
-                    .get(1)
-                    .map(|m| m.as_str().to_string())
-                    .unwrap_or_default();
-                let title = cap
-                    .get(2)
-                    .map(|m| m.as_str().trim().to_string())
-                    .unwrap_or_default();
+        for cap in RE_LINK.captures_iter(html) {
+            let link = cap
+                .get(1)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default();
+            let title = cap
+                .get(2)
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_default();
 
-                if title.is_empty() || link.is_empty() {
-                    continue;
-                }
-
-                results.push(CnipaSearchHit {
-                    title,
-                    pub_number: Self::extract_field(html, "公开号"),
-                    application_number: Self::extract_field(html, "申请号"),
-                    applicant: Self::extract_field(html, "申请人"),
-                    ipc: Self::extract_field(html, "IPC"),
-                    abstract_text: Self::extract_abstract(html),
-                    link,
-                });
+            if title.is_empty() || link.is_empty() {
+                continue;
             }
+
+            results.push(CnipaSearchHit {
+                title,
+                pub_number: extract_field_cached(html, &RE_FIELD_PUB_NUM),
+                application_number: extract_field_cached(html, &RE_FIELD_APP_NUM),
+                applicant: extract_field_cached(html, &RE_FIELD_APPLICANT),
+                ipc: extract_field_cached(html, &RE_FIELD_IPC),
+                abstract_text: Self::extract_abstract(html),
+                link,
+            });
         }
 
         results.dedup_by(|a, b| a.pub_number == b.pub_number);
         results
     }
 
-    fn extract_field(html: &str, field_name: &str) -> String {
-        let pattern = format!(r#"{}\s*[：:]\s*([^<\n]+)"#, regex::escape(field_name));
-        if let Ok(re) = Regex::new(&pattern) {
-            re.captures(html)
-                .and_then(|c| c.get(1))
-                .map(|m| m.as_str().trim().to_string())
-                .unwrap_or_default()
-        } else {
-            String::new()
-        }
-    }
-
     fn extract_abstract(html: &str) -> String {
-        if let Ok(re) = Regex::new(r"摘要.*?[：:]\s*(.*?)(?:主权项|申请日)") {
-            re.captures(html)
-                .and_then(|c| c.get(1))
-                .map(|m| m.as_str().trim().to_string())
-                .unwrap_or_default()
-        } else {
-            String::new()
-        }
+        RE_ABSTRACT
+            .captures(html)
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str().trim().to_string())
+            .unwrap_or_default()
     }
 }
 

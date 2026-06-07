@@ -1,11 +1,27 @@
 use codex_tools::ToolSpec;
 use codex_utils_output_truncation::approx_token_count;
+use std::sync::Mutex;
+use std::sync::OnceLock;
 use tracing::warn;
 
-/// 估算单个工具 spec 的 token 数。
+/// 进程级 spec token 缓存 — 避免每次调用 serde_json::to_string + approx_token_count。
+static SPEC_TOKEN_CACHE: OnceLock<Mutex<std::collections::HashMap<String, usize>>> =
+    OnceLock::new();
+
+fn spec_cache() -> &'static Mutex<std::collections::HashMap<String, usize>> {
+    SPEC_TOKEN_CACHE.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+/// 估算单个工具 spec 的 token 数（带缓存）。
 pub fn estimate_tool_spec_tokens(spec: &ToolSpec) -> usize {
     let json = serde_json::to_string(spec).unwrap_or_default();
-    approx_token_count(&json)
+    let cache = spec_cache();
+    if let Some(&cached) = cache.lock().unwrap().get(&json) {
+        return cached;
+    }
+    let tokens = approx_token_count(&json);
+    cache.lock().unwrap().insert(json, tokens);
+    tokens
 }
 
 /// 计算一组 spec 的总 token 数。

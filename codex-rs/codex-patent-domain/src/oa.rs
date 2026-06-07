@@ -5,6 +5,20 @@
 
 use codex_patent_core::*;
 use regex::Regex;
+use std::sync::LazyLock;
+
+static RE_CITATION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:CN|US|WO|EP|JP|KR)\d{6,}[A-Z]?").unwrap());
+static RE_CLAIM_NUMBER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"权利要求\s*(\d+)").unwrap());
+static RE_CLAIM_RANGE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"第\s*(\d+)\s*[-至到]\s*(\d+)\s*项").unwrap());
+
+static RE_EXAMINER_ARGS: [LazyLock<Regex>; 3] = [
+    LazyLock::new(|| Regex::new(r"(?s)审查意见[：:](.+?)(?:\n答复|$)").unwrap()),
+    LazyLock::new(|| Regex::new(r"(?s)驳回理由[：:](.+?)(?:\n答复|$)").unwrap()),
+    LazyLock::new(|| Regex::new(r"(?s)认为[：:](.+?)(?:\n|$)").unwrap()),
+];
 
 /// 审查意见通知书解析器
 ///
@@ -54,14 +68,12 @@ impl OaParser {
 
     fn extract_citations(text: &str) -> Vec<CitedReference> {
         let mut citations = Vec::new();
-        if let Ok(re) = Regex::new(r"(?:CN|US|WO|EP|JP|KR)\d{6,}[A-Z]?") {
-            for m in re.find_iter(text) {
-                citations.push(CitedReference {
-                    document_number: m.as_str().to_string(),
-                    relevancy: "X".into(),
-                    claims_affected: vec![1],
-                });
-            }
+        for m in RE_CITATION.find_iter(text) {
+            citations.push(CitedReference {
+                document_number: m.as_str().to_string(),
+                relevancy: "X".into(),
+                claims_affected: vec![1],
+            });
         }
         citations.dedup_by(|a, b| a.document_number == b.document_number);
         citations
@@ -70,27 +82,22 @@ impl OaParser {
     fn extract_affected_claims(text: &str) -> Vec<usize> {
         let mut claims: Vec<usize> = Vec::new();
 
-        if let Ok(re) = Regex::new(r"权利要求\s*(\d+)") {
-            for cap in re.captures_iter(text) {
-                if let Some(m) = cap.get(1)
-                    && let Ok(n) = m.as_str().parse::<usize>()
-                    && !claims.contains(&n)
-                {
-                    claims.push(n);
-                }
+        for cap in RE_CLAIM_NUMBER.captures_iter(text) {
+            if let Some(m) = cap.get(1)
+                && let Ok(n) = m.as_str().parse::<usize>()
+                && !claims.contains(&n)
+            {
+                claims.push(n);
             }
         }
 
-        if let Ok(re) = Regex::new(r"第\s*(\d+)\s*[-至到]\s*(\d+)\s*项") {
-            for cap in re.captures_iter(text) {
-                if let (Some(s), Some(e)) = (cap.get(1), cap.get(2))
-                    && let (Ok(sn), Ok(en)) =
-                        (s.as_str().parse::<usize>(), e.as_str().parse::<usize>())
-                {
-                    for n in sn..=en {
-                        if !claims.contains(&n) {
-                            claims.push(n);
-                        }
+        for cap in RE_CLAIM_RANGE.captures_iter(text) {
+            if let (Some(s), Some(e)) = (cap.get(1), cap.get(2))
+                && let (Ok(sn), Ok(en)) = (s.as_str().parse::<usize>(), e.as_str().parse::<usize>())
+            {
+                for n in sn..=en {
+                    if !claims.contains(&n) {
+                        claims.push(n);
                     }
                 }
             }
@@ -104,14 +111,8 @@ impl OaParser {
     }
 
     fn extract_examiner_arguments(text: &str) -> String {
-        let patterns = [
-            r"(?s)审查意见[：:](.+?)(?=\n答复|$)",
-            r"(?s)驳回理由[：:](.+?)(?=\n答复|$)",
-            r"(?s)认为[：:](.+?)(?=\n|$)",
-        ];
-        for pat in &patterns {
-            if let Ok(re) = Regex::new(pat)
-                && let Some(cap) = re.captures(text)
+        for re in &RE_EXAMINER_ARGS {
+            if let Some(cap) = re.captures(text)
                 && let Some(m) = cap.get(1)
             {
                 let content = m.as_str().trim().to_string();

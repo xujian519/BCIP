@@ -6,7 +6,7 @@ use crate::provider_router::resolve_base_url;
 
 pub(crate) const MAX_RETRIES: u32 = 3;
 pub(crate) const REQUEST_TIMEOUT_SECS: u64 = 120;
-#[allow(dead_code)] // 预留给温度参数配置
+#[allow(dead_code)]
 pub(crate) const DEFAULT_TEMPERATURE: f32 = 0.7;
 
 const CB_FAILURE_THRESHOLD: u32 = 5;
@@ -118,6 +118,20 @@ impl InlineCircuitBreaker {
 
 static AGENT_LLM_BREAKER: OnceLock<InlineCircuitBreaker> = OnceLock::new();
 
+static SHARED_ASYNC_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn get_shared_client() -> &'static reqwest::Client {
+    SHARED_ASYNC_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .pool_max_idle_per_host(4)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .no_proxy()
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
+}
+
 fn get_breaker() -> &'static InlineCircuitBreaker {
     AGENT_LLM_BREAKER.get_or_init(InlineCircuitBreaker::new)
 }
@@ -138,7 +152,7 @@ fn rand_pseudo_jitter() -> f64 {
     (v / u32::MAX as f64) * 2.0 - 1.0
 }
 
-pub(crate) fn call_llm_with_retry_and_temperature(
+pub(crate) async fn call_llm_with_retry_and_temperature(
     provider: &AgentProvider,
     model: &str,
     system_prompt: &str,
@@ -165,7 +179,9 @@ pub(crate) fn call_llm_with_retry_and_temperature(
             user_prompt,
             api_key,
             temperature,
-        ) {
+        )
+        .await
+        {
             Ok(response) => {
                 breaker.record_success();
                 return Ok(response);
@@ -190,7 +206,7 @@ pub(crate) fn call_llm_with_retry_and_temperature(
                         attempt + 1,
                         MAX_RETRIES + 1
                     );
-                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                 }
             }
         }
@@ -202,7 +218,7 @@ pub(crate) fn call_llm_with_retry_and_temperature(
     ))
 }
 
-fn call_llm_once(
+async fn call_llm_once(
     provider: &AgentProvider,
     model: &str,
     system_prompt: &str,
@@ -212,20 +228,23 @@ fn call_llm_once(
 ) -> Result<String, String> {
     match provider {
         AgentProvider::Anthropic { .. } => {
-            call_anthropic(model, system_prompt, user_prompt, api_key, temperature)
+            call_anthropic(model, system_prompt, user_prompt, api_key, temperature).await
         }
-        AgentProvider::OpenAiCompatible { base_url, .. } => call_openai_compatible(
-            base_url,
-            model,
-            system_prompt,
-            user_prompt,
-            api_key,
-            temperature,
-        ),
+        AgentProvider::OpenAiCompatible { base_url, .. } => {
+            call_openai_compatible(
+                base_url,
+                model,
+                system_prompt,
+                user_prompt,
+                api_key,
+                temperature,
+            )
+            .await
+        }
     }
 }
 
-fn call_openai_compatible(
+async fn call_openai_compatible(
     base_url: &str,
     model: &str,
     system_prompt: &str,
@@ -245,11 +264,7 @@ fn call_openai_compatible(
         "max_tokens": 8192
     });
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .no_proxy()
-        .build()
-        .map_err(|e| format!("build HTTP client: {e}"))?;
+    let client = get_shared_client();
 
     let resp = client
         .post(&url)
@@ -257,10 +272,14 @@ fn call_openai_compatible(
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
+        .await
         .map_err(|e| format!("request to {url}: {e}"))?;
 
     let status = resp.status();
-    let text = resp.text().map_err(|e| format!("read response: {e}"))?;
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("read response: {e}"))?;
 
     if !status.is_success() {
         return Err(format!(
@@ -289,7 +308,7 @@ fn call_openai_compatible(
         })
 }
 
-fn call_anthropic(
+async fn call_anthropic(
     model: &str,
     system_prompt: &str,
     user_prompt: &str,
@@ -309,11 +328,7 @@ fn call_anthropic(
         "temperature": temperature
     });
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .no_proxy()
-        .build()
-        .map_err(|e| format!("build HTTP client: {e}"))?;
+    let client = get_shared_client();
 
     let resp = client
         .post(&url)
@@ -322,10 +337,14 @@ fn call_anthropic(
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
+        .await
         .map_err(|e| format!("request to {url}: {e}"))?;
 
     let status = resp.status();
-    let text = resp.text().map_err(|e| format!("read response: {e}"))?;
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("read response: {e}"))?;
 
     if !status.is_success() {
         return Err(format!(

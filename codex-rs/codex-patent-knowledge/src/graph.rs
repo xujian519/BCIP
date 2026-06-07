@@ -195,7 +195,7 @@ impl SqliteKnowledgeGraph {
     /// 获取与指定节点相连的所有边（双向）
     pub fn get_edges(&self, node_id: &str) -> Result<Vec<KgEdge>, String> {
         let sql = "SELECT id, source, target, relation FROM edges WHERE source = ?1 OR target = ?1";
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = self.conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
 
         let rows = stmt
             .query_map(params![node_id], |row| {
@@ -216,7 +216,7 @@ impl SqliteKnowledgeGraph {
     pub fn get_nodes_by_type(&self, node_type: &str, limit: usize) -> Result<Vec<KgNode>, String> {
         let sql = "SELECT id, node_type, name, title, content, law_refs_count, source, full_ref, chapter, article_number \
                    FROM nodes WHERE node_type = ?1 LIMIT ?2";
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = self.conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
 
         let rows = stmt
             .query_map(params![node_type, limit], |row| {
@@ -333,7 +333,7 @@ impl SqliteKnowledgeGraph {
         let sql = "SELECT code, description, level, parent_code FROM ipc_fts WHERE ipc_fts MATCH ? ORDER BY rank LIMIT ?";
         let mut stmt = self
             .conn
-            .prepare(sql)
+            .prepare_cached(sql)
             .map_err(|e| format!("search_ipc prepare failed (query={:?}): {e}", fts_query))?;
         let rows = stmt
             .query_map(params![fts_query, limit], |row| {
@@ -418,7 +418,7 @@ impl SqliteKnowledgeGraph {
              FROM nodes WHERE id IN ({})",
             placeholders.join(",")
         );
-        let mut stmt = self.conn.prepare(&sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = self.conn.prepare_cached(&sql).map_err(|e| format!("{e}"))?;
         let params: Vec<&String> = ids.to_vec();
         let rows = stmt
             .query_map(
@@ -468,7 +468,7 @@ impl SqliteKnowledgeGraph {
     pub fn node_type_distribution(&self) -> Result<Vec<NodeTypeCount>, String> {
         let sql =
             "SELECT node_type, COUNT(*) as cnt FROM nodes GROUP BY node_type ORDER BY cnt DESC";
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = self.conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
 
         let rows = stmt
             .query_map([], |row| {
@@ -488,7 +488,7 @@ impl SqliteKnowledgeGraph {
         sql: &str,
         params: P,
     ) -> Result<Vec<KgNode>, String> {
-        let mut stmt = self.conn.prepare(sql).map_err(|e| format!("{e}"))?;
+        let mut stmt = self.conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
 
         let rows = stmt
             .query_map(params, |row| {
@@ -547,7 +547,9 @@ mod tests {
             );
             CREATE VIRTUAL TABLE IF NOT EXISTS ipc_fts USING fts5(
                 code, description, level, parent_code
-            );",
+            );
+            CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source);
+            CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target);",
         )
         .unwrap();
         SqliteKnowledgeGraph::from_connection(conn)

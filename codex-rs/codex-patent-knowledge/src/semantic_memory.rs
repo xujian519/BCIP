@@ -6,6 +6,7 @@
 //! - 按角色和任务类型组织记忆
 
 use std::path::Path;
+use std::sync::Mutex;
 
 use crate::embedding_client::EmbeddingClient;
 
@@ -42,6 +43,7 @@ pub struct RecalledMemory {
 pub struct SemanticMemoryStore {
     storage_dir: std::path::PathBuf,
     embedding_client: Option<EmbeddingClient>,
+    entries_cache: Mutex<Option<Vec<MemoryEntry>>>,
 }
 
 impl SemanticMemoryStore {
@@ -53,6 +55,7 @@ impl SemanticMemoryStore {
         Self {
             storage_dir,
             embedding_client,
+            entries_cache: Mutex::new(None),
         }
     }
 
@@ -63,12 +66,17 @@ impl SemanticMemoryStore {
             serde_json::to_string_pretty(&entry).map_err(|e| format!("serialize memory: {e}"))?;
         std::fs::write(&path, json).map_err(|e| format!("write memory: {e}"))?;
 
+        // Invalidate cache
+        {
+            let mut cache = self.entries_cache.lock().unwrap();
+            *cache = None;
+        }
+
         // 如果 embedding 服务可用，生成并缓存向量
         if let Some(ref client) = self.embedding_client {
             let text = format!("{} {} {}", entry.role, entry.task_type, entry.input_summary);
             match client.embed(&text) {
                 Ok(_embedding) => {
-                    // 向量已由 EmbeddingClient 内部缓存
                     tracing::debug!(id = %entry.id, "语义记忆向量已生成");
                 }
                 Err(e) => {
@@ -168,6 +176,13 @@ impl SemanticMemoryStore {
     // ---- 内部方法 ----
 
     fn load_all(&self) -> Result<Vec<MemoryEntry>, String> {
+        {
+            let cache = self.entries_cache.lock().unwrap();
+            if let Some(ref entries) = *cache {
+                return Ok(entries.clone());
+            }
+        }
+
         let mut entries = Vec::new();
         let dir =
             std::fs::read_dir(&self.storage_dir).map_err(|e| format!("read memory dir: {e}"))?;
@@ -182,6 +197,10 @@ impl SemanticMemoryStore {
             }
         }
 
+        {
+            let mut cache = self.entries_cache.lock().unwrap();
+            *cache = Some(entries.clone());
+        }
         Ok(entries)
     }
 
