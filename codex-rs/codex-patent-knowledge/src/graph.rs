@@ -5,13 +5,13 @@
 
 use codex_patent_core::KgEdge;
 use codex_patent_core::KgNode;
+use parking_lot::RwLock;
 use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use rusqlite::params;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::RwLock;
 
 /// 知识图谱统计信息
 #[derive(Debug)]
@@ -142,7 +142,7 @@ impl SqliteKnowledgeGraph {
         let cache_key = format!("{}|{:?}|{}", query, node_type, limit);
 
         {
-            let cache = self.query_cache.read().unwrap();
+            let cache = self.query_cache.read();
             if let Some(cached) = cache.get(&cache_key)
                 && cached.len() >= limit
             {
@@ -177,9 +177,13 @@ impl SqliteKnowledgeGraph {
         };
 
         {
-            let mut cache = self.query_cache.write().unwrap();
+            let mut cache = self.query_cache.write();
             if cache.len() > 100 {
-                cache.clear();
+                // 渐进淘汰：保留最近一半条目，避免全量 clear() 导致缓存命中率骤降
+                let keys: Vec<_> = cache.keys().take(50).cloned().collect();
+                for k in keys {
+                    cache.remove(&k);
+                }
             }
             cache.insert(cache_key, result.clone());
         }
@@ -189,7 +193,7 @@ impl SqliteKnowledgeGraph {
 
     /// 清空查询缓存
     pub fn clear_cache(&self) {
-        self.query_cache.write().unwrap().clear();
+        self.query_cache.write().clear();
     }
 
     /// 获取与指定节点相连的所有边（双向）

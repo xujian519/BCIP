@@ -111,7 +111,7 @@ impl Provider {
             Provider::Tavily(p) => p.search(query).await,
             Provider::Exa(p) => p.search(query).await,
         }
-        .map_err(|e| format!("{e}"))
+        .map_err(|e| codex_patent_core::error::retryable_err(format!("{e}")))
     }
 
     async fn extract(&self, url: &str) -> Result<ExtractResult, String> {
@@ -120,7 +120,7 @@ impl Provider {
             Provider::Tavily(p) => p.extract(url).await,
             Provider::Exa(p) => p.extract(url).await,
         }
-        .map_err(|e| format!("{e}"))
+        .map_err(|e| codex_patent_core::error::retryable_err(format!("{e}")))
     }
 
     async fn batch_search(
@@ -132,7 +132,7 @@ impl Provider {
             Provider::Tavily(p) => p.batch_search(queries).await,
             Provider::Exa(p) => p.batch_search(queries).await,
         }
-        .map_err(|e| format!("{e}"))
+        .map_err(|e| codex_patent_core::error::retryable_err(format!("{e}")))
     }
 }
 
@@ -163,7 +163,9 @@ async fn web_extract(input: serde_json::Value) -> Result<serde_json::Value, Stri
 async fn web_batch_search(input: serde_json::Value) -> Result<serde_json::Value, String> {
     let parsed: WebBatchSearchInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
     if parsed.queries.is_empty() || parsed.queries.len() > 5 {
-        return Err("batch_search requires 1-5 queries".to_string());
+        return Err(codex_patent_core::error::fatal_err(
+            "batch_search requires 1-5 queries",
+        ));
     }
     let provider = make_provider();
     let queries: Vec<SearchQuery> = parsed.queries.into_iter().map(input_to_query).collect();

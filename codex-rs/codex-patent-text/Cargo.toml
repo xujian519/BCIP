@@ -8,3 +8,6 @@ description = "专利文本处理引擎 — CJK 分词、多度量相似度、IP
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

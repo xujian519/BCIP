@@ -86,13 +86,13 @@ async fn fetch_with_retry(client: &reqwest::Client, url: &str) -> Result<String,
             .await
             .map_err(|e| {
                 cb.record_failure();
-                format!("HTTP error: {e}")
+                codex_patent_core::error::retryable_err(format!("HTTP error: {e}"))
             })?;
 
         if resp.status().is_success() {
             return resp.text().await.map_err(|e| {
                 cb.record_failure();
-                format!("read body: {e}")
+                codex_patent_core::error::retryable_err(format!("read body: {e}"))
             });
         }
 
@@ -284,11 +284,17 @@ pub async fn download_patent(input: PatentDownloadInput) -> Result<String, Strin
         .header("User-Agent", "Mozilla/5.0")
         .send()
         .await
-        .map_err(|e| format!("HTTP: {e}"))?;
+        .map_err(|e| codex_patent_core::error::retryable_err(format!("HTTP: {e}")))?;
     if !resp.status().is_success() {
-        return Err(format!("PDF not found for {}", input.patent_number));
+        return Err(codex_patent_core::error::retryable_err(format!(
+            "PDF not found for {}",
+            input.patent_number
+        )));
     }
-    let bytes = resp.bytes().await.map_err(|e| format!("read: {e}"))?;
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| codex_patent_core::error::retryable_err(format!("read: {e}")))?;
     let dir = std::env::var("BCIP_DOWNLOAD_DIR")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     let _ = std::fs::create_dir_all(&dir);

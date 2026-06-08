@@ -207,7 +207,16 @@ fn execute_parallel_nodes(
         let tx = tx.clone();
         std::thread::scope(|s| {
             for node_id in chunk {
-                let node = graph.find_node(node_id).unwrap();
+                let node = match graph.find_node(node_id) {
+                    Some(n) => n,
+                    None => {
+                        let _ = tx.send((
+                            (*node_id).clone(),
+                            Err(format!("DAG 节点未找到: {node_id}")),
+                        ));
+                        continue;
+                    }
+                };
                 let step = node.step.clone();
                 let node_id = (*node_id).clone();
                 let tx = tx.clone();

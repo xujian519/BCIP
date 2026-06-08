@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 /// 分词结果中的一个词元。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub text: String,
     pub start: usize,
@@ -8,6 +9,7 @@ pub struct Token {
 }
 
 /// 文本统计信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextStats {
     pub char_count: usize,
     pub word_count: usize,

@@ -13,9 +13,9 @@ use crate::synonym::SynonymDict;
 use crate::vector_index::VectorIndex;
 use codex_patent_core::SearchResult;
 use codex_patent_core::SearchSource;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::time::Instant;
 
@@ -271,15 +271,16 @@ impl UnifiedSearch {
         );
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock();
             if let Some((timestamp, cached)) = cache.get(&cache_key)
                 && timestamp.elapsed().as_secs() < CACHE_TTL_SECS
             {
                 tracing::debug!("知识检索缓存命中: query={}", config.query);
                 return cached.clone();
             }
+            // TTL 过期淘汰，避免全量 clear() 导致缓存命中率骤降
             if cache.len() >= MAX_CACHE_ENTRIES {
-                cache.clear();
+                cache.retain(|_, (ts, _)| ts.elapsed().as_secs() < CACHE_TTL_SECS);
             }
         }
         let synonyms = self.synonym_dict.expand(&config.query);
@@ -299,12 +300,12 @@ impl UnifiedSearch {
                 let all_terms = all_terms.clone();
                 let config_query = config.query.clone();
                 s.spawn(move || {
-                    let kg = kg_mutex.lock().unwrap();
                     let mut results = Vec::new();
                     for term in all_terms.iter().take(5) {
                         if results.len() >= effective_limit {
                             break;
                         }
+                        let kg = kg_mutex.lock();
                         if let Ok(nodes) = kg.search_nodes(term, None, effective_limit) {
                             for node in nodes {
                                 if results.len() >= effective_limit {
@@ -333,6 +334,7 @@ impl UnifiedSearch {
                                 });
                             }
                         }
+                        drop(kg);
                     }
                     let _ = tx.send(results);
                 });
@@ -386,7 +388,7 @@ impl UnifiedSearch {
                 let config_query = config.query.clone();
                 let min_card_quality = config.min_card_quality;
                 s.spawn(move || {
-                    let index = card_mutex.lock().unwrap();
+                    let index = card_mutex.lock();
                     let cards = index.search_by_keyword(&config_query, effective_limit.min(10));
                     let mut results = Vec::new();
                     for card in cards {
@@ -460,12 +462,12 @@ impl UnifiedSearch {
                     let config_query = config.query.clone();
                     let all_terms = all_terms.clone();
                     s.spawn(move || {
-                        let kg = kg_mutex.lock().unwrap();
                         let mut results = Vec::new();
                         for term in all_terms.iter().take(3) {
                             if results.len() >= effective_limit / 2 {
                                 break;
                             }
+                            let kg = kg_mutex.lock();
                             if let Ok(nodes) = kg.search_nodes(term, None, effective_limit / 2) {
                                 for node in nodes {
                                     if results.len() >= effective_limit {
@@ -490,6 +492,7 @@ impl UnifiedSearch {
                                     }
                                 }
                             }
+                            drop(kg);
                         }
                         let _ = tx.send(results);
                     });
@@ -521,7 +524,7 @@ impl UnifiedSearch {
         results.truncate(effective_limit);
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock();
             cache.insert(cache_key, (Instant::now(), results.clone()));
         }
 
@@ -540,19 +543,22 @@ impl UnifiedSearch {
     /// 返回搜索引擎各组件可用性状态（JSON）
     pub fn status(&self) -> serde_json::Value {
         serde_json::json!({
-            "knowledge_graph": self.kg.as_ref().and_then(|kg| kg.lock().ok().and_then(|g| g.stats().ok().map(|s| serde_json::json!({
+            "knowledge_graph": self.kg.as_ref().and_then(|kg| kg.lock().stats().ok().map(|s| serde_json::json!({
                 "available": true,
                 "node_count": s.node_count,
                 "edge_count": s.edge_count
-            })))).unwrap_or(serde_json::json!({"available": false})),
+            }))).unwrap_or(serde_json::json!({"available": false})),
             "law_database": self.law_db.as_ref().and_then(|db| db.count().ok().map(|c| serde_json::json!({
                 "available": true,
                 "count": c
             }))).unwrap_or(serde_json::json!({"available": false})),
-            "knowledge_cards": self.card_index.as_ref().and_then(|idx| idx.lock().ok().map(|c| serde_json::json!({
-                "available": true,
-                "count": c.len()
-            }))).unwrap_or(serde_json::json!({"available": false})),
+            "knowledge_cards": self.card_index.as_ref().map(|idx| {
+                let idx = idx.lock();
+                serde_json::json!({
+                    "available": true,
+                    "count": idx.len()
+                })
+            }).unwrap_or(serde_json::json!({"available": false})),
             "vector_index": self.vector_index.as_ref().map(|vi| serde_json::json!({
                 "available": true,
                 "chunk_count": vi.len(),

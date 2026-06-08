@@ -105,15 +105,51 @@ pub(super) fn execute_step_from_parts(
                 })
             }
         }
-        FlowStep::QualityCheck { criteria } => Ok(StepResult {
-            step_index: 0,
-            success: true,
-            output: Some(serde_json::json!({
-                "criteria": criteria,
-                "passed": true
-            })),
-            error: None,
-        }),
+        FlowStep::QualityCheck { criteria } => {
+            if let Some(ref executor) = tool_executor {
+                let input = serde_json::json!({
+                    "text": criteria,
+                    "check_types": ["completeness", "accuracy"],
+                });
+                match executor("UnifiedQuality", &input) {
+                    Ok(output) => {
+                        let passed = !output.contains("\"issues\":[]");
+                        Ok(StepResult {
+                            step_index: 0,
+                            success: passed,
+                            output: Some(serde_json::json!({
+                                "criteria": criteria,
+                                "passed": passed,
+                                "report": output,
+                            })),
+                            error: if passed {
+                                None
+                            } else {
+                                Some("质量检查未通过".into())
+                            },
+                        })
+                    }
+                    Err(e) => Ok(StepResult {
+                        step_index: 0,
+                        success: false,
+                        output: None,
+                        error: Some(format!("质量检查工具调用失败: {e}")),
+                    }),
+                }
+            } else {
+                // 无 tool_executor 时降级为通过
+                Ok(StepResult {
+                    step_index: 0,
+                    success: true,
+                    output: Some(serde_json::json!({
+                        "criteria": criteria,
+                        "passed": true,
+                        "note": "无执行器，跳过检查"
+                    })),
+                    error: None,
+                })
+            }
+        }
         FlowStep::HumanApproval {
             title,
             description,
@@ -121,7 +157,7 @@ pub(super) fn execute_step_from_parts(
             timeout_action,
         } => Ok(StepResult {
             step_index: 0,
-            success: true,
+            success: false, // 标记为未完成 — 触发 Suspended 状态
             output: Some(serde_json::json!({
                 "type": "human_approval_required",
                 "title": title,
@@ -130,7 +166,7 @@ pub(super) fn execute_step_from_parts(
                 "timeout_secs": timeout_secs,
                 "timeout_action": timeout_action,
             })),
-            error: None,
+            error: Some("等待人工审批".into()),
         }),
         FlowStep::ToolCall { tool_name, input } => {
             if let Some(ref executor) = tool_executor {

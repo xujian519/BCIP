@@ -2,8 +2,8 @@
 //!
 //! 基于 blocking HTTP 请求调用 MLX 向量嵌入服务，支持结果缓存、重试和熔断器保护。
 
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::sync::OnceLock;
 
 use codex_patent_core::http::{CircuitBreaker, SharedBlockingClient};
@@ -58,7 +58,7 @@ impl EmbeddingClient {
 
     pub fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock();
             if let Some(cached) = cache.get(text) {
                 return Ok(cached.clone());
             }
@@ -83,7 +83,7 @@ impl EmbeddingClient {
             match self.embed_once(text) {
                 Ok(embedding) => {
                     cb.record_success();
-                    let mut cache = self.cache.lock().unwrap();
+                    let mut cache = self.cache.lock();
                     cache.insert(text.to_string(), embedding.clone());
                     return Ok(embedding);
                 }

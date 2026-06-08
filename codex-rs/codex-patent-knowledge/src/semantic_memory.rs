@@ -5,8 +5,8 @@
 //! - 支持按语义相似度检索历史经验
 //! - 按角色和任务类型组织记忆
 
+use parking_lot::Mutex;
 use std::path::Path;
-use std::sync::Mutex;
 
 use crate::embedding_client::EmbeddingClient;
 
@@ -70,7 +70,7 @@ impl SemanticMemoryStore {
 
         // Invalidate cache
         {
-            let mut cache = self.entries_cache.lock().unwrap();
+            let mut cache = self.entries_cache.lock();
             *cache = None;
         }
 
@@ -179,7 +179,7 @@ impl SemanticMemoryStore {
 
     fn load_all(&self) -> Result<Vec<MemoryEntry>, String> {
         {
-            let cache = self.entries_cache.lock().unwrap();
+            let cache = self.entries_cache.lock();
             if let Some(ref entries) = *cache {
                 return Ok(entries.clone());
             }
@@ -200,7 +200,7 @@ impl SemanticMemoryStore {
         }
 
         {
-            let mut cache = self.entries_cache.lock().unwrap();
+            let mut cache = self.entries_cache.lock();
             *cache = Some(entries.clone());
         }
         Ok(entries)

@@ -14,8 +14,29 @@ pub enum ToolErrorKind {
 ///
 /// 匹配常见的超时、网络、限流等可重试错误关键字。
 /// 未匹配任何模式时默认为 `Fatal`（保守策略：不重试未知错误）。
-#[allow(dead_code)]
+/// 工具错误前缀约定 — 工具函数返回 Err 时使用这些前缀标记可重试性。
+pub const ERR_RETRYABLE_PREFIX: &str = "[RETRYABLE]";
+pub const ERR_FATAL_PREFIX: &str = "[FATAL]";
+
+/// 包装工具错误，自动添加可重试前缀。
+pub fn retryable_err(msg: impl Into<String>) -> String {
+    format!("{ERR_RETRYABLE_PREFIX} {}", msg.into())
+}
+
+/// 包装工具错误，自动添加致命错误前缀。
+pub fn fatal_err(msg: impl Into<String>) -> String {
+    format!("{ERR_FATAL_PREFIX} {}", msg.into())
+}
+
 pub fn classify_tool_error(msg: &str) -> ToolErrorKind {
+    // 前缀优先匹配（由 retryable_err / fatal_err 添加）
+    if msg.starts_with(ERR_RETRYABLE_PREFIX) {
+        return ToolErrorKind::Retryable;
+    }
+    if msg.starts_with(ERR_FATAL_PREFIX) {
+        return ToolErrorKind::Fatal;
+    }
+    // 文本模式 fallback
     let lower = msg.to_lowercase();
     if lower.contains("timeout")
         || lower.contains("timed out")

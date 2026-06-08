@@ -1,6 +1,9 @@
 use super::*;
+use codex_patent_workflow::agent_bridge::NoopAgentExecutor;
+use codex_patent_workflow::graph_executor::ToolExecutorFn;
 use codex_patent_workflow::orchestrator::OrchestrationStatus;
 use codex_patent_workflow::orchestrator::Orchestrator;
+use codex_patent_workflow::plan::NoopPlanGenerator;
 use codex_patent_workflow::plan::PlanGenerator;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,8 +38,18 @@ impl WorkflowRequestProcessor {
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         let workflow_id = uuid::Uuid::new_v4().to_string();
 
-        let plan_generator = Box::new(SimplePlanGenerator);
+        let plan_generator: Box<dyn PlanGenerator> = Box::new(NoopPlanGenerator {
+            label: "default".into(),
+        });
         let mut orchestrator = Orchestrator::new(plan_generator);
+
+        // 注入工具执行器（将 async ToolHandler 转为同步 ToolExecutorFn）
+        orchestrator = orchestrator.with_tool_executor(create_tool_executor());
+
+        // 注入 Agent 执行器
+        orchestrator = orchestrator.with_agent_executor(Box::new(NoopAgentExecutor {
+            label: "default".into(),
+        }));
 
         if let Some(max_retries) = params.max_retries {
             orchestrator = orchestrator.with_max_retries(max_retries);
@@ -132,22 +145,20 @@ impl WorkflowRequestProcessor {
     }
 }
 
-struct SimplePlanGenerator;
-
-impl PlanGenerator for SimplePlanGenerator {
-    fn name(&self) -> &str {
-        "SimplePlanGenerator"
-    }
-
-    fn generate(&self, _goal: &str) -> Result<codex_patent_workflow::plan::ExecutionPlan, String> {
-        Err("workflow planning is not yet available".to_string())
-    }
-
-    fn generate_with_hint(
-        &self,
-        _goal: &str,
-        _hint: &codex_patent_workflow::plan::RoutingHint,
-    ) -> Result<codex_patent_workflow::plan::ExecutionPlan, String> {
-        Err("workflow planning is not yet available".to_string())
-    }
+/// 将 patent-tools 的 async ToolHandler 映射转换为 workflow 的同步 ToolExecutorFn。
+///
+/// 使用 `tokio::task::block_in_place` 在 tokio runtime 中同步执行 async handler，
+/// 避免 `Send` trait 约束冲突。
+fn create_tool_executor() -> ToolExecutorFn {
+    let handlers = Arc::new(codex_patent_tools::register_all_tools());
+    Box::new(move |tool_name: &str, input: &serde_json::Value| {
+        let handler = match handlers.get(tool_name) {
+            Some(h) => *h,
+            None => return Err(format!("未知工具: {tool_name}")),
+        };
+        let input = input.clone();
+        tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(handler(input)))
+            .map(|v| serde_json::to_string(&v).unwrap_or_default())
+            .map_err(|e| e)
+    })
 }

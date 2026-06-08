@@ -3,10 +3,10 @@
 //! 基于 JSON 文件加载审查指南结构化数据和法律实体关系图。
 //! 加载结果按路径缓存，避免重复文件 I/O 和 JSON 解析。
 
+use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::Mutex;
 use std::sync::OnceLock;
 
 /// 审查指南元数据
@@ -125,7 +125,7 @@ pub fn load_guideline_graph(path: &str) -> Result<GuidelineGraph, String> {
     let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
 
     {
-        let guard = cache.lock().unwrap();
+        let guard = cache.lock();
         if let Some(cached) = guard.get(path) {
             return Ok(cached.clone());
         }
@@ -137,7 +137,7 @@ pub fn load_guideline_graph(path: &str) -> Result<GuidelineGraph, String> {
         serde_json::from_str(&content).map_err(|e| format!("解析审查指南图谱失败: {e}"))?;
 
     {
-        let mut guard = cache.lock().unwrap();
+        let mut guard = cache.lock();
         guard.insert(path.to_string(), graph.clone());
     }
     Ok(graph)
@@ -153,7 +153,7 @@ pub fn load_legal_graph(
     let cache_key = format!("{entities_path}|{rels_path}");
 
     {
-        let guard = cache.lock().unwrap();
+        let guard = cache.lock();
         if let Some(cached) = guard.get(&cache_key) {
             return Ok(cached.clone());
         }
@@ -175,7 +175,7 @@ pub fn load_legal_graph(
     };
 
     {
-        let mut guard = cache.lock().unwrap();
+        let mut guard = cache.lock();
         guard.insert(cache_key, graph.clone());
     }
     Ok(graph)

@@ -8,7 +8,7 @@ impl super::LegalTools {
         max_depth: usize,
     ) -> Result<serde_json::Value, String> {
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
         let filter: Option<Vec<&str>> = relation_filter
             .as_ref()
             .map(|v| v.iter().map(|s| s.as_str()).collect());
@@ -21,7 +21,7 @@ impl super::LegalTools {
 
     pub fn graph_neighbors(node_id: &str) -> Result<serde_json::Value, String> {
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
         let edges = kg.get_edges(node_id).map_err(|e| e.to_string())?;
         serde_json::to_value(&edges).map_err(|e| e.to_string())
     }
@@ -31,7 +31,7 @@ impl super::LegalTools {
         let card_mutex = UnifiedSearch::global()
             .card_index()
             .ok_or("知识卡片索引未初始化")?;
-        let index = card_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let index = card_mutex.lock();
 
         let by_keyword = index.search_by_keyword(query, limit);
         let by_concept = index.search_by_concept(query, limit);
@@ -75,7 +75,7 @@ impl super::LegalTools {
         max_depth: usize,
     ) -> Result<serde_json::Value, String> {
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
         let paths = kg
             .find_path(from_id, to_id, max_depth)
             .map_err(|e| format!("路径查找失败: {e}"))?;

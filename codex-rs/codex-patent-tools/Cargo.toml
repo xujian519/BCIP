@@ -20,6 +20,7 @@ tokio = { workspace = true, features = ["rt", "macros", "process", "io-util", "f
 regex = { workspace = true }
 base64 = { workspace = true }
 dirs = { workspace = true }
+parking_lot = { workspace = true }
 
 # LiteParse: PDF 解析引擎（通过 feature gate 启用）
 liteparse = { path = "../liteparse", default-features = false, optional = true }

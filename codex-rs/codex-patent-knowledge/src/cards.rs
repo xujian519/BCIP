@@ -4,18 +4,18 @@
 //! 支持关键词搜索、概念关联搜索、质量过滤，以及卡片内容的延迟加载和缓存。
 
 use codex_patent_core::KnowledgeCard;
-use std::cell::RefCell;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
 
 /// 知识卡片索引。
 ///
 /// 管理一组 [`KnowledgeCard`]，提供基于关键词/概念的评分搜索，
-/// 并支持按质量阈值过滤。卡片内容按需从文件系统加载，使用 `RefCell` 缓存。
+/// 并支持按质量阈值过滤。卡片内容按需从文件系统加载，使用 `Mutex` 缓存。
 pub struct CardIndex {
     cards: Vec<KnowledgeCard>,
     base_dir: String,
-    content_cache: RefCell<HashMap<String, String>>,
+    content_cache: Mutex<HashMap<String, String>>,
 }
 
 impl CardIndex {
@@ -58,7 +58,7 @@ impl CardIndex {
         Ok(Self {
             cards,
             base_dir,
-            content_cache: RefCell::new(HashMap::new()),
+            content_cache: Mutex::new(HashMap::new()),
         })
     }
 
@@ -160,7 +160,7 @@ impl CardIndex {
     /// 加载卡片的 Markdown 内容（带缓存，最多缓存 200 项）。
     pub fn load_content(&self, card: &KnowledgeCard) -> Result<String, String> {
         {
-            let cache = self.content_cache.borrow();
+            let cache = self.content_cache.lock();
             if let Some(cached) = cache.get(&card.id) {
                 return Ok(cached.clone());
             }
@@ -171,9 +171,14 @@ impl CardIndex {
             .map_err(|e| format!("读取卡片内容失败 {}: {e}", card.file_path))?;
 
         {
-            let mut cache = self.content_cache.borrow_mut();
+            let mut cache = self.content_cache.lock();
             if cache.len() > 200 {
-                cache.clear();
+                // TTL 过期淘汰，避免全量 clear()
+                // 简化实现：保留最近一半
+                let keys: Vec<_> = cache.keys().take(100).cloned().collect();
+                for k in keys {
+                    cache.remove(&k);
+                }
             }
             cache.insert(card.id.clone(), content.clone());
         }

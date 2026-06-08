@@ -5,13 +5,13 @@
 
 use codex_patent_core::LawCategory;
 use codex_patent_core::LawDocument;
+use parking_lot::Mutex;
 use rusqlite::Connection;
 use rusqlite::OpenFlags;
 use rusqlite::params;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 /// 法规数据库访问器
 ///
@@ -44,9 +44,7 @@ impl LawDatabase {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, String> {
         let path_buf = path.as_ref().to_path_buf();
         let conn = {
-            let mut store = cache_store()
-                .lock()
-                .map_err(|e| format!("cache lock: {e}"))?;
+            let mut store = cache_store().lock();
             if let Some(existing) = store.get(&path_buf) {
                 existing.clone()
             } else {
@@ -98,7 +96,7 @@ impl LawDatabase {
 
     /// 列出数据库中所有不同的法律层级
     pub fn list_levels(&self) -> Result<Vec<String>, String> {
-        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        let conn = self.conn.lock();
         let sql = "SELECT DISTINCT level FROM law ORDER BY level";
         let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
@@ -110,7 +108,7 @@ impl LawDatabase {
 
     /// 列出所有法规分类
     pub fn list_categories(&self) -> Result<Vec<LawCategory>, String> {
-        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        let conn = self.conn.lock();
         let sql = "SELECT id, name, folder, isSubFolder, \"group\", \"order\" FROM category ORDER BY \"order\"";
         let mut stmt = conn.prepare(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
@@ -131,7 +129,7 @@ impl LawDatabase {
 
     /// 返回数据库中法规总数
     pub fn count(&self) -> Result<usize, String> {
-        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        let conn = self.conn.lock();
         conn.query_row("SELECT COUNT(*) FROM law", [], |row| row.get(0))
             .map_err(|e| format!("{e}"))
     }
@@ -148,7 +146,7 @@ impl LawDatabase {
         sql: &str,
         params: P,
     ) -> Result<Vec<LawDocument>, String> {
-        let conn = self.conn.lock().map_err(|e| format!("conn lock: {e}"))?;
+        let conn = self.conn.lock();
         let mut stmt = conn.prepare_cached(sql).map_err(|e| format!("{e}"))?;
         let rows = stmt
             .query_map(params, |row| {

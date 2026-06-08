@@ -3,7 +3,7 @@ use codex_patent_knowledge::CardIndex;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
 use codex_patent_knowledge::UnifiedSearch;
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 impl super::LegalTools {
     pub fn legal_qa(input: LegalQAInput) -> Result<serde_json::Value, String> {
@@ -118,7 +118,7 @@ impl super::LegalTools {
 
     fn try_card_search(query: &str) -> Option<String> {
         let card_mutex: &Mutex<CardIndex> = UnifiedSearch::global().card_index()?;
-        let index = card_mutex.lock().ok()?;
+        let index = card_mutex.lock();
         let cards = index.search_by_concept(query, 3);
         if cards.is_empty() {
             // Try keyword search
@@ -243,7 +243,7 @@ impl super::LegalTools {
     pub fn ipc_search(input: IpcSearchInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(10);
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
         let results = kg
             .search_ipc(&input.query, limit)
             .map_err(|e| format!("IPC 搜索失败: {e}"))?;
@@ -259,7 +259,7 @@ impl super::LegalTools {
     pub fn triangle_query(input: TriangleQueryInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(20);
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
         let results = kg
             .search_by_triangle(
                 input.ipc.as_deref(),
@@ -292,7 +292,7 @@ impl super::LegalTools {
     pub fn decision_search(input: DecisionSearchInput) -> Result<serde_json::Value, String> {
         let limit = input.limit.unwrap_or(20);
         let kg_mutex = UnifiedSearch::global().kg().ok_or("知识图谱未初始化")?;
-        let kg = kg_mutex.lock().map_err(|e| format!("锁获取失败: {e}"))?;
+        let kg = kg_mutex.lock();
 
         // 构建搜索查询
         let mut query_parts = Vec::new();

@@ -4,10 +4,16 @@
 //! 统一错误模型（`PatentError` / `ApiKeyError`），以及工具域分类
 //! `ToolDomain`。
 
-mod error;
+pub mod error;
 pub mod http;
 mod types;
 
 pub use error::ApiKeyError;
+pub use error::ERR_FATAL_PREFIX;
+pub use error::ERR_RETRYABLE_PREFIX;
 pub use error::PatentError;
+pub use error::ToolErrorKind;
+pub use error::classify_tool_error;
+pub use error::fatal_err;
+pub use error::retryable_err;
 pub use types::*;

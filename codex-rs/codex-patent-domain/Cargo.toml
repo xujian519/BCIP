@@ -15,6 +15,7 @@ regex = { version = "1", default-features = false, features = ["std", "perf", "u
 strsim = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+parking_lot = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
