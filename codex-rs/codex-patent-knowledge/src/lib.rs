@@ -15,7 +15,6 @@
 
 pub mod cards;
 pub mod citation_tracker;
-pub mod cnipa;
 pub mod embedding_client;
 pub mod graph;
 pub mod keyword_search;
@@ -25,14 +24,11 @@ pub mod paths;
 pub mod refresh_pipeline;
 pub mod search;
 pub mod search_eval;
-pub mod semantic_memory;
 pub mod synonym;
 pub mod vector_index;
 
 pub use cards::CardIndex;
 pub use citation_tracker::CitationTracker;
-pub use cnipa::CnipaParser;
-pub use cnipa::CnipaSearchBuilder;
 pub use graph::IpcSearchResult;
 pub use graph::SqliteKnowledgeGraph;
 pub use keyword_search::KeywordSearch;
@@ -43,6 +39,11 @@ pub use search::SearchConfig;
 pub use search::SearchMode;
 pub use search::UnifiedSearch;
 pub use search_eval::SearchEval;
+pub use vector_index::VectorIndex;
+
+pub mod cnipa;
+pub mod semantic_memory;
+pub use cnipa::CnipaParser;
+pub use cnipa::CnipaSearchBuilder;
 pub use semantic_memory::MemoryEntry;
 pub use semantic_memory::SemanticMemoryStore;
-pub use vector_index::VectorIndex;

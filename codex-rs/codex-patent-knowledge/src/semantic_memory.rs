@@ -50,7 +50,9 @@ impl SemanticMemoryStore {
     /// 创建或打开语义记忆存储
     pub fn new(home_dir: &Path) -> Self {
         let storage_dir = home_dir.join("semantic_memory");
-        let _ = std::fs::create_dir_all(&storage_dir);
+        if let Err(e) = std::fs::create_dir_all(&storage_dir) {
+            tracing::warn!("无法创建语义记忆目录 {}: {e}", storage_dir.display());
+        }
         let embedding_client = EmbeddingClient::from_env();
         Self {
             storage_dir,

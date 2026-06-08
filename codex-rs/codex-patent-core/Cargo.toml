@@ -9,5 +9,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+reqwest = { workspace = true, features = ["blocking"] }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }

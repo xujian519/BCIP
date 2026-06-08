@@ -1,6 +1,11 @@
+pub mod check_types;
+
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+
+// Re-export check types for lib.rs
+pub use check_types::*;
 
 /// 一组宪法规则，按名称索引。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -213,202 +218,6 @@ pub enum RuleCheck {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StructuralElement {
-    pub element: String,
-    pub description: String,
-    pub patterns: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CategoryDef {
-    pub description: String,
-    pub patterns: Vec<String>,
-    #[serde(default)]
-    pub guidance: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpecDimension {
-    pub dimension: String,
-    pub description: String,
-    pub checks: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SectionDef {
-    pub name: String,
-    pub patterns: Vec<String>,
-    #[serde(default)]
-    pub max_length: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub subsections: Vec<String>,
-    pub condition: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct MixedCategoriesDef {
-    pub description: String,
-    pub patterns: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ChainedRefDef {
-    pub description: String,
-    pub rule: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SupportMethod {
-    pub method: String,
-    pub description: String,
-    pub rules: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IndicatorsDef {
-    #[serde(default)]
-    pub too_many: IndicatorDef,
-    #[serde(default)]
-    pub too_few: IndicatorDef,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct IndicatorDef {
-    pub description: String,
-    pub patterns: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DepRule {
-    pub rule: String,
-    pub description: String,
-    #[serde(default)]
-    pub error_pattern: String,
-    pub format: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComparisonPrinciple {
-    pub principle: String,
-    pub description: String,
-    pub detail: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GraceCondition {
-    #[serde(rename = "type")]
-    pub condition_type: String,
-    pub description: String,
-    pub requirements: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InventivenessStep {
-    pub step: u32,
-    pub name: String,
-    pub criteria: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SecondaryIndicators {
-    #[serde(default)]
-    pub positive: Vec<String>,
-    #[serde(default)]
-    pub negative: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RejectionGround {
-    pub ground: String,
-    pub description: String,
-    pub examples: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct UnifiedCriteria {
-    pub criteria: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AmendmentPrinciple {
-    pub principle: String,
-    pub description: String,
-    #[serde(default)]
-    pub detail: String,
-    pub forbidden: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeadlineDef {
-    pub scenario: String,
-    pub description: String,
-    pub period: String,
-    #[serde(default)]
-    pub extension: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StrategyDef {
-    pub strategy: String,
-    pub description: String,
-    #[serde(default)]
-    pub efficacy: String,
-    #[serde(default)]
-    pub details: Vec<String>,
-    #[serde(default)]
-    pub constraint: String,
-    pub requirement: Option<String>,
-    pub condition: Option<String>,
-    pub factors: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InvalidGround {
-    pub ground: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AmendmentMethod {
-    pub method: String,
-    pub description: String,
-    pub constraint: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InfringementPrinciple {
-    pub principle: String,
-    pub name: String,
-    pub description: String,
-    pub rules: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DefenseDef {
-    pub defense: String,
-    pub name: String,
-    pub description: String,
-    pub condition: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DamageMethod {
-    pub method: String,
-    pub description: String,
-    pub priority: u32,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PunitiveDef {
-    pub condition: String,
-    pub multiplier: String,
-    pub legal_basis: String,
-}
-
 /// 规则严重级别。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RuleSeverity {
@@ -520,18 +329,18 @@ mod tests {
             "severity_if_found": "critical"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::KeywordBlocklist {
-                keywords,
-                absolute_ban,
-                context_ban,
-                ..
-            } => {
-                assert_eq!(keywords, vec!["算法", "商业方法"]);
-                assert_eq!(absolute_ban, vec!["赌博"]);
-                assert_eq!(context_ban, vec!["区块链"]);
-            }
-            other => panic!("expected KeywordBlocklist, got {:?}", other),
+        if let RuleCheck::KeywordBlocklist {
+            keywords,
+            absolute_ban,
+            context_ban,
+            ..
+        } = &check
+        {
+            assert_eq!(keywords, &vec!["算法", "商业方法"]);
+            assert_eq!(absolute_ban, &vec!["赌博"]);
+            assert_eq!(context_ban, &vec!["区块链"]);
+        } else {
+            panic!("expected KeywordBlocklist, got {check:?}");
         }
     }
 
@@ -544,17 +353,17 @@ mod tests {
             "guidance": "需结合硬件"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::PatternAnalysis {
-                hardware_integration_markers,
-                pure_software_markers,
-                guidance,
-            } => {
-                assert_eq!(hardware_integration_markers, vec!["传感器", "处理器"]);
-                assert_eq!(pure_software_markers, vec!["APP", "SaaS"]);
-                assert_eq!(guidance, "需结合硬件");
-            }
-            other => panic!("expected PatternAnalysis, got {:?}", other),
+        if let RuleCheck::PatternAnalysis {
+            hardware_integration_markers,
+            pure_software_markers,
+            guidance,
+        } = &check
+        {
+            assert_eq!(hardware_integration_markers, &vec!["传感器", "处理器"]);
+            assert_eq!(pure_software_markers, &vec!["APP", "SaaS"]);
+            assert_eq!(guidance, "需结合硬件");
+        } else {
+            panic!("expected PatternAnalysis, got {check:?}");
         }
     }
 
@@ -569,17 +378,17 @@ mod tests {
             "min_confidence": 0.7
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::StructuralAnalysis {
-                requires_all,
-                min_confidence,
-            } => {
-                assert_eq!(requires_all.len(), 2);
-                assert_eq!(requires_all[0].element, "技术问题");
-                assert_eq!(requires_all[1].patterns, vec!["技术方案", "实现"]);
-                assert!((min_confidence - 0.7).abs() < f64::EPSILON);
-            }
-            other => panic!("expected StructuralAnalysis, got {:?}", other),
+        if let RuleCheck::StructuralAnalysis {
+            requires_all,
+            min_confidence,
+        } = &check
+        {
+            assert_eq!(requires_all.len(), 2);
+            assert_eq!(requires_all[0].element, "技术问题");
+            assert_eq!(requires_all[1].patterns, vec!["技术方案", "实现"]);
+            assert!((min_confidence - 0.7).abs() < f64::EPSILON);
+        } else {
+            panic!("expected StructuralAnalysis, got {check:?}");
         }
     }
 
@@ -721,13 +530,12 @@ mod tests {
             "assessment": "检测排除客体"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::CategoryDetection { categories, .. } => {
-                assert!(categories.contains_key("智力活动"));
-                let cat = &categories["智力活动"];
-                assert_eq!(cat.patterns, vec!["博弈", "棋类"]);
-            }
-            other => panic!("expected CategoryDetection, got {:?}", other),
+        if let RuleCheck::CategoryDetection { categories, .. } = &check {
+            assert!(categories.contains_key("智力活动"));
+            let cat = &categories["智力活动"];
+            assert_eq!(cat.patterns, vec!["博弈", "棋类"]);
+        } else {
+            panic!("expected CategoryDetection, got {check:?}");
         }
     }
 
@@ -741,12 +549,11 @@ mod tests {
             "assessment": "分析说明书质量"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::SpecificationAnalysis { dimensions, .. } => {
-                assert_eq!(dimensions.len(), 1);
-                assert_eq!(dimensions[0].dimension, "充分公开");
-            }
-            other => panic!("expected SpecificationAnalysis, got {:?}", other),
+        if let RuleCheck::SpecificationAnalysis { dimensions, .. } = &check {
+            assert_eq!(dimensions.len(), 1);
+            assert_eq!(dimensions[0].dimension, "充分公开");
+        } else {
+            panic!("expected SpecificationAnalysis, got {check:?}");
         }
     }
 
@@ -760,15 +567,15 @@ mod tests {
             "forbidden_content": ["广告", "营销"]
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::SectionStructure {
-                required_sections,
-                forbidden_content,
-            } => {
-                assert_eq!(required_sections.len(), 1);
-                assert_eq!(forbidden_content, vec!["广告", "营销"]);
-            }
-            other => panic!("expected SectionStructure, got {:?}", other),
+        if let RuleCheck::SectionStructure {
+            required_sections,
+            forbidden_content,
+        } = &check
+        {
+            assert_eq!(required_sections.len(), 1);
+            assert_eq!(forbidden_content, &vec!["广告", "营销"]);
+        } else {
+            panic!("expected SectionStructure, got {check:?}");
         }
     }
 
@@ -783,16 +590,16 @@ mod tests {
             "assessment": "权利要求清晰度"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::ClaimClarityAnalysis {
-                unclear_terms,
-                over_broad,
-                ..
-            } => {
-                assert_eq!(unclear_terms, vec!["大约", "左右"]);
-                assert_eq!(over_broad, vec!["一种设备"]);
-            }
-            other => panic!("expected ClaimClarityAnalysis, got {:?}", other),
+        if let RuleCheck::ClaimClarityAnalysis {
+            unclear_terms,
+            over_broad,
+            ..
+        } = &check
+        {
+            assert_eq!(unclear_terms, &vec!["大约", "左右"]);
+            assert_eq!(over_broad, &vec!["一种设备"]);
+        } else {
+            panic!("expected ClaimClarityAnalysis, got {check:?}");
         }
     }
 
@@ -806,12 +613,11 @@ mod tests {
             "severity_if_unsupported": "major"
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::SupportAnalysis { methods, .. } => {
-                assert_eq!(methods.len(), 1);
-                assert_eq!(methods[0].method, "直接支持");
-            }
-            other => panic!("expected SupportAnalysis, got {:?}", other),
+        if let RuleCheck::SupportAnalysis { methods, .. } = &check {
+            assert_eq!(methods.len(), 1);
+            assert_eq!(methods[0].method, "直接支持");
+        } else {
+            panic!("expected SupportAnalysis, got {check:?}");
         }
     }
 
@@ -826,17 +632,17 @@ mod tests {
             "invalid_strategies": ["放弃"]
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::OaResponseStrategy {
-                oa_type,
-                valid_strategies,
-                invalid_strategies,
-            } => {
-                assert_eq!(oa_type, "novelty_rejection");
-                assert_eq!(valid_strategies.len(), 1);
-                assert_eq!(invalid_strategies, vec!["放弃"]);
-            }
-            other => panic!("expected OaResponseStrategy, got {:?}", other),
+        if let RuleCheck::OaResponseStrategy {
+            oa_type,
+            valid_strategies,
+            invalid_strategies,
+        } = &check
+        {
+            assert_eq!(oa_type, "novelty_rejection");
+            assert_eq!(valid_strategies.len(), 1);
+            assert_eq!(invalid_strategies, &vec!["放弃"]);
+        } else {
+            panic!("expected OaResponseStrategy, got {check:?}");
         }
     }
 
@@ -849,11 +655,10 @@ mod tests {
             "design": ["申请日3个月"]
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::TimingAnalysis { invention, .. } => {
-                assert_eq!(invention, vec!["申请日12个月"]);
-            }
-            other => panic!("expected TimingAnalysis, got {:?}", other),
+        if let RuleCheck::TimingAnalysis { invention, .. } = &check {
+            assert_eq!(invention, &vec!["申请日12个月"]);
+        } else {
+            panic!("expected TimingAnalysis, got {check:?}");
         }
     }
 
@@ -868,16 +673,16 @@ mod tests {
             "special_notes": []
         }"#;
         let check: RuleCheck = serde_json::from_str(json).unwrap();
-        match check {
-            RuleCheck::PriorityAnalysis {
-                priority_type,
-                requirements,
-                ..
-            } => {
-                assert_eq!(priority_type, "domestic");
-                assert_eq!(requirements, vec!["在先申请副本"]);
-            }
-            other => panic!("expected PriorityAnalysis, got {:?}", other),
+        if let RuleCheck::PriorityAnalysis {
+            priority_type,
+            requirements,
+            ..
+        } = &check
+        {
+            assert_eq!(priority_type, "domestic");
+            assert_eq!(requirements, &vec!["在先申请副本"]);
+        } else {
+            panic!("expected PriorityAnalysis, got {check:?}");
         }
     }
 

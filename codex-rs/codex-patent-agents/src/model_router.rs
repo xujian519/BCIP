@@ -128,23 +128,32 @@ impl ModelRouter {
 
         let (best, reason) = match strategy {
             RoutingStrategy::CostOptimized => {
-                let b = candidates.iter().min_by_key(|c| c.cost_tier).unwrap();
+                let b = candidates
+                    .iter()
+                    .min_by_key(|c| c.cost_tier)
+                    .expect("candidates 在调用前已确保非空");
                 (b, format!("成本优先 (tier {})", b.cost_tier))
             }
             RoutingStrategy::SpeedOptimized => {
-                let b = candidates.iter().min_by_key(|c| c.speed_tier).unwrap();
+                let b = candidates
+                    .iter()
+                    .min_by_key(|c| c.speed_tier)
+                    .expect("candidates 在调用前已确保非空");
                 (b, format!("速度优先 (tier {})", b.speed_tier))
             }
             RoutingStrategy::QualityOptimized => {
                 let b = candidates
                     .iter()
                     .max_by_key(|c| c.complexity_range.1)
-                    .unwrap();
+                    .expect("candidates 在调用前已确保非空");
                 (b, "质量优先".to_string())
             }
             RoutingStrategy::PerformanceBased => {
                 // 已在上面处理，这里是 fallback
-                let b = candidates.iter().min_by_key(|c| c.cost_tier).unwrap();
+                let b = candidates
+                    .iter()
+                    .min_by_key(|c| c.cost_tier)
+                    .expect("candidates 在调用前已确保非空");
                 (b, "数据不足，使用成本优先".to_string())
             }
         };

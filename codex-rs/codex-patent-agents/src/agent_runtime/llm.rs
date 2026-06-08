@@ -9,131 +9,25 @@ pub(crate) const REQUEST_TIMEOUT_SECS: u64 = 120;
 #[allow(dead_code)]
 pub(crate) const DEFAULT_TEMPERATURE: f32 = 0.7;
 
-const CB_FAILURE_THRESHOLD: u32 = 5;
-const CB_RESET_TIMEOUT_SECS: u64 = 60;
-const CB_HALF_OPEN_MAX: u32 = 3;
 const BACKOFF_BASE_MS: u64 = 1000;
 const BACKOFF_MAX_MS: u64 = 30_000;
 
 use std::sync::OnceLock;
-use std::sync::atomic::AtomicU32;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CbState {
-    Closed,
-    Open,
-    HalfOpen,
-}
+use codex_patent_core::http::{CircuitBreaker, SharedHttpClient};
 
-struct InlineCircuitBreaker {
-    state: AtomicU32,
-    consecutive_failures: AtomicU32,
-    opened_at: AtomicU64,
-    half_open_calls: AtomicU32,
-}
+static AGENT_LLM_BREAKER: OnceLock<CircuitBreaker> = OnceLock::new();
 
-impl InlineCircuitBreaker {
-    const fn new() -> Self {
-        Self {
-            state: AtomicU32::new(0),
-            consecutive_failures: AtomicU32::new(0),
-            opened_at: AtomicU64::new(0),
-            half_open_calls: AtomicU32::new(0),
-        }
-    }
-
-    fn current_state(&self) -> CbState {
-        let raw = self.state.load(Ordering::Relaxed);
-        match raw {
-            0 => CbState::Closed,
-            1 => {
-                let opened = self.opened_at.load(Ordering::Relaxed);
-                if opened > 0 {
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs();
-                    if now.saturating_sub(opened) >= CB_RESET_TIMEOUT_SECS {
-                        self.state.store(2, Ordering::Relaxed);
-                        self.half_open_calls.store(1, Ordering::Relaxed);
-                        return CbState::HalfOpen;
-                    }
-                }
-                CbState::Open
-            }
-            2 => CbState::HalfOpen,
-            _ => CbState::Closed,
-        }
-    }
-
-    fn allow_request(&self) -> bool {
-        match self.current_state() {
-            CbState::Closed => true,
-            CbState::Open => false,
-            CbState::HalfOpen => {
-                let calls = self.half_open_calls.fetch_add(1, Ordering::Relaxed);
-                calls < CB_HALF_OPEN_MAX
-            }
-        }
-    }
-
-    fn record_success(&self) {
-        self.consecutive_failures.store(0, Ordering::Relaxed);
-        if self.current_state() == CbState::HalfOpen {
-            let calls = self.half_open_calls.load(Ordering::Relaxed);
-            if calls >= CB_HALF_OPEN_MAX {
-                self.state.store(0, Ordering::Relaxed);
-                self.opened_at.store(0, Ordering::Relaxed);
-                self.half_open_calls.store(0, Ordering::Relaxed);
-            }
-        }
-    }
-
-    fn record_failure(&self) {
-        let failures = self.consecutive_failures.fetch_add(1, Ordering::Relaxed) + 1;
-        match self.current_state() {
-            CbState::Closed => {
-                if failures >= CB_FAILURE_THRESHOLD {
-                    self.trip_open();
-                }
-            }
-            CbState::HalfOpen => {
-                self.trip_open();
-            }
-            CbState::Open => {}
-        }
-    }
-
-    fn trip_open(&self) {
-        self.state.store(1, Ordering::Relaxed);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        self.opened_at.store(now, Ordering::Relaxed);
-    }
-}
-
-static AGENT_LLM_BREAKER: OnceLock<InlineCircuitBreaker> = OnceLock::new();
-
-static SHARED_ASYNC_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static SHARED_ASYNC_CLIENT: OnceLock<SharedHttpClient> = OnceLock::new();
 
 fn get_shared_client() -> &'static reqwest::Client {
-    SHARED_ASYNC_CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-            .pool_max_idle_per_host(4)
-            .pool_idle_timeout(std::time::Duration::from_secs(90))
-            .no_proxy()
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new())
-    })
+    SHARED_ASYNC_CLIENT
+        .get_or_init(|| SharedHttpClient::with_timeout_secs(REQUEST_TIMEOUT_SECS))
+        .client()
 }
 
-fn get_breaker() -> &'static InlineCircuitBreaker {
-    AGENT_LLM_BREAKER.get_or_init(InlineCircuitBreaker::new)
+fn get_breaker() -> &'static CircuitBreaker {
+    AGENT_LLM_BREAKER.get_or_init(CircuitBreaker::new)
 }
 
 fn backoff_delay_ms(attempt: u32) -> u64 {
@@ -163,10 +57,7 @@ pub(crate) async fn call_llm_with_retry_and_temperature(
     let breaker = get_breaker();
 
     if !breaker.allow_request() {
-        return Err(format!(
-            "LLM circuit breaker open (consecutive failures >= {CB_FAILURE_THRESHOLD}), \
-             retry after {CB_RESET_TIMEOUT_SECS}s"
-        ));
+        return Err("LLM circuit breaker open (consecutive failures >= 5), retry after 60s".into());
     }
 
     let mut last_error = String::new();

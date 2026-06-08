@@ -5,6 +5,7 @@
 //! `ToolDomain`。
 
 mod error;
+pub mod http;
 mod types;
 
 pub use error::ApiKeyError;

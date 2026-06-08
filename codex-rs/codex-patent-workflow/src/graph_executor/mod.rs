@@ -5,7 +5,6 @@
 //!
 //! 支持条件路由：节点完成后根据成功/失败出边决定下一层节点。
 
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -13,14 +12,13 @@ use super::agent_bridge::AgentExecutor;
 use super::checkpoint::generate_run_id;
 use super::checkpoint::CheckpointStore;
 use super::flow::FlowStatus;
-use super::flow::FlowStep;
-use super::flow::HumanApprovalTimeoutAction;
-use super::flow::StepResult;
 use super::graph::FlowGraph;
 use super::graph::GraphNodeResult;
 
 mod checkpoint;
 mod code_executor;
+mod scheduler;
+mod status;
 mod step_runner;
 
 pub use code_executor::CodeExecutionResult;
@@ -90,7 +88,7 @@ impl GraphExecutor {
 
     /// 设置同层最大并行节点数（默认 4，上限 32）。
     pub fn with_max_parallel(mut self, limit: usize) -> Self {
-        self.max_parallel = limit.max(1).min(MAX_PARALLEL_CAP);
+        self.max_parallel = limit.clamp(1, MAX_PARALLEL_CAP);
         self
     }
 
@@ -105,232 +103,34 @@ impl GraphExecutor {
         let mut node_results: Vec<GraphNodeResult> = Vec::new();
 
         let max_retries = graph.retry_on_failure.unwrap_or(self.max_retries);
-
         let levels = graph.topological_levels()?;
 
-        let mut completed: HashSet<String> = HashSet::new();
-        let mut active: HashSet<String> = HashSet::from([entry]);
-        let mut suspended = false;
-        let mut failed = false;
+        let mut state = scheduler::ExecutionState::new(entry);
 
         for level in &levels {
-            if suspended || failed {
+            if !state.should_continue() {
                 break;
             }
 
-            let pending: Vec<&String> = level
-                .iter()
-                .filter(|id| active.contains(id.as_str()) && !completed.contains(id.as_str()))
-                .collect();
-
-            if pending.is_empty() {
-                continue;
-            }
-
-            if pending.len() == 1 {
-                // 单节点：串行执行
-                let current = pending[0].clone();
-                let node = graph
-                    .find_node(&current)
-                    .ok_or_else(|| format!("节点 {} 不存在", current))?;
-
-                let step_result = self.execute_step(&node.step, max_retries)?;
-
-                let success = step_result.success;
-                node_results.push(GraphNodeResult {
-                    node_id: current.clone(),
-                    step_result,
-                });
-                completed.insert(current.clone());
-
-                self.save_checkpoint(&self.build_checkpoint(
-                    &graph.id,
-                    &run_id,
-                    node_results.len(),
-                    FlowStatus::Running,
-                    &node_results,
-                ));
-
-                if step_runner::node_matches_step(
-                    &node.step,
-                    &FlowStep::HumanApproval {
-                        title: String::new(),
-                        description: String::new(),
-                        timeout_secs: None,
-                        timeout_action: HumanApprovalTimeoutAction::Fail,
-                    },
-                ) {
-                    self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id,
-                        &run_id,
-                        node_results.len(),
-                        FlowStatus::Suspended,
-                        &node_results,
-                    ));
-                    suspended = true;
-                    break;
-                }
-
-                if !success {
-                    let outgoing = graph.compute_next_nodes(&current, false);
-                    let mut handled = false;
-                    for next_id in &outgoing {
-                        if !completed.contains(next_id) {
-                            active.insert(next_id.clone());
-                            handled = true;
-                        }
-                    }
-                    if !handled {
-                        self.save_checkpoint(&self.build_checkpoint(
-                            &graph.id,
-                            &run_id,
-                            node_results.len(),
-                            FlowStatus::Failed,
-                            &node_results,
-                        ));
-                        failed = true;
-                        break;
-                    }
-                } else {
-                    for next_id in graph.compute_next_nodes(&current, true) {
-                        active.insert(next_id);
-                    }
-                }
-            } else {
-                // 多节点：并行执行（受 max_parallel 舱壁限制）
-                let tool_exec = self.tool_executor.as_ref().map(Arc::clone);
-                let agent_exec = self.agent_executor.as_ref().map(Arc::clone);
-                let code_exec = self.code_executor.as_ref().map(Arc::clone);
-
-                let (tx, rx) = std::sync::mpsc::channel();
-                let max_parallel = self.max_parallel;
-                for chunk in pending.chunks(max_parallel) {
-                    let tool_exec = tool_exec.clone();
-                    let agent_exec = agent_exec.clone();
-                    let code_exec = code_exec.clone();
-                    let tx = tx.clone();
-                    std::thread::scope(|s| {
-                        for node_id in chunk {
-                            let node = graph.find_node(node_id).unwrap();
-                            let step = node.step.clone();
-                            let node_id = (*node_id).clone();
-                            let tx = tx.clone();
-                            let tool = tool_exec.clone();
-                            let agent = agent_exec.clone();
-                            let code = code_exec.clone();
-                            s.spawn(move || {
-                                let result = step_runner::execute_step_from_parts(
-                                    &step,
-                                    &tool,
-                                    &agent,
-                                    &code,
-                                    max_retries,
-                                );
-                                let _ = tx.send((node_id, result));
-                            });
-                        }
-                    });
-                }
-                drop(tx);
-
-                let mut level_results: Vec<(String, StepResult)> = rx
-                    .iter()
-                    .filter_map(|(id, r)| r.ok().map(|r| (id, r)))
-                    .collect();
-
-                level_results.sort_by_key(|(id, _)| {
-                    pending.iter().position(|p| *p == id).unwrap_or(usize::MAX)
-                });
-
-                let mut level_suspended = false;
-                let mut level_failed = false;
-
-                for (node_id, step_result) in &level_results {
-                    node_results.push(GraphNodeResult {
-                        node_id: node_id.clone(),
-                        step_result: step_result.clone(),
-                    });
-                    completed.insert(node_id.clone());
-
-                    if let Some(node) = graph.find_node(node_id) {
-                        if step_runner::node_matches_step(
-                            &node.step,
-                            &FlowStep::HumanApproval {
-                                title: String::new(),
-                                description: String::new(),
-                                timeout_secs: None,
-                                timeout_action: HumanApprovalTimeoutAction::Fail,
-                            },
-                        ) {
-                            level_suspended = true;
-                        }
-                    }
-
-                    if step_result.success {
-                        for next_id in graph.compute_next_nodes(node_id, true) {
-                            active.insert(next_id);
-                        }
-                    } else {
-                        let outgoing = graph.compute_next_nodes(node_id, false);
-                        if outgoing.is_empty()
-                            || outgoing.iter().all(|id| completed.contains(id.as_str()))
-                        {
-                            level_failed = true;
-                        } else {
-                            for next_id in &outgoing {
-                                active.insert(next_id.clone());
-                            }
-                        }
-                    }
-                }
-
-                self.save_checkpoint(&self.build_checkpoint(
-                    &graph.id,
-                    &run_id,
-                    node_results.len(),
-                    FlowStatus::Running,
-                    &node_results,
-                ));
-
-                if level_suspended {
-                    self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id,
-                        &run_id,
-                        node_results.len(),
-                        FlowStatus::Suspended,
-                        &node_results,
-                    ));
-                    suspended = true;
-                    break;
-                }
-                if level_failed {
-                    self.save_checkpoint(&self.build_checkpoint(
-                        &graph.id,
-                        &run_id,
-                        node_results.len(),
-                        FlowStatus::Failed,
-                        &node_results,
-                    ));
-                    failed = true;
-                    break;
-                }
-            }
+            scheduler::execute_level(
+                self,
+                graph,
+                &run_id,
+                level,
+                &mut state,
+                &mut node_results,
+                max_retries,
+            )?;
         }
 
-        let status = if suspended {
-            FlowStatus::Suspended
-        } else if failed {
-            FlowStatus::Failed
-        } else {
-            FlowStatus::Completed
-        };
+        let final_status = status::determine_final_status(state.suspended, state.failed);
 
-        Ok(GraphExecution {
-            flow_id: graph.id.clone(),
-            status,
+        Ok(status::build_execution_result(
+            graph,
             run_id,
+            final_status,
             node_results,
-        })
+        ))
     }
 }
 
@@ -342,6 +142,7 @@ mod tests {
     use crate::agent_bridge::NoopAgentExecutor;
     use crate::checkpoint::CheckpointStore;
     use crate::flow::FlowStatus;
+    use crate::flow::FlowStep;
     use crate::flow::HumanApprovalTimeoutAction;
     use crate::graph::Condition;
     use crate::graph::FlowEdge;

@@ -165,7 +165,9 @@ mod tests {
             let results = ev.run(SearchMode::KeywordEnhanced);
             assert_eq!(results.len(), 10, "should evaluate all 10 queries");
             let summary = SearchEval::summary(&results);
-            let p5 = summary["avg_precision_at_5"].as_f64().unwrap();
+            let p5 = summary["avg_precision_at_5"]
+                .as_f64()
+                .expect("avg_precision_at_5 should exist in eval results");
             assert!((0.0..=1.0).contains(&p5));
         }
     }

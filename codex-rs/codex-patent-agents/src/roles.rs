@@ -237,8 +237,8 @@ impl PatentAgentRole {
         }
     }
 
-    #[allow(clippy::should_implement_trait)]
     /// 从字符串解析角色，不区分大小写
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "retriever" => Some(Self::Retriever),
@@ -444,6 +444,14 @@ impl PatentAgentRole {
             }
         }
         Ok(configs)
+    }
+}
+
+impl std::str::FromStr for PatentAgentRole {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PatentAgentRole::from_str(s).ok_or_else(|| format!("Unknown patent agent role: {s}"))
     }
 }
 
