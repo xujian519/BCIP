@@ -8,9 +8,11 @@ use codex_patent_core::AppliedRule;
 use codex_patent_core::CaseContext;
 use codex_patent_core::PatentError;
 
+mod domain;
 mod inventiveness;
 mod novelty;
 mod oa;
+pub use domain::*;
 
 /// 定性规则推理引擎
 pub struct QualitativeRuleEngine {

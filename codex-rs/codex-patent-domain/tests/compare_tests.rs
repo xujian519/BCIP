@@ -1,5 +1,5 @@
 use codex_patent_core::CompareFeature;
-use codex_patent_domain::compare::{FeatureMatcher, MatchType, lexical_similarity};
+use codex_patent_domain::compare::{MatchType, compare, lexical_similarity};
 use pretty_assertions::assert_eq;
 
 fn feat(id: &str, desc: &str) -> CompareFeature {
@@ -22,7 +22,7 @@ fn feature_match_identical() {
     // Same descriptions → all should be Exact matches
     let prior = target.clone();
 
-    let result = FeatureMatcher::compare(&target, &prior);
+    let result = compare(&target, &prior);
 
     assert_eq!(
         result.exact_matches.len(),
@@ -52,7 +52,7 @@ fn feature_match_different() {
         feat("p2", "a wooden frame structure with dovetail joints"),
     ];
 
-    let result = FeatureMatcher::compare(&target, &prior);
+    let result = compare(&target, &prior);
 
     assert_eq!(
         result.exact_matches.len(),
@@ -86,7 +86,7 @@ fn feature_match_partial() {
         feat("p3", "a battery cell connected to the main board"), // unrelated to t3
     ];
 
-    let result = FeatureMatcher::compare(&target, &prior);
+    let result = compare(&target, &prior);
 
     assert_eq!(
         result.exact_matches.len(),
@@ -109,7 +109,7 @@ fn compare_empty_features() {
     let empty: Vec<CompareFeature> = vec![];
 
     // Both empty
-    let result = FeatureMatcher::compare(&empty, &empty);
+    let result = compare(&empty, &empty);
     assert_eq!(result.exact_matches.len(), 0);
     assert_eq!(result.equivalent_matches.len(), 0);
     assert_eq!(result.different_features.len(), 0);
@@ -121,13 +121,13 @@ fn compare_empty_features() {
 
     // Target non-empty, prior empty → all features missing
     let target = vec![feat("t1", "some feature")];
-    let result = FeatureMatcher::compare(&target, &empty);
+    let result = compare(&target, &empty);
     assert_eq!(result.missing_features.len(), 1);
     assert!((result.coverage_ratio).abs() < 1e-9);
 
     // Target empty, prior non-empty
     let prior = vec![feat("p1", "some feature")];
-    let result = FeatureMatcher::compare(&empty, &prior);
+    let result = compare(&empty, &prior);
     assert_eq!(result.exact_matches.len(), 0);
     assert!((result.coverage_ratio).abs() < 1e-9);
 }
@@ -144,8 +144,8 @@ fn compare_symmetry() {
         feat("b2", "a gate dielectric layer over the substrate"),
     ];
 
-    let result_ab = FeatureMatcher::compare(&set_a, &set_b);
-    let result_ba = FeatureMatcher::compare(&set_b, &set_a);
+    let result_ab = compare(&set_a, &set_b);
+    let result_ba = compare(&set_b, &set_a);
 
     // Compare(a, b) uses lexical_similarity which is symmetric on description pairs.
     // The coverage ratios should be symmetric because lexical_similarity(a,b) == lexical_similarity(b,a)

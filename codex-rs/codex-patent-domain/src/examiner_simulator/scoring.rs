@@ -29,7 +29,8 @@ impl ExaminerSimulator {
             predicted_outcome: Self::predict_outcome(overall),
             integration_mode: "rust_rule_layer",
         };
-        serde_json::to_value(output).unwrap()
+        serde_json::to_value(output)
+            .expect("serializing ExaminerSimulator output should never fail")
     }
 
     pub(crate) fn score_completeness(response: &str) -> f64 {

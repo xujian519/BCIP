@@ -82,6 +82,83 @@ pub struct AgentRoleConfig {
     pub includes: Vec<String>,
 }
 
+/// 角色上下文注入配置
+#[derive(Debug, Clone, Default)]
+pub struct RoleContext {
+    /// 宪法规则上下文
+    pub constitutional_context: Option<String>,
+    /// 知识库检索结果
+    pub knowledge_context: Option<String>,
+    /// 对话历史摘要
+    pub conversation_summary: Option<String>,
+    /// 目标法域
+    pub target_jurisdiction: Option<String>,
+}
+
+/// 加载基础角色配置
+///
+/// 从编译时嵌入的 TOML 配置中加载指定角色的配置。
+fn load_base_role_config(role_name: &str) -> Result<AgentRoleConfig, String> {
+    let configs = crate::bcip_roles::patent_agent_role_configs();
+    let path = configs
+        .get(role_name)
+        .ok_or_else(|| format!("unknown role: {role_name}"))?;
+    let content = crate::bcip_roles::config_file_contents(path)
+        .ok_or_else(|| format!("config not found for role: {role_name}"))?;
+    toml::from_str(content).map_err(|e| format!("parse config for {role_name}: {e}"))
+}
+
+/// 带上下文的角色配置加载
+///
+/// 在基础角色配置上注入动态上下文（宪法规则、知识、历史）。
+pub fn load_role_with_context(
+    role_name: &str,
+    context: &RoleContext,
+) -> Result<AgentRoleConfig, String> {
+    let mut config = load_base_role_config(role_name)?;
+
+    let mut injections = Vec::new();
+
+    if let Some(constitutional_ctx) = &context.constitutional_context
+        && !constitutional_ctx.is_empty()
+    {
+        injections.push(format!("\n## 合规规则\n{constitutional_ctx}"));
+    }
+
+    if let Some(knowledge_ctx) = &context.knowledge_context
+        && !knowledge_ctx.is_empty()
+    {
+        injections.push(format!("\n## 相关知识\n{knowledge_ctx}"));
+    }
+
+    if let Some(summary) = &context.conversation_summary
+        && !summary.is_empty()
+    {
+        injections.push(format!("\n## 对话历史摘要\n{summary}"));
+    }
+
+    if let Some(jurisdiction) = &context.target_jurisdiction
+        && !jurisdiction.is_empty()
+    {
+        injections.push(format!("\n## 目标法域\n{jurisdiction}"));
+    }
+
+    if !injections.is_empty() {
+        let appended = injections.join("\n");
+        match config.developer_instructions {
+            Some(ref mut dev) => {
+                dev.push('\n');
+                dev.push_str(&appended);
+            }
+            None => {
+                config.developer_instructions = Some(appended);
+            }
+        }
+    }
+
+    Ok(config)
+}
+
 /// 解析文本中的 `{{include:_shared/name}}` 内联标记，替换为共享模块内容。
 ///
 /// 从 skills_shared_dir（通常是 `codex-rs/codex-patent-skills/assets/_shared/`）
@@ -580,5 +657,97 @@ mod tests {
             resolve_text_includes_inner(text, &shared_dir, MAX_INCLUDE_DEPTH, &mut visited);
         assert!(result.contains("include 超出最大深度"));
         assert!(result.contains(text));
+    }
+
+    #[test]
+    fn test_role_context_default_is_all_none() {
+        let ctx = RoleContext::default();
+        assert!(ctx.constitutional_context.is_none());
+        assert!(ctx.knowledge_context.is_none());
+        assert!(ctx.conversation_summary.is_none());
+        assert!(ctx.target_jurisdiction.is_none());
+    }
+
+    #[test]
+    fn test_load_role_with_context_unknown_role() {
+        let ctx = RoleContext::default();
+        let result = load_role_with_context("nonexistent_role", &ctx);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unknown role"));
+    }
+
+    #[test]
+    fn test_load_role_with_context_empty_context() {
+        let ctx = RoleContext::default();
+        let config = load_role_with_context("retriever", &ctx).unwrap();
+        // Empty context should not modify developer_instructions beyond base content
+        let base = load_base_role_config("retriever").unwrap();
+        assert_eq!(config.developer_instructions, base.developer_instructions);
+    }
+
+    #[test]
+    fn test_load_role_with_context_injects_all_fields() {
+        let ctx = RoleContext {
+            constitutional_context: Some("no hallucination".to_string()),
+            knowledge_context: Some("prior art X".to_string()),
+            conversation_summary: Some("user asked about patents".to_string()),
+            target_jurisdiction: Some("CN".to_string()),
+        };
+        let config = load_role_with_context("analyzer", &ctx).unwrap();
+        let dev = config.developer_instructions.unwrap();
+        assert!(
+            dev.contains("合规规则"),
+            "should contain constitutional section"
+        );
+        assert!(
+            dev.contains("no hallucination"),
+            "should contain constitutional text"
+        );
+        assert!(dev.contains("相关知识"), "should contain knowledge section");
+        assert!(dev.contains("prior art X"), "should contain knowledge text");
+        assert!(
+            dev.contains("对话历史摘要"),
+            "should contain summary section"
+        );
+        assert!(
+            dev.contains("user asked about patents"),
+            "should contain summary text"
+        );
+        assert!(
+            dev.contains("目标法域"),
+            "should contain jurisdiction section"
+        );
+        assert!(dev.contains("CN"), "should contain jurisdiction text");
+    }
+
+    #[test]
+    fn test_load_role_with_context_skips_empty_strings() {
+        let ctx = RoleContext {
+            constitutional_context: Some(String::new()),
+            knowledge_context: None,
+            conversation_summary: None,
+            target_jurisdiction: Some("CN".to_string()),
+        };
+        let config = load_role_with_context("writer", &ctx).unwrap();
+        let dev = config.developer_instructions.unwrap();
+        assert!(!dev.contains("合规规则"), "empty string should be skipped");
+        assert!(
+            dev.contains("目标法域"),
+            "non-empty jurisdiction should be injected"
+        );
+        assert!(dev.contains("CN"));
+    }
+
+    #[test]
+    fn test_load_role_with_context_preserves_base_config() {
+        let ctx = RoleContext {
+            target_jurisdiction: Some("US".to_string()),
+            ..RoleContext::default()
+        };
+        let config = load_role_with_context("writer", &ctx).unwrap();
+        // Verify other fields are untouched
+        assert_eq!(config.role_id, "writer");
+        assert!(!config.name.is_empty());
+        assert!(!config.primary_tools.is_empty());
     }
 }

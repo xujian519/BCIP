@@ -2122,7 +2122,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "similar",
- "strum_macros 0.28.0",
+ "strum_macros 0.27.2",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -3119,8 +3119,10 @@ version = "0.1.0"
 dependencies = [
  "codex-im-protocol",
  "futures",
+ "pretty_assertions",
  "rusqlite",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
@@ -3151,6 +3153,7 @@ dependencies = [
  "codex-im-bridge",
  "codex-im-common",
  "codex-im-protocol",
+ "pretty_assertions",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -3595,7 +3598,7 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "strum_macros 0.28.0",
+ "strum_macros 0.27.2",
  "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
@@ -3732,6 +3735,7 @@ name = "codex-patent-workflow"
 version = "0.0.1"
 dependencies = [
  "chrono",
+ "pretty_assertions",
  "rusqlite",
  "serde",
  "serde_json",
@@ -3787,7 +3791,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "strum 0.27.2",
- "strum_macros 0.28.0",
+ "strum_macros 0.27.2",
  "sys-locale",
  "tempfile",
  "thiserror 2.0.18",
@@ -4199,7 +4203,7 @@ dependencies = [
  "sha2",
  "shlex",
  "strum 0.27.2",
- "strum_macros 0.28.0",
+ "strum_macros 0.27.2",
  "supports-color 3.0.2",
  "syntect",
  "tempfile",
@@ -13356,18 +13360,6 @@ name = "strum_macros"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "syn 2.0.114",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab85eea0270ee17587ed4156089e10b9e6880ee688791d45a905f5b1ca36f664"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",

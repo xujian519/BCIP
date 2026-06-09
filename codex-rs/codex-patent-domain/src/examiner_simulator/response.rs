@@ -34,7 +34,8 @@ impl ExaminerSimulator {
             applicant_points_addressed: key_points,
             integration_mode: "rust_rule_layer",
         };
-        serde_json::to_value(output).unwrap()
+        serde_json::to_value(output)
+            .expect("serializing ExaminerSimulator output should never fail")
     }
 
     pub(crate) fn analyze_applicant_argument(argument: &str) -> Value {

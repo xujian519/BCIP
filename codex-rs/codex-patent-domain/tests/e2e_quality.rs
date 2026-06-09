@@ -1,6 +1,6 @@
 use codex_patent_core::ClaimDraft;
 use codex_patent_core::ClaimType;
-use codex_patent_domain::quality::QualityAssessor;
+use codex_patent_domain::quality::assess_claims;
 use codex_patent_domain::quality_rules;
 
 fn sample_claims() -> Vec<ClaimDraft> {
@@ -35,7 +35,7 @@ fn sample_claims() -> Vec<ClaimDraft> {
 #[test]
 fn e2e_quality_assessment_full_pipeline() {
     let claims = sample_claims();
-    let result = QualityAssessor::assess_claims(&claims);
+    let result = assess_claims(&claims);
 
     // 验证结果包含所有4个维度
     assert!(result.clarity_score > 0.0, "清晰性评分应为正数");
@@ -58,7 +58,7 @@ fn e2e_quality_assessment_detects_vague_claims() {
         elements: vec!["大约合适的温度".into(), "适当的压力".into()],
         dependent_on: None,
     }];
-    let result = QualityAssessor::assess_claims(&claims);
+    let result = assess_claims(&claims);
     assert!(
         result.clarity_score < 0.7,
         "含模糊词的权利要求应降低清晰性评分"
@@ -75,7 +75,7 @@ fn e2e_quality_assessment_broken_dependency() {
         elements: vec!["特征A".into()],
         dependent_on: Some("1".into()),
     }];
-    let result = QualityAssessor::assess_claims(&claims);
+    let result = assess_claims(&claims);
     assert!(result.support_score < 0.6, "断链依赖应大幅降低支持性评分");
 }
 
@@ -139,7 +139,7 @@ fn e2e_quality_assessment_good_claims_high_scores() {
             dependent_on: Some("3".into()),
         },
     ];
-    let result = QualityAssessor::assess_claims(&claims);
+    let result = assess_claims(&claims);
     // 好案例应该在各项都得合理分数
     assert!(
         result.overall_score > 0.5,

@@ -15,8 +15,8 @@ use codex_patent_core::CaseContext;
 use codex_patent_core::CompareFeature;
 use codex_patent_core::FeatureType;
 use codex_patent_core::ParsedFeature;
-use codex_patent_domain::claim_parser::ClaimParser;
-use codex_patent_domain::compare::FeatureMatcher;
+use codex_patent_domain::claim_parser;
+use codex_patent_domain::compare;
 use codex_patent_domain::rule_engine::QualitativeRuleEngine;
 use codex_patent_knowledge::SearchConfig;
 use codex_patent_knowledge::SearchMode;
@@ -37,241 +37,231 @@ static PARAM_RANGE_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("PARAM_RANGE_RE 正则字面量有效")
 });
 
-/// 专利分析工具集。
-pub struct AnalysisTools;
+pub fn claim_parse(input: ClaimParseInput) -> Result<serde_json::Value, String> {
+    let result = claim_parser::parse(input.claim_number, &input.claim_text);
+    serde_json::to_value(result).map_err(|e| format!("{e}"))
+}
 
-impl AnalysisTools {
-    pub fn claim_parse(input: ClaimParseInput) -> Result<serde_json::Value, String> {
-        let parser = ClaimParser::new();
-        let result = parser.parse(input.claim_number, &input.claim_text);
-        serde_json::to_value(result).map_err(|e| format!("{e}"))
-    }
+pub fn claim_compare(input: ClaimCompareInput) -> Result<serde_json::Value, String> {
+    let parsed_a = claim_parser::parse(1, &input.claim_a);
+    let parsed_b = claim_parser::parse(2, &input.claim_b);
+    let features_a: Vec<CompareFeature> = parsed_a
+        .features
+        .iter()
+        .map(|f| CompareFeature {
+            id: f.id.clone(),
+            description: f.description.clone(),
+        })
+        .collect();
+    let features_b: Vec<CompareFeature> = parsed_b
+        .features
+        .iter()
+        .map(|f| CompareFeature {
+            id: f.id.clone(),
+            description: f.description.clone(),
+        })
+        .collect();
 
-    pub fn claim_compare(input: ClaimCompareInput) -> Result<serde_json::Value, String> {
-        let parser = ClaimParser::new();
-        let parsed_a = parser.parse(1, &input.claim_a);
-        let parsed_b = parser.parse(2, &input.claim_b);
+    // 第一层: 词法对比 (bigram Jaccard 逐特征匹配)
+    let lexical_result = compare::compare(&features_a, &features_b);
 
-        let features_a: Vec<CompareFeature> = parsed_a
-            .features
-            .iter()
-            .map(|f| CompareFeature {
-                id: f.id.clone(),
-                description: f.description.clone(),
-            })
-            .collect();
-        let features_b: Vec<CompareFeature> = parsed_b
-            .features
-            .iter()
-            .map(|f| CompareFeature {
-                id: f.id.clone(),
-                description: f.description.clone(),
-            })
-            .collect();
+    // 第二层: 语义层 (整段文本相似度)
+    let semantic_score = codex_patent_text::text_similarity(&input.claim_a, &input.claim_b);
 
-        // 第一层: 词法对比 (bigram Jaccard 逐特征匹配)
-        let lexical_result = FeatureMatcher::compare(&features_a, &features_b);
+    // 第三层 & 第四层: 功能层/效果层 (基于特征类型统计)
+    let (functional_score, effect_score) =
+        compute_functional_effect_scores(&parsed_a.features, &parsed_b.features);
 
-        // 第二层: 语义层 (整段文本相似度)
-        let semantic_score = codex_patent_text::text_similarity(&input.claim_a, &input.claim_b);
+    // 特征矩阵
+    let matrix = codex_patent_domain::compare::build_feature_matrix(&features_a, &features_b);
 
-        // 第三层 & 第四层: 功能层/效果层 (基于特征类型统计)
-        let (functional_score, effect_score) =
-            compute_functional_effect_scores(&parsed_a.features, &parsed_b.features);
+    // 综合判定
+    let overall = compute_overall_correspondence(
+        lexical_result.coverage_ratio,
+        semantic_score,
+        functional_score,
+        effect_score,
+    );
 
-        // 特征矩阵
-        let matrix = codex_patent_domain::compare::build_feature_matrix(&features_a, &features_b);
-
-        // 综合判定
-        let overall = compute_overall_correspondence(
-            lexical_result.coverage_ratio,
-            semantic_score,
-            functional_score,
-            effect_score,
-        );
-
-        Ok(serde_json::json!({
-            "layers": {
-                "lexical": {
-                    "exact_count": lexical_result.exact_matches.len(),
-                    "equivalent_count": lexical_result.equivalent_matches.len(),
-                    "different_count": lexical_result.different_features.len(),
-                    "missing_count": lexical_result.missing_features.len(),
-                    "coverage_ratio": lexical_result.coverage_ratio,
-                    "matches": lexical_result.exact_matches.iter()
-                        .chain(lexical_result.equivalent_matches.iter())
-                        .map(|m| serde_json::json!({
-                            "target": m.target_feature,
-                            "prior": m.prior_feature,
-                            "score": (m.similarity_score * 100.0).round() / 100.0,
-                            "type": format!("{:?}", m.match_type),
-                        }))
-                        .collect::<Vec<_>>(),
-                },
-                "semantic": {
-                    "score": (semantic_score * 100.0).round() / 100.0,
-                    "level": classify_score(semantic_score),
-                },
-                "functional": {
-                    "score": (functional_score * 100.0).round() / 100.0,
-                    "matched_types": count_matching_types(&parsed_a.features, &parsed_b.features),
-                },
-                "effect": {
-                    "score": (effect_score * 100.0).round() / 100.0,
-                },
+    Ok(serde_json::json!({
+        "layers": {
+            "lexical": {
+                "exact_count": lexical_result.exact_matches.len(),
+                "equivalent_count": lexical_result.equivalent_matches.len(),
+                "different_count": lexical_result.different_features.len(),
+                "missing_count": lexical_result.missing_features.len(),
+                "coverage_ratio": lexical_result.coverage_ratio,
+                "matches": lexical_result.exact_matches.iter()
+                    .chain(lexical_result.equivalent_matches.iter())
+                    .map(|m| serde_json::json!({
+                        "target": m.target_feature,
+                        "prior": m.prior_feature,
+                        "score": (m.similarity_score * 100.0).round() / 100.0,
+                        "type": format!("{:?}", m.match_type),
+                    }))
+                    .collect::<Vec<_>>(),
             },
-            "matrix": {
-                "overlap_ratio": (matrix.overlap_ratio * 100.0).round() / 100.0,
-                "target_only_count": matrix.target_only.len(),
-                "prior_only_count": matrix.prior_only.len(),
+            "semantic": {
+                "score": (semantic_score * 100.0).round() / 100.0,
+                "level": classify_score(semantic_score),
             },
-            "overall_correspondence": overall,
-            "feature_counts": {
-                "claim_a": parsed_a.features.len(),
-                "claim_b": parsed_b.features.len(),
+            "functional": {
+                "score": (functional_score * 100.0).round() / 100.0,
+                "matched_types": count_matching_types(&parsed_a.features, &parsed_b.features),
             },
-        }))
-    }
+            "effect": {
+                "score": (effect_score * 100.0).round() / 100.0,
+            },
+        },
+        "matrix": {
+            "overlap_ratio": (matrix.overlap_ratio * 100.0).round() / 100.0,
+            "target_only_count": matrix.target_only.len(),
+            "prior_only_count": matrix.prior_only.len(),
+        },
+        "overall_correspondence": overall,
+        "feature_counts": {
+            "claim_a": parsed_a.features.len(),
+            "claim_b": parsed_b.features.len(),
+        },
+    }))
+}
 
-    pub fn novelty_analysis(input: NoveltyAnalysisInput) -> Result<serde_json::Value, String> {
-        let mut engine = QualitativeRuleEngine::new();
-        let prior = input.prior_art_descriptions.unwrap_or_default().join("; ");
-        let ctx = CaseContext {
-            invention: Some(input.invention_description.clone()),
-            prior_art_contains_all: Some(!prior.is_empty()),
-            differences: input.differences,
-            ..Default::default()
+pub fn novelty_analysis(input: NoveltyAnalysisInput) -> Result<serde_json::Value, String> {
+    let mut engine = QualitativeRuleEngine::new();
+    let prior = input.prior_art_descriptions.unwrap_or_default().join("; ");
+    let ctx = CaseContext {
+        invention: Some(input.invention_description.clone()),
+        prior_art_contains_all: Some(!prior.is_empty()),
+        differences: input.differences,
+        ..Default::default()
+    };
+    let rule_result = engine.analyze_novelty(&ctx).map_err(|e| format!("{e}"))?;
+    Ok(
+        serde_json::json!({"rule_engine": rule_result, "text_analysis": "perform_novelty_analysis功能需要LegalReasoningEngine实例"}),
+    )
+}
+
+pub fn inventiveness_analysis(
+    input: InventivenessAnalysisInput,
+) -> Result<serde_json::Value, String> {
+    let mut engine = QualitativeRuleEngine::new();
+
+    // 自动提取区别特征
+    let (claim_feats, prior_feats, distinguishing, coverage) =
+        match (&input.claim_text, &input.closest_prior_art) {
+            (Some(claim), Some(prior)) if !claim.is_empty() && !prior.is_empty() => {
+                let claim_parsed = claim_parser::parse(1, claim);
+                let prior_parsed = claim_parser::parse(1, prior);
+                let target: Vec<CompareFeature> = claim_parsed
+                    .features
+                    .iter()
+                    .map(|f| CompareFeature {
+                        id: f.id.clone(),
+                        description: f.description.clone(),
+                    })
+                    .collect();
+                let prior_target: Vec<CompareFeature> = prior_parsed
+                    .features
+                    .iter()
+                    .map(|f| CompareFeature {
+                        id: f.id.clone(),
+                        description: f.description.clone(),
+                    })
+                    .collect();
+                let result = compare::compare(&target, &prior_target);
+                let dists: Vec<String> = result
+                    .different_features
+                    .iter()
+                    .chain(result.missing_features.iter())
+                    .cloned()
+                    .collect();
+                let cov = result.coverage_ratio;
+                (
+                    Some(claim_parsed.features),
+                    Some(prior_parsed.features),
+                    if dists.is_empty() { None } else { Some(dists) },
+                    cov,
+                )
+            }
+            _ => (None, None, None, 0.0),
         };
-        let rule_result = engine.analyze_novelty(&ctx).map_err(|e| format!("{e}"))?;
-        Ok(
-            serde_json::json!({"rule_engine": rule_result, "text_analysis": "perform_novelty_analysis功能需要LegalReasoningEngine实例"}),
-        )
-    }
 
-    pub fn inventiveness_analysis(
-        input: InventivenessAnalysisInput,
-    ) -> Result<serde_json::Value, String> {
-        let mut engine = QualitativeRuleEngine::new();
-        let parser = ClaimParser::new();
+    let ctx = CaseContext {
+        invention: input.invention_description,
+        technical_effect: input.technical_effect,
+        performance_improvement: input.performance_improvement,
+        obviousness: input.obviousness,
+        closest_prior_art: input.closest_prior_art,
+        claim_features: claim_feats,
+        prior_art_features: prior_feats,
+        distinguishing_features: distinguishing.clone(),
+        has_teaching_away: input.has_teaching_away,
+        has_technical_prejudice: input.has_technical_prejudice,
+        has_unexpected_effect: input.has_unexpected_effect,
+        has_long_felt_need: input.has_long_felt_need,
+        ..Default::default()
+    };
+    let r = engine
+        .analyze_inventiveness(&ctx)
+        .map_err(|e| format!("{e}"))?;
 
-        // 自动提取区别特征
-        let (claim_feats, prior_feats, distinguishing, coverage) =
-            match (&input.claim_text, &input.closest_prior_art) {
-                (Some(claim), Some(prior)) if !claim.is_empty() && !prior.is_empty() => {
-                    let claim_parsed = parser.parse(1, claim);
-                    let prior_parsed = parser.parse(1, prior);
-                    let target: Vec<CompareFeature> = claim_parsed
-                        .features
-                        .iter()
-                        .map(|f| CompareFeature {
-                            id: f.id.clone(),
-                            description: f.description.clone(),
-                        })
-                        .collect();
-                    let prior_target: Vec<CompareFeature> = prior_parsed
-                        .features
-                        .iter()
-                        .map(|f| CompareFeature {
-                            id: f.id.clone(),
-                            description: f.description.clone(),
-                        })
-                        .collect();
-                    let result = FeatureMatcher::compare(&target, &prior_target);
-                    let dists: Vec<String> = result
-                        .different_features
-                        .iter()
-                        .chain(result.missing_features.iter())
-                        .cloned()
-                        .collect();
-                    let cov = result.coverage_ratio;
-                    (
-                        Some(claim_parsed.features),
-                        Some(prior_parsed.features),
-                        if dists.is_empty() { None } else { Some(dists) },
-                        cov,
-                    )
-                }
-                _ => (None, None, None, 0.0),
-            };
-
-        let ctx = CaseContext {
-            invention: input.invention_description,
-            technical_effect: input.technical_effect,
-            performance_improvement: input.performance_improvement,
-            obviousness: input.obviousness,
-            closest_prior_art: input.closest_prior_art,
-            claim_features: claim_feats,
-            prior_art_features: prior_feats,
-            distinguishing_features: distinguishing.clone(),
-            has_teaching_away: input.has_teaching_away,
-            has_technical_prejudice: input.has_technical_prejudice,
-            has_unexpected_effect: input.has_unexpected_effect,
-            has_long_felt_need: input.has_long_felt_need,
-            ..Default::default()
-        };
-        let r = engine
-            .analyze_inventiveness(&ctx)
-            .map_err(|e| format!("{e}"))?;
-
-        let mut output = serde_json::to_value(r).map_err(|e| format!("{e}"))?;
-        if let Some(obj) = output.as_object_mut() {
-            if let Some(ref dists) = distinguishing {
-                obj.insert("distinguishing_features".into(), serde_json::json!(dists));
-            }
-            if coverage > 0.0 {
-                obj.insert("coverage_ratio".into(), serde_json::json!(coverage));
-            }
-            // 自动检索创造性相关知识卡片
-            if let Ok(knowledge) = search_creativity_knowledge(&ctx)
-                && !knowledge.is_empty()
-            {
-                obj.insert("knowledge_references".into(), serde_json::json!(knowledge));
-            }
+    let mut output = serde_json::to_value(r).map_err(|e| format!("{e}"))?;
+    if let Some(obj) = output.as_object_mut() {
+        if let Some(ref dists) = distinguishing {
+            obj.insert("distinguishing_features".into(), serde_json::json!(dists));
         }
-        Ok(output)
+        if coverage > 0.0 {
+            obj.insert("coverage_ratio".into(), serde_json::json!(coverage));
+        }
+        // 自动检索创造性相关知识卡片
+        if let Ok(knowledge) = search_creativity_knowledge(&ctx)
+            && !knowledge.is_empty()
+        {
+            obj.insert("knowledge_references".into(), serde_json::json!(knowledge));
+        }
     }
+    Ok(output)
+}
 
-    pub fn infringement_analysis(
-        input: InfringementAnalysisInput,
-    ) -> Result<serde_json::Value, String> {
-        let parser = ClaimParser::new();
-        let claim = parser.parse(1, &input.claim_text);
-        let target: Vec<CompareFeature> = claim
-            .features
-            .iter()
-            .map(|f| CompareFeature {
-                id: f.id.clone(),
-                description: f.description.clone(),
-            })
-            .collect();
-        let prior = vec![CompareFeature {
-            id: "P1".into(),
-            description: input.accused_product_description,
-        }];
-        serde_json::to_value(FeatureMatcher::compare(&target, &prior)).map_err(|e| format!("{e}"))
-    }
+pub fn infringement_analysis(
+    input: InfringementAnalysisInput,
+) -> Result<serde_json::Value, String> {
+    let claim = claim_parser::parse(1, &input.claim_text);
+    let target: Vec<CompareFeature> = claim
+        .features
+        .iter()
+        .map(|f| CompareFeature {
+            id: f.id.clone(),
+            description: f.description.clone(),
+        })
+        .collect();
+    let prior = vec![CompareFeature {
+        id: "P1".into(),
+        description: input.accused_product_description,
+    }];
+    serde_json::to_value(compare::compare(&target, &prior)).map_err(|e| format!("{e}"))
+}
 
-    pub fn legal_qa(input: LegalQAInput) -> Result<serde_json::Value, String> {
-        Ok(
-            serde_json::json!({"question": input.question, "response_type": "knowledge_based", "message": "请通过知识库搜索获取详细法律依据"}),
-        )
-    }
+pub fn legal_qa(input: LegalQAInput) -> Result<serde_json::Value, String> {
+    Ok(
+        serde_json::json!({"question": input.question, "response_type": "knowledge_based", "message": "请通过知识库搜索获取详细法律依据"}),
+    )
+}
 
-    pub fn knowledge_search(input: KnowledgeSearchInput) -> Result<serde_json::Value, String> {
-        let search = UnifiedSearch::global();
-        let mode = if input.semantic.unwrap_or(false) {
-            SearchMode::Hybrid
-        } else {
-            SearchMode::KeywordEnhanced
-        };
-        let config = SearchConfig {
-            query: input.query,
-            limit: input.limit.unwrap_or(10),
-            mode,
-            ..Default::default()
-        };
-        serde_json::to_value(search.search(&config)).map_err(|e| format!("{e}"))
-    }
+pub fn knowledge_search(input: KnowledgeSearchInput) -> Result<serde_json::Value, String> {
+    let search = UnifiedSearch::global();
+    let mode = if input.semantic.unwrap_or(false) {
+        SearchMode::Hybrid
+    } else {
+        SearchMode::KeywordEnhanced
+    };
+    let config = SearchConfig {
+        query: input.query,
+        limit: input.limit.unwrap_or(10),
+        mode,
+        ..Default::default()
+    };
+    serde_json::to_value(search.search(&config)).map_err(|e| format!("{e}"))
 }
 
 /// 根据分析上下文自动检索创造性相关知识卡片。
@@ -415,42 +405,42 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: ClaimParseInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::claim_parse(parsed)
+            claim_parse(parsed)
         })
     });
     t.insert("ClaimCompare".into(), |input| {
         Box::pin(async move {
             let parsed: ClaimCompareInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::claim_compare(parsed)
+            claim_compare(parsed)
         })
     });
     t.insert("NoveltyAnalysis".into(), |input| {
         Box::pin(async move {
             let parsed: NoveltyAnalysisInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::novelty_analysis(parsed)
+            novelty_analysis(parsed)
         })
     });
     t.insert("InventivenessAnalysis".into(), |input| {
         Box::pin(async move {
             let parsed: InventivenessAnalysisInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::inventiveness_analysis(parsed)
+            inventiveness_analysis(parsed)
         })
     });
     t.insert("InfringementAnalysis".into(), |input| {
         Box::pin(async move {
             let parsed: InfringementAnalysisInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::infringement_analysis(parsed)
+            infringement_analysis(parsed)
         })
     });
     t.insert("InnovationEvaluator".into(), |input| {
         Box::pin(async move {
             let parsed: InnovationEvaluatorInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            super::drafting_tools::DraftingTools::innovation_evaluator(
+            super::drafting_tools::innovation_evaluator(
                 parsed.invention_description,
                 parsed.technical_effect,
                 parsed.performance_improvement,
@@ -462,20 +452,18 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: super::advanced_analysis::SemanticCompareInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            super::advanced_analysis::AdvancedAnalysisTools::semantic_compare(parsed)
+            super::advanced_analysis::semantic_compare(parsed)
         })
     });
     t.insert("TechTripleExtractor".into(), |input| {
         Box::pin(async move {
             let parsed: TechTripleExtractorInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            use codex_patent_domain::disclosure::FeatureExtractor;
-            let features = FeatureExtractor::extract_features(&parsed.text, None);
-            let pfe = FeatureExtractor::extract_problem_feature_effects(
-                &parsed.text,
-                None,
-                Some(&features),
-            );
+            use codex_patent_domain::disclosure::{
+                extract_features, extract_problem_feature_effects,
+            };
+            let features = extract_features(&parsed.text, None);
+            let pfe = extract_problem_feature_effects(&parsed.text, None, Some(&features));
             serde_json::to_value(&pfe).map_err(|e| format!("{e}"))
         })
     });
@@ -483,8 +471,8 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: FeatureExtractorInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            use codex_patent_domain::disclosure::FeatureExtractor;
-            let features = FeatureExtractor::extract_features(&parsed.text, None);
+            use codex_patent_domain::disclosure::extract_features;
+            let features = extract_features(&parsed.text, None);
             serde_json::to_value(&features).map_err(|e| format!("{e}"))
         })
     });
@@ -492,7 +480,7 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: InfringementAnalysisInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            AnalysisTools::infringement_analysis(parsed)
+            infringement_analysis(parsed)
         })
     });
     t.insert("PatentCompareTool".into(), |input| {
@@ -507,8 +495,7 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: InventionUnderstandingInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            use codex_patent_domain::disclosure::DisclosureParser;
-            let doc = DisclosureParser::parse(&parsed.technical_disclosure);
+            let doc = codex_patent_domain::disclosure::parse(&parsed.technical_disclosure);
             Ok(serde_json::json!({"title": parsed.invention_title, "field": parsed.technical_field, "sections_found": doc.sections.len(), "confidence": doc.confidence}))
         })
     });
@@ -573,7 +560,7 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: super::advanced_analysis::SynergyAnalysisInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            super::advanced_analysis::AdvancedAnalysisTools::synergy_analysis(parsed)
+            super::advanced_analysis::synergy_analysis(parsed)
         })
     });
     t.insert("HighCitationSearch".into(), |input| {
@@ -615,7 +602,7 @@ pub fn register_analysis_tools() -> std::collections::HashMap<String, super::Too
         Box::pin(async move {
             let parsed: super::advanced_analysis::SuccessPredictorInput =
                 serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            super::advanced_analysis::AdvancedAnalysisTools::success_predictor(parsed)
+            super::advanced_analysis::success_predictor(parsed)
         })
     });
     t.insert("ClaimScopeAnalyzer".into(), |input| {

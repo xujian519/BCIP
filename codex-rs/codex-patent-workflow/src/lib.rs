@@ -11,6 +11,7 @@ pub mod config;
 pub mod flow;
 pub mod graph;
 pub mod graph_executor;
+pub mod llm_plan_generator;
 pub mod orchestrator;
 pub mod plan;
 pub mod task;

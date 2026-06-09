@@ -161,78 +161,73 @@ pub fn ipc_alignment(target_ipc: &[String], prior_ipc: &[String]) -> f64 {
     }
 }
 
-/// 特征匹配器
-pub struct FeatureMatcher;
+/// 对比目标特征与现有技术特征，返回匹配结果
+///
+/// 使用词法相似度（bigram Jaccard）逐一匹配，自动分类为精确匹配、等同匹配、不同或缺失。
+pub fn compare(target: &[CompareFeature], prior: &[CompareFeature]) -> FeatureMatchResult {
+    let mut exact = Vec::new();
+    let mut equivalent = Vec::new();
+    let mut different = Vec::new();
+    let mut missing = Vec::new();
+    let mut matched_prior = HashSet::new();
 
-impl FeatureMatcher {
-    /// 对比目标特征与现有技术特征，返回匹配结果
-    ///
-    /// 使用词法相似度（bigram Jaccard）逐一匹配，自动分类为精确匹配、等同匹配、不同或缺失。
-    pub fn compare(target: &[CompareFeature], prior: &[CompareFeature]) -> FeatureMatchResult {
-        let mut exact = Vec::new();
-        let mut equivalent = Vec::new();
-        let mut different = Vec::new();
-        let mut missing = Vec::new();
-        let mut matched_prior = HashSet::new();
+    for tf in target {
+        let mut best_score = 0.0;
+        let mut best_prior = None;
 
-        for tf in target {
-            let mut best_score = 0.0;
-            let mut best_prior = None;
-
-            for (pi, pf) in prior.iter().enumerate() {
-                let score = lexical_similarity(&tf.description, &pf.description);
-                if score > best_score {
-                    best_score = score;
-                    best_prior = Some((pi, pf));
-                }
+        for (pi, pf) in prior.iter().enumerate() {
+            let score = lexical_similarity(&tf.description, &pf.description);
+            if score > best_score {
+                best_score = score;
+                best_prior = Some((pi, pf));
             }
+        }
 
-            if let Some((pi, pf)) = best_prior {
-                matched_prior.insert(pi);
-                if best_score >= 0.9 {
-                    exact.push(FeatureMatch {
-                        target_feature: tf.description.clone(),
-                        prior_feature: pf.description.clone(),
-                        similarity_score: best_score,
-                        match_type: MatchType::Exact,
-                    });
-                } else if best_score >= 0.6 {
-                    equivalent.push(FeatureMatch {
-                        target_feature: tf.description.clone(),
-                        prior_feature: pf.description.clone(),
-                        similarity_score: best_score,
-                        match_type: MatchType::Equivalent,
-                    });
-                } else {
-                    different.push(tf.description.clone());
-                }
+        if let Some((pi, pf)) = best_prior {
+            matched_prior.insert(pi);
+            if best_score >= 0.9 {
+                exact.push(FeatureMatch {
+                    target_feature: tf.description.clone(),
+                    prior_feature: pf.description.clone(),
+                    similarity_score: best_score,
+                    match_type: MatchType::Exact,
+                });
+            } else if best_score >= 0.6 {
+                equivalent.push(FeatureMatch {
+                    target_feature: tf.description.clone(),
+                    prior_feature: pf.description.clone(),
+                    similarity_score: best_score,
+                    match_type: MatchType::Equivalent,
+                });
             } else {
-                missing.push(tf.description.clone());
+                different.push(tf.description.clone());
             }
-        }
-
-        let coverage = if target.is_empty() {
-            0.0
         } else {
-            (exact.len() + equivalent.len()) as f64 / target.len() as f64
-        };
-
-        let infringement = if exact.len() == target.len() {
-            Some(InfringementType::Literal)
-        } else if exact.len() + equivalent.len() == target.len() {
-            Some(InfringementType::DoctrineOfEquivalents)
-        } else {
-            Some(InfringementType::NoInfringement)
-        };
-
-        FeatureMatchResult {
-            exact_matches: exact,
-            equivalent_matches: equivalent,
-            different_features: different,
-            missing_features: missing,
-            coverage_ratio: coverage,
-            infringement_type: infringement,
+            missing.push(tf.description.clone());
         }
+    }
+
+    let coverage = if target.is_empty() {
+        0.0
+    } else {
+        (exact.len() + equivalent.len()) as f64 / target.len() as f64
+    };
+
+    let infringement = if exact.len() == target.len() {
+        Some(InfringementType::Literal)
+    } else if exact.len() + equivalent.len() == target.len() {
+        Some(InfringementType::DoctrineOfEquivalents)
+    } else {
+        Some(InfringementType::NoInfringement)
+    };
+
+    FeatureMatchResult {
+        exact_matches: exact,
+        equivalent_matches: equivalent,
+        different_features: different,
+        missing_features: missing,
+        coverage_ratio: coverage,
+        infringement_type: infringement,
     }
 }
 
@@ -298,7 +293,7 @@ mod tests {
             },
         ];
 
-        let result = FeatureMatcher::compare(&target, &prior);
+        let result = compare(&target, &prior);
         assert!(!result.exact_matches.is_empty());
         assert!(result.coverage_ratio > 0.0);
     }
@@ -375,7 +370,7 @@ mod tests {
                 description: "包含处理器".into(),
             },
         ];
-        let result = FeatureMatcher::compare(&features, &features);
+        let result = compare(&features, &features);
         assert_eq!(result.exact_matches.len(), 2);
         assert_eq!(result.coverage_ratio, 1.0);
         assert_eq!(result.infringement_type, Some(InfringementType::Literal));
@@ -387,7 +382,7 @@ mod tests {
             id: "p1".into(),
             description: "包含传感器模块".into(),
         }];
-        let result = FeatureMatcher::compare(&[], &prior);
+        let result = compare(&[], &prior);
         assert_eq!(result.coverage_ratio, 0.0);
         assert!(result.exact_matches.is_empty());
     }
@@ -402,7 +397,7 @@ mod tests {
             id: "p1".into(),
             description: "一种数据处理装置包含存储单元".into(),
         }];
-        let result = FeatureMatcher::compare(&target, &prior);
+        let result = compare(&target, &prior);
         assert_eq!(
             result.infringement_type,
             Some(InfringementType::DoctrineOfEquivalents)

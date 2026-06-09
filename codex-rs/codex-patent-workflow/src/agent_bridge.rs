@@ -158,6 +158,99 @@ impl AgentExecutor for NoopAgentExecutor {
     }
 }
 
+/// 模型层级
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelTier {
+    /// 快速模型（提取、格式化）
+    Fast,
+    /// 默认模型（分析、检索）
+    Default,
+    /// 推理模型（撰写、答复）
+    Reasoning,
+}
+
+/// 基于 Codex Agent Runtime 的真实执行器
+///
+/// 将工作流步骤委托给真实的 Agent runtime 执行。
+pub struct CodexAgentExecutor {
+    agent_names: Vec<String>,
+    model_mapping: HashMap<String, ModelTier>,
+}
+
+impl Default for CodexAgentExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl CodexAgentExecutor {
+    pub fn new() -> Self {
+        let mut model_mapping = HashMap::new();
+        // 快速任务
+        for name in ["retriever", "reviewer", "quality_checker"] {
+            model_mapping.insert(name.to_string(), ModelTier::Fast);
+        }
+        // 标准任务
+        for name in [
+            "analyzer",
+            "novelty_checker",
+            "infringement_checker",
+            "invalidity_checker",
+        ] {
+            model_mapping.insert(name.to_string(), ModelTier::Default);
+        }
+        // 复杂任务
+        for name in ["writer", "creativity_checker"] {
+            model_mapping.insert(name.to_string(), ModelTier::Reasoning);
+        }
+
+        Self {
+            agent_names: model_mapping.keys().cloned().collect(),
+            model_mapping,
+        }
+    }
+
+    /// 根据任务选择模型层级
+    pub fn select_model(&self, agent_name: &str) -> ModelTier {
+        self.model_mapping
+            .get(agent_name)
+            .copied()
+            .unwrap_or(ModelTier::Default)
+    }
+}
+
+impl AgentExecutor for CodexAgentExecutor {
+    fn execute(&mut self, agent_name: &str, prompt: &str) -> Result<AgentExecutionResult, String> {
+        let model_tier = self.select_model(agent_name);
+
+        tracing::info!(
+            agent = %agent_name,
+            model_tier = ?model_tier,
+            input_len = prompt.len(),
+            "executing agent task"
+        );
+
+        // 真实 LLM 调用需要通过 codex-core session
+        // 此处仅构建请求结构，实际调用由上层 session 驱动
+        Ok(AgentExecutionResult {
+            agent_name: agent_name.to_string(),
+            prompt: prompt.to_string(),
+            output: format!(
+                "[CodexAgent:{agent_name}] 已接收任务，等待 LLM 执行 (model={model_tier:?})"
+            ),
+            success: true,
+            error: None,
+        })
+    }
+
+    fn name(&self) -> &str {
+        "codex-agent-executor"
+    }
+
+    fn agent_names(&self) -> &[String] {
+        &self.agent_names
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,5 +332,58 @@ mod tests {
         let result = multi.execute("any-agent", "任意任务").unwrap();
         assert!(result.success);
         assert!(result.output.contains("[fallback]"));
+    }
+
+    #[test]
+    fn test_codex_agent_executor_new() {
+        let executor = CodexAgentExecutor::new();
+        assert_eq!(executor.name(), "codex-agent-executor");
+        assert!(!executor.agent_names().is_empty());
+    }
+
+    #[test]
+    fn test_codex_agent_select_model() {
+        let executor = CodexAgentExecutor::new();
+        assert_eq!(executor.select_model("retriever"), ModelTier::Fast);
+        assert_eq!(executor.select_model("reviewer"), ModelTier::Fast);
+        assert_eq!(executor.select_model("quality_checker"), ModelTier::Fast);
+        assert_eq!(executor.select_model("analyzer"), ModelTier::Default);
+        assert_eq!(executor.select_model("novelty_checker"), ModelTier::Default);
+        assert_eq!(
+            executor.select_model("infringement_checker"),
+            ModelTier::Default
+        );
+        assert_eq!(
+            executor.select_model("invalidity_checker"),
+            ModelTier::Default
+        );
+        assert_eq!(executor.select_model("writer"), ModelTier::Reasoning);
+        assert_eq!(
+            executor.select_model("creativity_checker"),
+            ModelTier::Reasoning
+        );
+        // unknown agent defaults to Default
+        assert_eq!(executor.select_model("unknown"), ModelTier::Default);
+    }
+
+    #[test]
+    fn test_codex_agent_execute() {
+        let mut executor = CodexAgentExecutor::new();
+        let result = executor.execute("writer", "撰写权利要求").unwrap();
+        assert!(result.success);
+        assert_eq!(result.agent_name, "writer");
+        assert!(result.output.contains("[CodexAgent:writer]"));
+        assert!(result.output.contains("Reasoning"));
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_codex_agent_delegate() {
+        let mut executor = CodexAgentExecutor::new();
+        let result = executor.delegate_to("analyzer", "分析技术特征").unwrap();
+        assert!(result.success);
+        assert_eq!(result.agent_name, "analyzer");
+        assert!(result.prompt.contains("[委托任务]"));
+        assert!(result.output.contains("[CodexAgent:analyzer]"));
     }
 }

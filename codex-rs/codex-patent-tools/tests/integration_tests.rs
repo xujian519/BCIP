@@ -1,8 +1,8 @@
 #![allow(clippy::assertions_on_constants)]
-use codex_patent_tools::advanced_analysis::AdvancedAnalysisTools;
 use codex_patent_tools::advanced_analysis::SemanticCompareInput;
 use codex_patent_tools::advanced_analysis::SuccessPredictorInput;
 use codex_patent_tools::advanced_analysis::SynergyAnalysisInput;
+use codex_patent_tools::advanced_analysis::semantic_compare as advanced_semantic_compare;
 use codex_patent_tools::analysis_tools::AnalysisTools;
 use codex_patent_tools::analysis_tools::ClaimCompareInput;
 use codex_patent_tools::analysis_tools::ClaimParseInput;

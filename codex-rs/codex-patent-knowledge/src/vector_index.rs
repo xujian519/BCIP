@@ -17,6 +17,8 @@ pub struct EmbeddedChunk {
     pub content: String,
     pub chunk_index: i64,
     pub embedding: Vec<f32>,
+    /// 领域/分类等元数据（JSON）
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// 搜索结果
@@ -24,6 +26,14 @@ pub struct EmbeddedChunk {
 pub struct ScoredChunk {
     pub chunk: EmbeddedChunk,
     pub score: f64,
+}
+
+/// 分领域搜索结果
+#[derive(Debug, Clone)]
+pub struct DomainSearchResult {
+    pub results: Vec<ScoredChunk>,
+    pub domain_filter: String,
+    pub total_before_filter: usize,
 }
 
 /// BGE-M3 语义向量索引（1024 维）
@@ -47,16 +57,29 @@ impl VectorIndex {
             })
             .map_err(|e| format!("无法读取 embedding 维度: {e}"))? as usize;
 
+        // 尝试读取 metadata 列；若表无此列则回退为 None
+        let has_metadata = conn.prepare("SELECT metadata FROM chunks LIMIT 0").is_ok();
+
+        let sql = if has_metadata {
+            "SELECT chunk_id, file_path, title, content, chunk_index, embedding, metadata \
+                 FROM chunks ORDER BY chunk_id"
+        } else {
+            "SELECT chunk_id, file_path, title, content, chunk_index, embedding \
+                 FROM chunks ORDER BY chunk_id"
+        };
         let mut stmt = conn
-            .prepare(
-                "SELECT chunk_id, file_path, title, content, chunk_index, embedding \
-                 FROM chunks ORDER BY chunk_id",
-            )
+            .prepare(sql)
             .map_err(|e| format!("prepare error: {e}"))?;
 
         let rows = stmt
             .query_map([], |row| {
                 let embed_blob: Vec<u8> = row.get(5)?;
+                let metadata = if has_metadata {
+                    row.get::<_, Option<String>>(6)?
+                        .and_then(|s| serde_json::from_str(&s).ok())
+                } else {
+                    None
+                };
                 Ok(EmbeddedChunk {
                     chunk_id: row.get(0)?,
                     file_path: row.get(1)?,
@@ -64,6 +87,7 @@ impl VectorIndex {
                     content: row.get(3)?,
                     chunk_index: row.get(4)?,
                     embedding: decode_embedding(&embed_blob),
+                    metadata,
                 })
             })
             .map_err(|e| format!("query error: {e}"))?;
@@ -170,6 +194,40 @@ impl VectorIndex {
         });
         results
     }
+
+    /// 分领域搜索（优先返回同领域结果）
+    pub fn search_by_domain(
+        &self,
+        query_embedding: &[f32],
+        domain: &str,
+        top_k: usize,
+    ) -> Vec<ScoredChunk> {
+        let all = self.search(query_embedding, top_k * 3);
+        let mut scored: Vec<_> = all
+            .into_iter()
+            .map(|chunk| {
+                let domain_boost = if chunk
+                    .chunk
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("domain"))
+                    .and_then(|d| d.as_str())
+                    .is_some_and(|d| d == domain)
+                {
+                    1.3
+                } else {
+                    1.0
+                };
+                (chunk, domain_boost)
+            })
+            .collect();
+        scored.sort_by(|a, b| {
+            (b.0.score * b.1)
+                .partial_cmp(&(a.0.score * a.1))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        scored.into_iter().take(top_k).map(|(c, _)| c).collect()
+    }
 }
 
 fn dot_product(a: &[f32], b: &[f32]) -> f32 {
@@ -185,6 +243,29 @@ fn decode_embedding(blob: &[u8]) -> Vec<f32> {
         v.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
     }
     v
+}
+
+#[cfg(test)]
+fn build_test_index(entries: Vec<(&str, Vec<f32>, Option<serde_json::Value>)>) -> VectorIndex {
+    let chunks: Vec<EmbeddedChunk> = entries
+        .into_iter()
+        .enumerate()
+        .map(|(i, (title, emb, meta))| EmbeddedChunk {
+            chunk_id: format!("chunk_{i}"),
+            file_path: format!("test_{i}.txt"),
+            title: title.to_string(),
+            content: format!("content of {title}"),
+            chunk_index: i as i64,
+            embedding: emb,
+            metadata: meta,
+        })
+        .collect();
+    let norms: Vec<f32> = chunks
+        .iter()
+        .map(|c| dot_product(&c.embedding, &c.embedding).sqrt())
+        .collect();
+    let dim = chunks.first().map(|c| c.embedding.len()).unwrap_or(0);
+    VectorIndex { chunks, norms, dim }
 }
 
 #[cfg(test)]
@@ -210,5 +291,44 @@ mod tests {
         let dot = dot_product(&v1, &v2);
         let norm = dot_product(&v1, &v1).sqrt();
         assert!((dot / (norm * norm) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_search_by_domain_boosts_matching_domain() {
+        use pretty_assertions::assert_eq;
+
+        // 两个正交向量，同领域分数略低
+        let v_pharma = vec![1.0f32, 0.0, 0.0, 0.0];
+        let v_electronics = vec![0.0f32, 1.0, 0.0, 0.0];
+        let query = vec![0.7f32, 0.7, 0.0, 0.0]; // 与两者都有相似度
+
+        let index = build_test_index(vec![
+            (
+                "电子器件",
+                v_electronics,
+                Some(serde_json::json!({"domain": "electronics"})),
+            ),
+            (
+                "药物组合物",
+                v_pharma,
+                Some(serde_json::json!({"domain": "pharma"})),
+            ),
+        ]);
+
+        // 搜索 pharma 领域：pharma 有 boost，应排第一
+        let results = index.search_by_domain(&query, "pharma", 2);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].chunk.title, "药物组合物");
+    }
+
+    #[test]
+    fn test_search_by_domain_no_metadata_no_panic() {
+        let v = vec![1.0f32, 0.0, 0.0];
+        let query = vec![1.0f32, 0.0, 0.0];
+
+        let index = build_test_index(vec![("chunk_a", v.clone(), None), ("chunk_b", v, None)]);
+
+        let results = index.search_by_domain(&query, "any_domain", 2);
+        assert_eq!(results.len(), 2);
     }
 }

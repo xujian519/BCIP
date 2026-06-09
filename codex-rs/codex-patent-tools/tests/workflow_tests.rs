@@ -57,13 +57,12 @@ fn workflow_retrieval() {
 #[test]
 fn workflow_claim_analysis() {
     // 场景: 解析权利要求并进行新颖性分析
-    use codex_patent_domain::claim_parser::ClaimParser;
+    use codex_patent_domain::claim_parser;
 
-    let parser = ClaimParser::new();
     let claim_text = "一种智能温控装置，包括温度传感器、控制器和加热元件，其特征在于，所述控制器根据温度传感器的检测值自动调节加热元件的功率。";
 
     // Step 1: 解析权利要求
-    let claim = parser.parse(1, claim_text);
+    let claim = claim_parser::parse(1, claim_text);
     assert_eq!(claim.claim_number, 1);
     assert!(!claim.features.is_empty());
     assert!(!claim.features.is_empty(), "应至少提取1个特征");
@@ -134,14 +133,12 @@ fn workflow_inventiveness_check() {
 fn workflow_infringement_analysis() {
     // 场景: 侵权分析
     use codex_patent_core::CompareFeature;
-    use codex_patent_domain::claim_parser::ClaimParser;
-    use codex_patent_domain::compare::FeatureMatcher;
+    use codex_patent_domain::claim_parser;
+    use codex_patent_domain::compare::compare;
 
-    let parser = ClaimParser::new();
     let claim_text =
         "一种折叠椅，包括座板、靠背和支撑腿，其特征在于，所述支撑腿可折叠收纳于座板底部。";
-    let claim = parser.parse(1, claim_text);
-
+    let claim = claim_parser::parse(1, claim_text);
     let target_features: Vec<CompareFeature> = claim
         .features
         .iter()
@@ -167,7 +164,7 @@ fn workflow_infringement_analysis() {
         },
     ];
 
-    let result = FeatureMatcher::compare(&target_features, &prior_features);
+    let result = compare(&target_features, &prior_features);
     println!(
         "侵权分析: 覆盖率 {:.2}, 精确匹配 {} 个, 等同匹配 {} 个",
         result.coverage_ratio,
@@ -262,9 +259,11 @@ fn workflow_full_pipeline() {
     assert!(!results.is_empty(), "Step1: 搜索失败");
 
     // Step 2: 权利要求解析
-    use codex_patent_domain::claim_parser::ClaimParser;
-    let parser = ClaimParser::new();
-    let claim = parser.parse(1, "一种电池管理系统，包括电压检测模块、温度检测模块和均衡控制模块，其特征在于，所述均衡控制模块根据电压和温度的综合参数进行主动均衡。");
+    use codex_patent_domain::claim_parser;
+    let claim = claim_parser::parse(
+        1,
+        "一种电池管理系统，包括电压检测模块、温度检测模块和均衡控制模块，其特征在于，所述均衡控制模块根据电压和温度的综合参数进行主动均衡。",
+    );
     assert!(!claim.features.is_empty(), "Step2: 解析失败");
 
     // Step 3: 新颖性分析

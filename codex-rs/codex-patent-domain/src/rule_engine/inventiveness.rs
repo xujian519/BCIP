@@ -2,7 +2,7 @@ use codex_patent_core::CombinationType;
 use codex_patent_core::CompareFeature;
 use codex_patent_core::InventionType;
 
-use crate::compare::FeatureMatcher;
+use crate::compare::compare;
 
 use super::Rule;
 use super::RuleOutput;
@@ -30,7 +30,7 @@ pub(super) fn build_inventiveness_rules() -> Vec<Rule> {
                             description: f.description.clone(),
                         })
                         .collect();
-                    let result = FeatureMatcher::compare(&target, &prior_feats);
+                    let result = compare(&target, &prior_feats);
                     let dist_count =
                         result.different_features.len() + result.missing_features.len();
                     let coverage = result.coverage_ratio;

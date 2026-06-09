@@ -57,9 +57,6 @@ pub struct ObjectionTemplate {
     pub description: String,
 }
 
-/// 论证模式库
-pub struct ArgumentationLibrary;
-
 /// 多轮论证对话
 pub struct ArgumentationDialog {
     pub rounds: Vec<ArgumentationRound>,

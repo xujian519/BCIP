@@ -21,6 +21,30 @@ pub enum WorkflowType {
     PlanPlusHitl,
 }
 
+/// 目标法域。
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Jurisdiction {
+    #[default]
+    CN,
+    US,
+    EP,
+    JP,
+    KR,
+    PCT,
+}
+
+/// 任务优先级。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskPriority {
+    #[default]
+    Normal,
+    Low,
+    High,
+    Urgent,
+}
+
 /// 路由提示 — 从 Router 层注入的决策信息。
 ///
 /// 由上层（cli/runtime）在调用 Orchestrator 时注入，
@@ -39,6 +63,14 @@ pub struct RoutingHint {
     pub suggested_agents: Vec<String>,
     #[serde(default)]
     pub reasoning: String,
+    #[serde(default)]
+    pub target_jurisdiction: Option<Jurisdiction>,
+    #[serde(default)]
+    pub estimated_steps: Option<usize>,
+    #[serde(default)]
+    pub requires_human_review: bool,
+    #[serde(default)]
+    pub priority: TaskPriority,
 }
 
 fn default_complexity() -> String {
@@ -54,6 +86,10 @@ impl Default for RoutingHint {
             suggested_tools: vec![],
             suggested_agents: vec![],
             reasoning: String::new(),
+            target_jurisdiction: None,
+            estimated_steps: None,
+            requires_human_review: false,
+            priority: TaskPriority::Normal,
         }
     }
 }
@@ -462,5 +498,66 @@ mod tests {
         assert_eq!(graph.edges.len(), 1);
         assert_eq!(graph.edges[0].from, "search");
         assert_eq!(graph.edges[0].to, "analyze");
+    }
+
+    #[test]
+    fn test_routing_hint_default_new_fields() {
+        let hint = RoutingHint::default();
+        assert_eq!(hint.target_jurisdiction, None);
+        assert_eq!(hint.estimated_steps, None);
+        assert!(!hint.requires_human_review);
+        assert_eq!(hint.priority, TaskPriority::Normal);
+    }
+    #[test]
+    fn test_routing_hint_with_jurisdiction() {
+        let hint = RoutingHint {
+            target_jurisdiction: Some(Jurisdiction::US),
+            estimated_steps: Some(5),
+            requires_human_review: true,
+            priority: TaskPriority::High,
+            ..Default::default()
+        };
+        assert_eq!(hint.target_jurisdiction, Some(Jurisdiction::US));
+        assert_eq!(hint.estimated_steps, Some(5));
+        assert!(hint.requires_human_review);
+        assert_eq!(hint.priority, TaskPriority::High);
+    }
+    #[test]
+    fn test_jurisdiction_default_is_cn() {
+        assert_eq!(Jurisdiction::default(), Jurisdiction::CN);
+    }
+    #[test]
+    fn test_task_priority_default_is_normal() {
+        assert_eq!(TaskPriority::default(), TaskPriority::Normal);
+    }
+    #[test]
+    fn test_jurisdiction_serde_roundtrip() {
+        let json = serde_json::to_string(&Jurisdiction::EP).unwrap();
+        assert_eq!(json, "\"e_p\"");
+        let parsed: Jurisdiction = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, Jurisdiction::EP);
+    }
+    #[test]
+    fn test_task_priority_serde_roundtrip() {
+        let json = serde_json::to_string(&TaskPriority::Urgent).unwrap();
+        assert_eq!(json, "\"urgent\"");
+        let parsed: TaskPriority = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, TaskPriority::Urgent);
+    }
+    #[test]
+    fn test_routing_hint_serde_with_new_fields() {
+        let hint = RoutingHint {
+            target_jurisdiction: Some(Jurisdiction::JP),
+            estimated_steps: Some(3),
+            requires_human_review: true,
+            priority: TaskPriority::Low,
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&hint).unwrap();
+        let parsed: RoutingHint = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.target_jurisdiction, Some(Jurisdiction::JP));
+        assert_eq!(parsed.estimated_steps, Some(3));
+        assert!(parsed.requires_human_review);
+        assert_eq!(parsed.priority, TaskPriority::Low);
     }
 }

@@ -8,18 +8,23 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::sync::LazyLock;
 
-static RE_LINK: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>"#).unwrap());
-static RE_ABSTRACT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"摘要.*?[：:]\s*(.*?)(?:主权项|申请日)").unwrap());
-static RE_FIELD_PUB_NUM: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"公开号\s*[：:]\s*([^<\n]+)").unwrap());
-static RE_FIELD_APP_NUM: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"申请号\s*[：:]\s*([^<\n]+)").unwrap());
-static RE_FIELD_APPLICANT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"申请人\s*[：:]\s*([^<\n]+)").unwrap());
+static RE_LINK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"<a[^>]*href="([^"]*)"[^>]*>([^<]*)</a>"#).expect("invalid regex: RE_LINK")
+});
+static RE_ABSTRACT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"摘要.*?[：:]\s*(.*?)(?:主权项|申请日)").expect("invalid regex: RE_ABSTRACT")
+});
+static RE_FIELD_PUB_NUM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"公开号\s*[：:]\s*([^<\n]+)").expect("invalid regex: RE_FIELD_PUB_NUM")
+});
+static RE_FIELD_APP_NUM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"申请号\s*[：:]\s*([^<\n]+)").expect("invalid regex: RE_FIELD_APP_NUM")
+});
+static RE_FIELD_APPLICANT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"申请人\s*[：:]\s*([^<\n]+)").expect("invalid regex: RE_FIELD_APPLICANT")
+});
 static RE_FIELD_IPC: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"IPC\s*[：:]\s*([^<\n]+)").unwrap());
+    LazyLock::new(|| Regex::new(r"IPC\s*[：:]\s*([^<\n]+)").expect("invalid regex: RE_FIELD_IPC"));
 
 /// CNIPA 搜索结果
 #[derive(Debug, Clone, Serialize, Deserialize)]

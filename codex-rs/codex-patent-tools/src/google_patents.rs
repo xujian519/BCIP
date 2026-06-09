@@ -145,7 +145,7 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
         if results.len() >= limit {
             break;
         }
-        let m = cap.get(0).expect("capture 组 0 应始终存在（完整匹配）");
+        let m = cap.get(0).expect("group 0 guaranteed by captures()");
         let pn = m.as_str().to_string();
         if !seen.insert(pn.clone()) {
             continue;
@@ -155,10 +155,10 @@ fn parse_patent_results(html: &str, limit: usize) -> Result<Vec<PatentResult>, S
         let block = block_re
             .captures_iter(html)
             .find(|b| {
-                let full = b.get(0).expect("capture 组 0 应始终存在（完整匹配）");
+                let full = b.get(0).expect("group 0 guaranteed by captures()");
                 full.start() <= m.start() && m.end() <= full.end()
             })
-            .map(|b| b.get(1).expect("块内容捕获组应存在").as_str())
+            .map(|b| b.get(1).map(|m| m.as_str()).unwrap_or(""))
             .unwrap_or(html);
 
         let title = extract_title(block);
@@ -185,14 +185,14 @@ fn extract_title(block: &str) -> String {
         Regex::new(r"(?i)<h3[^>]*>.*?<a[^>]*>(.*?)</a>").expect("regex: H3_RE 静态字符串")
     });
     if let Some(cap) = h3_re.captures(block) {
-        return clean_html_text(cap.get(1).expect("h3 标题捕获组应存在").as_str());
+        return clean_html_text(cap.get(1).map(|m| m.as_str()).unwrap_or(""));
     }
     let re = TITLE_RE.get_or_init(|| {
         Regex::new(r#"(?is)class="[^"]*title[^"]*"[^>]*>(.*?)<"#)
             .expect("regex: TITLE_RE 静态字符串")
     });
     if let Some(cap) = re.captures(block) {
-        return clean_html_text(cap.get(1).expect("title 类内容捕获组应存在").as_str());
+        return clean_html_text(cap.get(1).map(|m| m.as_str()).unwrap_or(""));
     }
     String::new()
 }
@@ -205,14 +205,14 @@ fn extract_abstract(segment: &str) -> String {
             .expect("regex: ABSTRACT_RE 静态字符串")
     });
     if let Some(cap) = re.captures(segment) {
-        return clean_html_text(cap.get(1).expect("abstract 类内容捕获组应存在").as_str());
+        return clean_html_text(cap.get(1).map(|m| m.as_str()).unwrap_or(""));
     }
     let re2 = SNIPPET_RE.get_or_init(|| {
         Regex::new(r#"(?is)class="[^"]*snippet[^"]*"[^>]*>(.*?)<"#)
             .expect("regex: SNIPPET_RE 静态字符串")
     });
     if let Some(cap) = re2.captures(segment) {
-        return clean_html_text(cap.get(1).expect("snippet 类内容捕获组应存在").as_str());
+        return clean_html_text(cap.get(1).map(|m| m.as_str()).unwrap_or(""));
     }
     String::new()
 }
@@ -224,7 +224,7 @@ fn extract_assignee(segment: &str) -> Option<String> {
             .expect("regex: ASSIGNEE_RE 静态字符串")
     });
     re.captures(segment)
-        .map(|cap| clean_html_text(cap.get(1).expect("assignee 类内容捕获组应存在").as_str()))
+        .map(|cap| clean_html_text(cap.get(1).map(|m| m.as_str()).unwrap_or("")))
         .filter(|s| !s.is_empty())
 }
 
@@ -233,13 +233,11 @@ fn extract_date(segment: &str) -> Option<String> {
     let re = DATE_RE.get_or_init(|| {
         Regex::new(r"\b(\d{4})-(\d{2})-(\d{2})\b").expect("regex: DATE_RE 静态字符串")
     });
-    re.captures(segment).map(|cap| {
-        format!(
-            "{}-{}-{}",
-            cap.get(1).expect("日期-年捕获组应存在").as_str(),
-            cap.get(2).expect("日期-月捕获组应存在").as_str(),
-            cap.get(3).expect("日期-日捕获组应存在").as_str()
-        )
+    re.captures(segment).and_then(|cap| {
+        let y = cap.get(1)?.as_str();
+        let m = cap.get(2)?.as_str();
+        let d = cap.get(3)?.as_str();
+        Some(format!("{y}-{m}-{d}"))
     })
 }
 
@@ -298,7 +296,18 @@ pub async fn download_patent(input: PatentDownloadInput) -> Result<String, Strin
     let dir = std::env::var("BCIP_DOWNLOAD_DIR")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
     let _ = std::fs::create_dir_all(&dir);
-    let filename = format!("{}/{}.pdf", dir, input.patent_number);
+    let safe_name: String = input
+        .patent_number
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-')
+        .collect();
+    if safe_name.is_empty() {
+        return Err(format!("invalid patent number: {}", input.patent_number));
+    }
+    let filename = std::path::Path::new(&dir)
+        .join(format!("{safe_name}.pdf"))
+        .to_string_lossy()
+        .to_string();
     tokio::fs::write(&filename, &bytes)
         .await
         .map_err(|e| format!("write: {e}"))?;

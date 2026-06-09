@@ -1,5 +1,6 @@
 pub mod types;
 
+use codex_patent_core::error::PatentError;
 pub use types::*;
 
 // ── LiteParse singleton (feature-gated) ────────────────────────────────
@@ -30,383 +31,382 @@ fn shared_liteparse() -> &'static liteparse::LiteParse {
     })
 }
 
-// ── DocumentTools implementation ───────────────────────────────────────
+// ── Document tool functions ────────────────────────────────────────────
 
-pub struct DocumentTools;
+pub fn docx_tools(input: DocxInput) -> Result<serde_json::Value, PatentError> {
+    let markdown = &input.markdown;
+    if markdown.is_empty() {
+        return Err(PatentError::Validation("markdown 内容不能为空".into()));
+    }
 
-impl DocumentTools {
-    pub fn docx_tools(input: DocxInput) -> Result<serde_json::Value, String> {
-        let markdown = &input.markdown;
-        if markdown.is_empty() {
-            return Err("markdown 内容不能为空".to_string());
-        }
+    // 将 Markdown 段落转为简单文本段落
+    let paragraphs: Vec<&str> = markdown.lines().filter(|l| !l.trim().is_empty()).collect();
 
-        // 将 Markdown 段落转为简单文本段落
-        let paragraphs: Vec<&str> = markdown.lines().filter(|l| !l.trim().is_empty()).collect();
+    if paragraphs.is_empty() {
+        return Err(PatentError::Validation("解析后无有效段落".into()));
+    }
 
-        if paragraphs.is_empty() {
-            return Err("解析后无有效段落".to_string());
-        }
+    let output_path = input
+        .output_path
+        .clone()
+        .unwrap_or_else(|| "output.docx".into());
 
-        let output_path = input
-            .output_path
-            .clone()
-            .unwrap_or_else(|| "output.docx".into());
+    // 生成简化的 DOCX XML 内容
+    let mut body_xml = String::new();
+    for para in &paragraphs {
+        let is_heading = para.starts_with("# ");
+        let text = if is_heading { &para[2..] } else { para };
+        let text_escaped = text
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;");
 
-        // 生成简化的 DOCX XML 内容
-        let mut body_xml = String::new();
-        for para in &paragraphs {
-            let is_heading = para.starts_with("# ");
-            let text = if is_heading { &para[2..] } else { para };
-            let text_escaped = text
-                .replace('&', "&amp;")
-                .replace('<', "&lt;")
-                .replace('>', "&gt;");
+        let ppr = if is_heading {
+            r#"<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>"#
+        } else {
+            r#"<w:pPr><w:pStyle w:val="Normal"/></w:pPr>"#
+        };
 
-            let ppr = if is_heading {
-                r#"<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>"#
-            } else {
-                r#"<w:pPr><w:pStyle w:val="Normal"/></w:pPr>"#
-            };
+        let font_size = if is_heading { "28" } else { "21" };
+        body_xml.push_str(&format!(
+            r#"<w:p>{}<w:r><w:rPr><w:sz w:val="{}"/><w:szCs w:val="{}"/></w:rPr><w:t xml:space="preserve">{}</w:t></w:r></w:p>"#,
+            ppr, font_size, font_size, text_escaped
+        ));
+    }
 
-            let font_size = if is_heading { "28" } else { "21" };
-            body_xml.push_str(&format!(
-                r#"<w:p>{}<w:r><w:rPr><w:sz w:val="{}"/><w:szCs w:val="{}"/></w:rPr><w:t xml:space="preserve">{}</w:t></w:r></w:p>"#,
-                ppr, font_size, font_size, text_escaped
-            ));
-        }
-
-        let content_types = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let content_types = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 </Types>"#;
 
-        let rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let rels = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>"#;
 
-        let document_xml = format!(
-            r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    let document_xml = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>{}</w:body>
 </w:document>"#,
-            body_xml
-        );
+        body_xml
+    );
 
-        let docx_bytes = build_minimal_docx(content_types, rels, &document_xml)
-            .map_err(|e| format!("DOCX 生成失败: {e}"))?;
+    let docx_bytes = build_minimal_docx(content_types, rels, &document_xml)?;
 
-        // 写入文件
-        let dir = std::path::Path::new(&output_path)
+    // 写入文件
+    let dir = std::path::Path::new(&output_path)
+        .parent()
+        .unwrap_or(std::path::Path::new("."));
+    std::fs::create_dir_all(dir).ok();
+    std::fs::write(&output_path, &docx_bytes)?;
+
+    let word_count = markdown.chars().count();
+    Ok(serde_json::json!({
+        "output_path": output_path,
+        "word_count": word_count,
+        "paragraph_count": paragraphs.len(),
+        "template": input.template.unwrap_or_else(|| "default".into()),
+    }))
+}
+
+pub fn markdown_parser(input: MarkdownInput) -> Result<serde_json::Value, PatentError> {
+    let stats = codex_patent_text::text_stats(&input.text);
+    Ok(serde_json::json!({
+        "stats": {
+            "chars": stats.char_count,
+            "words": stats.word_count,
+            "cjk_chars": stats.cjk_char_count,
+            "lines": stats.line_count,
+        },
+        "format_options": input.format_options,
+    }))
+}
+
+/// Read a local text file and return its content.
+pub fn read_file(input: ReadFileInput) -> Result<serde_json::Value, PatentError> {
+    let path = std::path::Path::new(&input.file_path);
+    if !path.exists() {
+        return Err(PatentError::NotFound(format!(
+            "文件不存在: {}",
+            input.file_path
+        )));
+    }
+    if !path.is_file() {
+        return Err(PatentError::Validation(format!(
+            "路径不是文件: {}",
+            input.file_path
+        )));
+    }
+
+    // Security: block sensitive paths
+    check_path_security(path)?;
+
+    // File size pre-check to avoid OOM
+    const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024; // 100 MB
+    let file_size = std::fs::metadata(path).map_err(PatentError::Io)?.len();
+    if file_size > MAX_FILE_BYTES {
+        return Err(PatentError::Validation(format!(
+            "文件过大（{} MB），超过最大限制（100 MB）",
+            file_size / (1024 * 1024)
+        )));
+    }
+
+    // Determine if we need binary detection based on extension
+    const TEXT_EXTENSIONS: &[&str] = &[
+        "md",
+        "txt",
+        "csv",
+        "tsv",
+        "json",
+        "xml",
+        "yaml",
+        "yml",
+        "toml",
+        "ini",
+        "cfg",
+        "conf",
+        "log",
+        "rs",
+        "py",
+        "js",
+        "ts",
+        "tsx",
+        "jsx",
+        "html",
+        "htm",
+        "css",
+        "scss",
+        "less",
+        "sh",
+        "bash",
+        "zsh",
+        "sql",
+        "gitignore",
+        "env",
+        "properties",
+        "gradle",
+        "cmake",
+        "makefile",
+        "dockerfile",
+        "r",
+        "go",
+        "java",
+        "kt",
+        "swift",
+        "c",
+        "cpp",
+        "h",
+        "hpp",
+        "rb",
+        "php",
+        "lua",
+        "pl",
+        "ex",
+        "exs",
+        "erl",
+        "clj",
+        "vue",
+        "svelte",
+        "graphql",
+        "proto",
+        "tf",
+        "hcl",
+    ];
+    // Common filenames without extension that are always text
+    const TEXT_FILENAMES: &[&str] = &[
+        "Makefile",
+        "Dockerfile",
+        "Vagrantfile",
+        "Gemfile",
+        "Rakefile",
+        "Cargo.toml",
+        "Cargo.lock",
+        "go.mod",
+        "go.sum",
+        "requirements.txt",
+    ];
+
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+    let is_text_ext = TEXT_EXTENSIONS.contains(&ext.as_str());
+    let is_text_filename = TEXT_FILENAMES.contains(&filename);
+    // Files with no extension (not dotfiles like .gitignore which have extension "gitignore")
+    let no_ext = path.extension().is_none() && !filename.starts_with('.');
+    // Dotfiles like .gitignore — extension() returns Some("gitignore") which is in TEXT_EXTENSIONS
+    let is_dotfile_with_known_ext = filename.starts_with('.') && is_text_ext;
+
+    let needs_binary_check =
+        !is_text_ext && !is_text_filename && !no_ext && !is_dotfile_with_known_ext;
+
+    if needs_binary_check {
+        // Read only the first 8KB for binary detection (not the whole file)
+        let file = std::fs::File::open(path).map_err(PatentError::Io)?;
+        let mut buf = [0u8; 8192];
+        let bytes_read = std::io::Read::read(&mut std::io::BufReader::new(file), &mut buf)
+            .map_err(PatentError::Io)?;
+        if buf[..bytes_read].contains(&0) {
+            return Err(PatentError::Validation(format!(
+                "文件 {} 看起来是二进制文件，请使用 DocumentParser 工具处理",
+                input.file_path
+            )));
+        }
+    }
+
+    let content = std::fs::read_to_string(path).map_err(PatentError::Io)?;
+
+    let max_chars = input.max_chars.unwrap_or(500_000);
+    let original_char_count = content.chars().count();
+    let truncated = original_char_count > max_chars;
+    let content = if truncated {
+        let mut s: String = content.chars().take(max_chars).collect();
+        s.push_str(&format!(
+            "\n\n[... 内容已截断，原始文件共 {} 字符 ...]",
+            original_char_count
+        ));
+        s
+    } else {
+        content
+    };
+
+    let stats = codex_patent_text::text_stats(&content);
+    Ok(serde_json::json!({
+        "tool": "ReadFile",
+        "file_path": input.file_path,
+        "content": content,
+        "stats": {
+            "chars": stats.char_count,
+            "words": stats.word_count,
+            "cjk_chars": stats.cjk_char_count,
+            "lines": stats.line_count,
+        },
+        "truncated": truncated,
+    }))
+}
+
+/// Check if the path is safe to read. Blocks sensitive system/user paths.
+fn check_path_security(path: &std::path::Path) -> Result<(), PatentError> {
+    // Block well-known sensitive directories
+    const BLOCKED_PREFIXES: &[&str] = &["/etc/passwd", "/etc/shadow", "/etc/ssh", "/.ssh/"];
+    let path_str = path.to_string_lossy();
+    // Also check the canonical (resolved) path to catch symlinks
+    let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let canonical_str = canonical.to_string_lossy();
+
+    for blocked in BLOCKED_PREFIXES {
+        if path_str.contains(blocked) || canonical_str.contains(blocked) {
+            return Err(PatentError::Validation(format!(
+                "出于安全考虑，不允许读取该路径: {}",
+                path.display()
+            )));
+        }
+    }
+    // Block home-directory sensitive folders
+    if let Some(home) = dirs::home_dir() {
+        let sensitive = [".ssh", ".gnupg", ".aws", ".kube"];
+        for s in &sensitive {
+            let sensitive_path = home.join(s);
+            if canonical.starts_with(&sensitive_path) {
+                return Err(PatentError::Validation(format!(
+                    "出于安全考虑，不允许读取 {} 目录",
+                    sensitive_path.display()
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn template_library(input: TemplateInput) -> Result<serde_json::Value, PatentError> {
+    let templates: std::collections::HashMap<&str, (&str, &str)> = [
+        (
+            "oa_response",
+            ("审查意见答复模板", "一、修改说明\n二、意见陈述\n三、结论"),
+        ),
+        (
+            "claims",
+            (
+                "权利要求书模板",
+                "1. 一种……，其特征在于，……\n2. 根据权利要求1所述的……",
+            ),
+        ),
+        (
+            "specification",
+            (
+                "说明书模板",
+                "技术领域\n背景技术\n发明内容\n附图说明\n具体实施方式",
+            ),
+        ),
+        ("abstract", ("摘要模板", "本发明公开了一种……")),
+        (
+            "invalidation",
+            (
+                "无效宣告请求书模板",
+                "一、请求人信息\n二、事实与理由\n三、证据清单",
+            ),
+        ),
+    ]
+    .into();
+    let (name, structure) = templates
+        .get(input.template_id.as_str())
+        .copied()
+        .unwrap_or(("通用模板", ""));
+    let rendered = if let Some(ref vars) = input.variables {
+        let mut result = structure.to_string();
+        for (k, v) in vars {
+            result = result.replace(&format!("{{{{{}}}}}", k), v);
+        }
+        result
+    } else {
+        structure.to_string()
+    };
+    Ok(serde_json::json!({"template_name": name, "structure": rendered}))
+}
+
+pub fn export_tool(input: ExportInput) -> Result<serde_json::Value, PatentError> {
+    let content_str = match &input.content {
+        serde_json::Value::String(s) => s.clone(),
+        other => other.to_string(),
+    };
+    if content_str.trim().is_empty() {
+        return Err(PatentError::Validation("导出内容不能为空".into()));
+    }
+
+    let rendered = match input.export_type.as_str() {
+        "claims" => format_claims_document(&input.content),
+        "oa_response" => format_oa_response(&input.content),
+        "specification" => format_specification(&input.content),
+        "analysis_report" => format_analysis_report(&input.content),
+        _ => {
+            return Err(PatentError::Validation(format!(
+                "未知导出类型: {}，支持 claims/oa_response/specification/analysis_report",
+                input.export_type
+            )));
+        }
+    };
+
+    // 如果指定了 output_path，写入文件
+    if let Some(ref path) = input.output_path {
+        let dir = std::path::Path::new(path)
             .parent()
             .unwrap_or(std::path::Path::new("."));
         std::fs::create_dir_all(dir).ok();
-        std::fs::write(&output_path, &docx_bytes).map_err(|e| format!("写入文件失败: {e}"))?;
-
-        let word_count = markdown.chars().count();
-        Ok(serde_json::json!({
-            "output_path": output_path,
-            "word_count": word_count,
-            "paragraph_count": paragraphs.len(),
-            "template": input.template.unwrap_or_else(|| "default".into()),
-        }))
+        std::fs::write(path, &rendered)?;
     }
 
-    pub fn markdown_parser(input: MarkdownInput) -> Result<serde_json::Value, String> {
-        let stats = codex_patent_text::text_stats(&input.text);
-        Ok(serde_json::json!({
-            "stats": {
-                "chars": stats.char_count,
-                "words": stats.word_count,
-                "cjk_chars": stats.cjk_char_count,
-                "lines": stats.line_count,
-            },
-            "format_options": input.format_options,
-        }))
-    }
-
-    /// Read a local text file and return its content.
-    pub fn read_file(input: ReadFileInput) -> Result<serde_json::Value, String> {
-        let path = std::path::Path::new(&input.file_path);
-        if !path.exists() {
-            return Err(format!("文件不存在: {}", input.file_path));
-        }
-        if !path.is_file() {
-            return Err(format!("路径不是文件: {}", input.file_path));
-        }
-
-        // Security: block sensitive paths
-        Self::check_path_security(path)?;
-
-        // File size pre-check to avoid OOM
-        const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024; // 100 MB
-        let file_size = std::fs::metadata(path)
-            .map_err(|e| format!("读取文件元数据失败: {e}"))?
-            .len();
-        if file_size > MAX_FILE_BYTES {
-            return Err(format!(
-                "文件过大（{} MB），超过最大限制（100 MB）",
-                file_size / (1024 * 1024)
-            ));
-        }
-
-        // Determine if we need binary detection based on extension
-        const TEXT_EXTENSIONS: &[&str] = &[
-            "md",
-            "txt",
-            "csv",
-            "tsv",
-            "json",
-            "xml",
-            "yaml",
-            "yml",
-            "toml",
-            "ini",
-            "cfg",
-            "conf",
-            "log",
-            "rs",
-            "py",
-            "js",
-            "ts",
-            "tsx",
-            "jsx",
-            "html",
-            "htm",
-            "css",
-            "scss",
-            "less",
-            "sh",
-            "bash",
-            "zsh",
-            "sql",
-            "gitignore",
-            "env",
-            "properties",
-            "gradle",
-            "cmake",
-            "makefile",
-            "dockerfile",
-            "r",
-            "go",
-            "java",
-            "kt",
-            "swift",
-            "c",
-            "cpp",
-            "h",
-            "hpp",
-            "rb",
-            "php",
-            "lua",
-            "pl",
-            "ex",
-            "exs",
-            "erl",
-            "clj",
-            "vue",
-            "svelte",
-            "graphql",
-            "proto",
-            "tf",
-            "hcl",
-        ];
-        // Common filenames without extension that are always text
-        const TEXT_FILENAMES: &[&str] = &[
-            "Makefile",
-            "Dockerfile",
-            "Vagrantfile",
-            "Gemfile",
-            "Rakefile",
-            "Cargo.toml",
-            "Cargo.lock",
-            "go.mod",
-            "go.sum",
-            "requirements.txt",
-        ];
-
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-        let is_text_ext = TEXT_EXTENSIONS.contains(&ext.as_str());
-        let is_text_filename = TEXT_FILENAMES.contains(&filename);
-        // Files with no extension (not dotfiles like .gitignore which have extension "gitignore")
-        let no_ext = path.extension().is_none() && !filename.starts_with('.');
-        // Dotfiles like .gitignore — extension() returns Some("gitignore") which is in TEXT_EXTENSIONS
-        let is_dotfile_with_known_ext = filename.starts_with('.') && is_text_ext;
-
-        let needs_binary_check =
-            !is_text_ext && !is_text_filename && !no_ext && !is_dotfile_with_known_ext;
-
-        if needs_binary_check {
-            // Read only the first 8KB for binary detection (not the whole file)
-            let file = std::fs::File::open(path).map_err(|e| format!("读取文件失败: {e}"))?;
-            let mut buf = [0u8; 8192];
-            let bytes_read = std::io::Read::read(&mut std::io::BufReader::new(file), &mut buf)
-                .map_err(|e| format!("读取文件失败: {e}"))?;
-            if buf[..bytes_read].contains(&0) {
-                return Err(format!(
-                    "文件 {} 看起来是二进制文件，请使用 DocumentParser 工具处理",
-                    input.file_path
-                ));
-            }
-        }
-
-        let content = std::fs::read_to_string(path).map_err(|e| format!("读取文件失败: {e}"))?;
-
-        let max_chars = input.max_chars.unwrap_or(500_000);
-        let original_char_count = content.chars().count();
-        let truncated = original_char_count > max_chars;
-        let content = if truncated {
-            let mut s: String = content.chars().take(max_chars).collect();
-            s.push_str(&format!(
-                "\n\n[... 内容已截断，原始文件共 {} 字符 ...]",
-                original_char_count
-            ));
-            s
-        } else {
-            content
-        };
-
-        let stats = codex_patent_text::text_stats(&content);
-        Ok(serde_json::json!({
-            "tool": "ReadFile",
-            "file_path": input.file_path,
-            "content": content,
-            "stats": {
-                "chars": stats.char_count,
-                "words": stats.word_count,
-                "cjk_chars": stats.cjk_char_count,
-                "lines": stats.line_count,
-            },
-            "truncated": truncated,
-        }))
-    }
-
-    /// Check if the path is safe to read. Blocks sensitive system/user paths.
-    fn check_path_security(path: &std::path::Path) -> Result<(), String> {
-        // Block well-known sensitive directories
-        const BLOCKED_PREFIXES: &[&str] = &["/etc/passwd", "/etc/shadow", "/etc/ssh", "/.ssh/"];
-        let path_str = path.to_string_lossy();
-        // Also check the canonical (resolved) path to catch symlinks
-        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-        let canonical_str = canonical.to_string_lossy();
-
-        for blocked in BLOCKED_PREFIXES {
-            if path_str.contains(blocked) || canonical_str.contains(blocked) {
-                return Err(format!(
-                    "出于安全考虑，不允许读取该路径: {}",
-                    path.display()
-                ));
-            }
-        }
-        // Block home-directory sensitive folders
-        if let Some(home) = dirs::home_dir() {
-            let sensitive = [".ssh", ".gnupg", ".aws", ".kube"];
-            for s in &sensitive {
-                let sensitive_path = home.join(s);
-                if canonical.starts_with(&sensitive_path) {
-                    return Err(format!(
-                        "出于安全考虑，不允许读取 {} 目录",
-                        sensitive_path.display()
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    pub fn template_library(input: TemplateInput) -> Result<serde_json::Value, String> {
-        let templates: std::collections::HashMap<&str, (&str, &str)> = [
-            (
-                "oa_response",
-                ("审查意见答复模板", "一、修改说明\n二、意见陈述\n三、结论"),
-            ),
-            (
-                "claims",
-                (
-                    "权利要求书模板",
-                    "1. 一种……，其特征在于，……\n2. 根据权利要求1所述的……",
-                ),
-            ),
-            (
-                "specification",
-                (
-                    "说明书模板",
-                    "技术领域\n背景技术\n发明内容\n附图说明\n具体实施方式",
-                ),
-            ),
-            ("abstract", ("摘要模板", "本发明公开了一种……")),
-            (
-                "invalidation",
-                (
-                    "无效宣告请求书模板",
-                    "一、请求人信息\n二、事实与理由\n三、证据清单",
-                ),
-            ),
-        ]
-        .into();
-        let (name, structure) = templates
-            .get(input.template_id.as_str())
-            .copied()
-            .unwrap_or(("通用模板", ""));
-        let rendered = if let Some(ref vars) = input.variables {
-            let mut result = structure.to_string();
-            for (k, v) in vars {
-                result = result.replace(&format!("{{{{{}}}}}", k), v);
-            }
-            result
-        } else {
-            structure.to_string()
-        };
-        Ok(serde_json::json!({"template_name": name, "structure": rendered}))
-    }
-
-    pub fn export_tool(input: ExportInput) -> Result<serde_json::Value, String> {
-        let content_str = match &input.content {
-            serde_json::Value::String(s) => s.clone(),
-            other => other.to_string(),
-        };
-        if content_str.trim().is_empty() {
-            return Err("导出内容不能为空".to_string());
-        }
-
-        let rendered = match input.export_type.as_str() {
-            "claims" => format_claims_document(&input.content),
-            "oa_response" => format_oa_response(&input.content),
-            "specification" => format_specification(&input.content),
-            "analysis_report" => format_analysis_report(&input.content),
-            _ => {
-                return Err(format!(
-                    "未知导出类型: {}，支持 claims/oa_response/specification/analysis_report",
-                    input.export_type
-                ));
-            }
-        };
-
-        // 如果指定了 output_path，写入文件
-        if let Some(ref path) = input.output_path {
-            let dir = std::path::Path::new(path)
-                .parent()
-                .unwrap_or(std::path::Path::new("."));
-            std::fs::create_dir_all(dir).ok();
-            std::fs::write(path, &rendered).map_err(|e| format!("写入文件失败: {e}"))?;
-        }
-
-        Ok(serde_json::json!({
-            "export_type": input.export_type,
-            "output_path": input.output_path,
-            "content_length": rendered.len(),
-            "content": rendered.chars().take(2000).collect::<String>(),
-        }))
-    }
+    Ok(serde_json::json!({
+        "export_type": input.export_type,
+        "output_path": input.output_path,
+        "content_length": rendered.len(),
+        "content": rendered.chars().take(2000).collect::<String>(),
+    }))
 }
 
 // ── Export format helpers ──────────────────────────────────────────────
@@ -535,269 +535,271 @@ fn format_as_markdown(
 }
 
 #[cfg(feature = "document-pdf")]
-impl DocumentTools {
-    pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, String> {
-        let file_path = input
-            .file_path
-            .as_deref()
-            .ok_or_else(|| "file_path is required".to_string())?;
+pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, PatentError> {
+    let file_path = input
+        .file_path
+        .as_deref()
+        .ok_or_else(|| PatentError::Validation("file_path is required".into()))?;
 
-        let mut config = shared_liteparse().config().clone();
-        if let Some(ref pages) = input.pages {
-            config.target_pages = Some(pages.clone());
-        }
-        if let Some(ocr) = input.ocr_enabled {
-            config.ocr_enabled = ocr;
-        }
-        if let Some(ref lang) = input.ocr_language {
-            config.ocr_language = lang.clone();
-        }
-
-        let lp = liteparse::LiteParse::new(config);
-        let result = lp
-            .parse(file_path)
-            .await
-            .map_err(|e| format!("PDF parse error: {e}"))?;
-
-        match input.operation.as_str() {
-            "extract_text" => Ok(serde_json::json!({
-                "operation": "extract_text",
-                "text": result.text,
-                "page_count": result.pages.len(),
-            })),
-            "parse_with_layout" => {
-                let pages: Vec<serde_json::Value> = result
-                    .pages
-                    .iter()
-                    .map(|p| {
-                        let items: Vec<serde_json::Value> = p
-                            .text_items
-                            .iter()
-                            .map(|ti| {
-                                serde_json::json!({
-                                    "text": ti.text,
-                                    "x": ti.x,
-                                    "y": ti.y,
-                                    "width": ti.width,
-                                    "height": ti.height,
-                                    "font_size": ti.font_size,
-                                })
-                            })
-                            .collect();
-                        serde_json::json!({
-                            "page_number": p.page_number,
-                            "page_width": p.page_width,
-                            "page_height": p.page_height,
-                            "text": p.text,
-                            "text_items": items,
-                        })
-                    })
-                    .collect();
-                Ok(serde_json::json!({
-                    "operation": "parse_with_layout",
-                    "pages": pages,
-                    "page_count": result.pages.len(),
-                    "has_layout": true,
-                }))
-            }
-            "parse_full" => {
-                let pages: Vec<serde_json::Value> = result
-                    .pages
-                    .iter()
-                    .map(|p| {
-                        let items: Vec<serde_json::Value> = p
-                            .text_items
-                            .iter()
-                            .map(|ti| {
-                                serde_json::json!({
-                                    "text": ti.text,
-                                    "x": ti.x,
-                                    "y": ti.y,
-                                    "width": ti.width,
-                                    "height": ti.height,
-                                    "rotation": ti.rotation,
-                                    "font_name": ti.font_name,
-                                    "font_size": ti.font_size,
-                                    "confidence": ti.confidence,
-                                })
-                            })
-                            .collect();
-                        serde_json::json!({
-                            "page_number": p.page_number,
-                            "page_width": p.page_width,
-                            "page_height": p.page_height,
-                            "text": p.text,
-                            "text_items": items,
-                        })
-                    })
-                    .collect();
-                Ok(serde_json::json!({
-                    "operation": "parse_full",
-                    "pages": pages,
-                    "text": result.text,
-                    "page_count": result.pages.len(),
-                    "has_layout": true,
-                }))
-            }
-            _ => Ok(serde_json::json!({
-                "operation": input.operation,
-                "supported_operations": ["extract_text", "parse_with_layout", "parse_full"],
-            })),
-        }
+    let mut config = shared_liteparse().config().clone();
+    if let Some(ref pages) = input.pages {
+        config.target_pages = Some(pages.clone());
+    }
+    if let Some(ocr) = input.ocr_enabled {
+        config.ocr_enabled = ocr;
+    }
+    if let Some(ref lang) = input.ocr_language {
+        config.ocr_language = lang.clone();
     }
 
-    pub async fn ocr_bridge(input: OcrInput) -> Result<serde_json::Value, String> {
-        let lang = input.language.unwrap_or_else(|| "chi_sim+eng".into());
+    let lp = liteparse::LiteParse::new(config);
+    let result = lp
+        .parse(file_path)
+        .await
+        .map_err(|e| PatentError::Agent(e.to_string()))?;
 
-        let config = liteparse::LiteParseConfig {
-            ocr_enabled: true,
-            ocr_language: lang.clone(),
-            max_pages: 100,
-            dpi: 200.0,
-            ..Default::default()
-        };
-        let lp = liteparse::LiteParse::new(config);
-
-        let result = lp
-            .parse(&input.image_path)
-            .await
-            .map_err(|e| format!("OCR error: {e}"))?;
-
-        Ok(serde_json::json!({
-            "operation": input.operation.as_deref().unwrap_or("recognize"),
-            "image_path": input.image_path,
-            "language": lang,
+    match input.operation.as_str() {
+        "extract_text" => Ok(serde_json::json!({
+            "operation": "extract_text",
             "text": result.text,
             "page_count": result.pages.len(),
-            "word_count": result.text.chars().count(),
-        }))
-    }
-
-    pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, String> {
-        let path = std::path::Path::new(&input.file_path);
-        if !path.exists() {
-            return Err(format!("文件不存在: {}", input.file_path));
-        }
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-
-        let mut config = shared_liteparse().config().clone();
-        if let Some(ocr) = input.ocr_enabled {
-            config.ocr_enabled = ocr;
-        }
-        if let Some(ref lang) = input.ocr_language {
-            config.ocr_language = lang.clone();
-        }
-        if let Some(ref pages) = input.pages {
-            config.target_pages = Some(pages.clone());
-        }
-        config.quiet = true;
-
-        let lp = liteparse::LiteParse::new(config);
-        let result = lp
-            .parse(&input.file_path)
-            .await
-            .map_err(|e| format!("文档解析失败: {e}"))?;
-
-        let page_breaks = input.page_breaks.unwrap_or(true);
-        let max_chars = input.max_chars.unwrap_or(500_000);
-        let markdown = format_as_markdown(&result.pages, page_breaks, max_chars);
-        let truncated = markdown.len() >= max_chars;
-
-        Ok(serde_json::json!({
-            "tool": "DocumentParser",
-            "file_path": input.file_path,
-            "source_format": ext,
-            "markdown": markdown,
-            "page_count": result.pages.len(),
-            "char_count": markdown.chars().count(),
-            "ocr_enabled": input.ocr_enabled.unwrap_or(false),
-            "truncated": truncated,
-        }))
-    }
-
-    pub async fn pdf_screenshot(input: ScreenshotInput) -> Result<serde_json::Value, String> {
-        let mut config = shared_liteparse().config().clone();
-        if let Some(dpi) = input.dpi {
-            config.dpi = dpi as f32;
-        }
-        let lp = liteparse::LiteParse::new(config);
-
-        let screenshots = lp
-            .screenshot(&input.file_path, input.pages)
-            .await
-            .map_err(|e| format!("Screenshot error: {e}"))?;
-
-        let results: Vec<serde_json::Value> = screenshots
-            .into_iter()
-            .map(|s| {
-                let b64 = base64::Engine::encode(
-                    &base64::engine::general_purpose::STANDARD,
-                    &s.image_bytes,
-                );
-                serde_json::json!({
-                    "page": s.page_num,
-                    "image_base64": b64,
-                    "width": s.width,
-                    "height": s.height,
+        })),
+        "parse_with_layout" => {
+            let pages: Vec<serde_json::Value> = result
+                .pages
+                .iter()
+                .map(|p| {
+                    let items: Vec<serde_json::Value> = p
+                        .text_items
+                        .iter()
+                        .map(|ti| {
+                            serde_json::json!({
+                                "text": ti.text,
+                                "x": ti.x,
+                                "y": ti.y,
+                                "width": ti.width,
+                                "height": ti.height,
+                                "font_size": ti.font_size,
+                            })
+                        })
+                        .collect();
+                    serde_json::json!({
+                        "page_number": p.page_number,
+                        "page_width": p.page_width,
+                        "page_height": p.page_height,
+                        "text": p.text,
+                        "text_items": items,
+                    })
                 })
-            })
-            .collect();
-
-        Ok(serde_json::json!({
-            "file_path": input.file_path,
-            "screenshots": results,
-            "count": results.len(),
-        }))
+                .collect();
+            Ok(serde_json::json!({
+                "operation": "parse_with_layout",
+                "pages": pages,
+                "page_count": result.pages.len(),
+                "has_layout": true,
+            }))
+        }
+        "parse_full" => {
+            let pages: Vec<serde_json::Value> = result
+                .pages
+                .iter()
+                .map(|p| {
+                    let items: Vec<serde_json::Value> = p
+                        .text_items
+                        .iter()
+                        .map(|ti| {
+                            serde_json::json!({
+                                "text": ti.text,
+                                "x": ti.x,
+                                "y": ti.y,
+                                "width": ti.width,
+                                "height": ti.height,
+                                "rotation": ti.rotation,
+                                "font_name": ti.font_name,
+                                "font_size": ti.font_size,
+                                "confidence": ti.confidence,
+                            })
+                        })
+                        .collect();
+                    serde_json::json!({
+                        "page_number": p.page_number,
+                        "page_width": p.page_width,
+                        "page_height": p.page_height,
+                        "text": p.text,
+                        "text_items": items,
+                    })
+                })
+                .collect();
+            Ok(serde_json::json!({
+                "operation": "parse_full",
+                "pages": pages,
+                "text": result.text,
+                "page_count": result.pages.len(),
+                "has_layout": true,
+            }))
+        }
+        _ => Ok(serde_json::json!({
+            "operation": input.operation,
+            "supported_operations": ["extract_text", "parse_with_layout", "parse_full"],
+        })),
     }
+}
+
+#[cfg(feature = "document-pdf")]
+pub async fn ocr_bridge(input: OcrInput) -> Result<serde_json::Value, PatentError> {
+    let lang = input.language.unwrap_or_else(|| "chi_sim+eng".into());
+
+    let config = liteparse::LiteParseConfig {
+        ocr_enabled: true,
+        ocr_language: lang.clone(),
+        max_pages: 100,
+        dpi: 200.0,
+        ..Default::default()
+    };
+    let lp = liteparse::LiteParse::new(config);
+
+    let result = lp
+        .parse(&input.image_path)
+        .await
+        .map_err(|e| PatentError::Agent(e.to_string()))?;
+
+    Ok(serde_json::json!({
+        "operation": input.operation.as_deref().unwrap_or("recognize"),
+        "image_path": input.image_path,
+        "language": lang,
+        "text": result.text,
+        "page_count": result.pages.len(),
+        "word_count": result.text.chars().count(),
+    }))
+}
+
+#[cfg(feature = "document-pdf")]
+pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, PatentError> {
+    let path = std::path::Path::new(&input.file_path);
+    if !path.exists() {
+        return Err(PatentError::NotFound(format!(
+            "文件不存在: {}",
+            input.file_path
+        )));
+    }
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    let mut config = shared_liteparse().config().clone();
+    if let Some(ocr) = input.ocr_enabled {
+        config.ocr_enabled = ocr;
+    }
+    if let Some(ref lang) = input.ocr_language {
+        config.ocr_language = lang.clone();
+    }
+    if let Some(ref pages) = input.pages {
+        config.target_pages = Some(pages.clone());
+    }
+    config.quiet = true;
+
+    let lp = liteparse::LiteParse::new(config);
+    let result = lp
+        .parse(&input.file_path)
+        .await
+        .map_err(|e| PatentError::Agent(e.to_string()))?;
+
+    let page_breaks = input.page_breaks.unwrap_or(true);
+    let max_chars = input.max_chars.unwrap_or(500_000);
+    let markdown = format_as_markdown(&result.pages, page_breaks, max_chars);
+    let truncated = markdown.len() >= max_chars;
+
+    Ok(serde_json::json!({
+        "tool": "DocumentParser",
+        "file_path": input.file_path,
+        "source_format": ext,
+        "markdown": markdown,
+        "page_count": result.pages.len(),
+        "char_count": markdown.chars().count(),
+        "ocr_enabled": input.ocr_enabled.unwrap_or(false),
+        "truncated": truncated,
+    }))
+}
+
+#[cfg(feature = "document-pdf")]
+pub async fn pdf_screenshot(input: ScreenshotInput) -> Result<serde_json::Value, PatentError> {
+    let mut config = shared_liteparse().config().clone();
+    if let Some(dpi) = input.dpi {
+        config.dpi = dpi as f32;
+    }
+    let lp = liteparse::LiteParse::new(config);
+
+    let screenshots = lp
+        .screenshot(&input.file_path, input.pages)
+        .await
+        .map_err(|e| PatentError::Agent(e.to_string()))?;
+
+    let results: Vec<serde_json::Value> = screenshots
+        .into_iter()
+        .map(|s| {
+            let b64 =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &s.image_bytes);
+            serde_json::json!({
+                "page": s.page_num,
+                "image_base64": b64,
+                "width": s.width,
+                "height": s.height,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "file_path": input.file_path,
+        "screenshots": results,
+        "count": results.len(),
+    }))
 }
 
 // ── PDF tools: stub fallback (no LiteParse) ────────────────────────────
 
 #[cfg(not(feature = "document-pdf"))]
-impl DocumentTools {
-    pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, String> {
-        match input.operation.as_str() {
-            "extract_text" => Ok(serde_json::json!({
-                "operation": "extract_text",
-                "text_length": input.content.as_ref().map_or(0, |c| c.len()),
-                "pages": 1,
-            })),
-            "parse" => Ok(serde_json::json!({
-                "operation": "parse",
-                "file": input.file_path,
-                "text": input.content,
-            })),
-            _ => Ok(serde_json::json!({
-                "operation": input.operation,
-                "supported_operations": ["extract_text", "parse"],
-                "hint": "enable feature 'document-pdf' for real PDF parsing",
-            })),
-        }
+pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, PatentError> {
+    match input.operation.as_str() {
+        "extract_text" => Ok(serde_json::json!({
+            "operation": "extract_text",
+            "text_length": input.content.as_ref().map_or(0, |c| c.len()),
+            "pages": 1,
+        })),
+        "parse" => Ok(serde_json::json!({
+            "operation": "parse",
+            "file": input.file_path,
+            "text": input.content,
+        })),
+        _ => Ok(serde_json::json!({
+            "operation": input.operation,
+            "supported_operations": ["extract_text", "parse"],
+            "hint": "enable feature 'document-pdf' for real PDF parsing",
+        })),
     }
+}
 
-    pub async fn ocr_bridge(input: OcrInput) -> Result<serde_json::Value, String> {
-        let lang = input.language.unwrap_or_else(|| "chi_sim+eng".into());
-        Ok(serde_json::json!({
-            "operation": input.operation.as_deref().unwrap_or("recognize"),
-            "image_path": input.image_path,
-            "language": lang,
-            "supported_backends": ["tesseract", "omlx_vision"],
-            "hint": "enable feature 'document-pdf' for real OCR via LiteParse",
-        }))
-    }
+#[cfg(not(feature = "document-pdf"))]
+pub async fn ocr_bridge(input: OcrInput) -> Result<serde_json::Value, PatentError> {
+    let lang = input.language.unwrap_or_else(|| "chi_sim+eng".into());
+    Ok(serde_json::json!({
+        "operation": input.operation.as_deref().unwrap_or("recognize"),
+        "image_path": input.image_path,
+        "language": lang,
+        "supported_backends": ["tesseract", "omlx_vision"],
+        "hint": "enable feature 'document-pdf' for real OCR via LiteParse",
+    }))
+}
 
-    pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, String> {
-        Ok(serde_json::json!({
-            "tool": "DocumentParser",
-            "file_path": input.file_path,
-            "supported_formats": ["pdf", "docx", "doc", "odt", "rtf", "pages"],
-            "hint": "enable feature 'document-pdf' for real document parsing",
-        }))
-    }
+#[cfg(not(feature = "document-pdf"))]
+pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::Value, PatentError> {
+    Ok(serde_json::json!({
+        "tool": "DocumentParser",
+        "file_path": input.file_path,
+        "supported_formats": ["pdf", "docx", "doc", "odt", "rtf", "pages"],
+        "hint": "enable feature 'document-pdf' for real document parsing",
+    }))
 }
 
 // ── Tool registration ──────────────────────────────────────────────────
@@ -808,61 +810,58 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
 
     t.insert("DocxTools".into(), |input| {
         Box::pin(async move {
-            let parsed: DocxInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::docx_tools(parsed)
+            let parsed: DocxInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            docx_tools(parsed).map_err(|e| e.to_string())
         })
     });
 
     t.insert("PdfTools".into(), |input| {
         Box::pin(async move {
-            let parsed: PdfInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::pdf_tools(parsed).await
+            let parsed: PdfInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            pdf_tools(parsed).await.map_err(|e| e.to_string())
         })
     });
 
     t.insert("OcrBridge".into(), |input| {
         Box::pin(async move {
-            let parsed: OcrInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::ocr_bridge(parsed).await
+            let parsed: OcrInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            ocr_bridge(parsed).await.map_err(|e| e.to_string())
         })
     });
 
     t.insert("MarkdownParser".into(), |input| {
         Box::pin(async move {
-            let parsed: MarkdownInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::markdown_parser(parsed)
+            let parsed: MarkdownInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            markdown_parser(parsed).map_err(|e| e.to_string())
         })
     });
 
     t.insert("ReadFile".into(), |input| {
         Box::pin(async move {
-            let parsed: ReadFileInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::read_file(parsed)
+            let parsed: ReadFileInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            read_file(parsed).map_err(|e| e.to_string())
         })
     });
 
     t.insert("TemplateLibrary".into(), |input| {
         Box::pin(async move {
-            let parsed: TemplateInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::template_library(parsed)
+            let parsed: TemplateInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            template_library(parsed).map_err(|e| e.to_string())
         })
     });
 
     t.insert("ExportTool".into(), |input| {
         Box::pin(async move {
-            let parsed: ExportInput = serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::export_tool(parsed)
+            let parsed: ExportInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
+            export_tool(parsed).map_err(|e| e.to_string())
         })
     });
 
     t.insert("DocumentParser".into(), |input| {
         Box::pin(async move {
             let parsed: DocumentParserInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::document_parser(parsed).await
+                serde_json::from_value(input).map_err(|e| e.to_string())?;
+            document_parser(parsed).await.map_err(|e| e.to_string())
         })
     });
 
@@ -870,8 +869,8 @@ pub fn register_document_tools() -> std::collections::HashMap<String, super::Too
     t.insert("PdfScreenshot".into(), |input| {
         Box::pin(async move {
             let parsed: ScreenshotInput =
-                serde_json::from_value(input).map_err(|e| format!("{e}"))?;
-            DocumentTools::pdf_screenshot(parsed).await
+                serde_json::from_value(input).map_err(|e| e.to_string())?;
+            pdf_screenshot(parsed).await.map_err(|e| e.to_string())
         })
     });
 
@@ -884,7 +883,7 @@ fn build_minimal_docx(
     content_types: &str,
     rels: &str,
     document_xml: &str,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>, PatentError> {
     let files: [(&[u8], &[u8]); 3] = [
         (b"[Content_Types].xml", content_types.as_bytes()),
         (b"_rels/.rels", rels.as_bytes()),
@@ -981,7 +980,7 @@ mod tests {
             output_path: None,
             template: None,
         };
-        assert!(DocumentTools::docx_tools(input).is_err());
+        assert!(docx_tools(input).is_err());
     }
 
     #[test]
@@ -993,7 +992,7 @@ mod tests {
             output_path: Some(path.to_str().unwrap().into()),
             template: None,
         };
-        let result = DocumentTools::docx_tools(input).unwrap();
+        let result = docx_tools(input).unwrap();
         assert!(path.exists());
         assert!(result["word_count"].as_u64().unwrap() > 0);
         assert_eq!(result["paragraph_count"], 2);
@@ -1005,7 +1004,7 @@ mod tests {
             text: "这是一段测试文本\n第二行内容".into(),
             format_options: None,
         };
-        let result = DocumentTools::markdown_parser(input).unwrap();
+        let result = markdown_parser(input).unwrap();
         let stats = &result["stats"];
         assert!(stats["chars"].as_u64().unwrap() > 0);
         assert!(stats["lines"].as_u64().unwrap() >= 2);
@@ -1017,7 +1016,7 @@ mod tests {
             template_id: "oa_response".into(),
             variables: None,
         };
-        let result = DocumentTools::template_library(input).unwrap();
+        let result = template_library(input).unwrap();
         assert_eq!(result["template_name"], "审查意见答复模板");
     }
 
@@ -1027,7 +1026,7 @@ mod tests {
             template_id: "nonexistent".into(),
             variables: None,
         };
-        let result = DocumentTools::template_library(input).unwrap();
+        let result = template_library(input).unwrap();
         assert_eq!(result["template_name"], "通用模板");
     }
 
@@ -1039,7 +1038,7 @@ mod tests {
             template_id: "oa_response".into(),
             variables: Some(vars),
         };
-        let result = DocumentTools::template_library(input).unwrap();
+        let result = template_library(input).unwrap();
         assert_eq!(result["template_name"], "审查意见答复模板");
         assert!(!result["structure"].as_str().unwrap().contains("value"));
     }
@@ -1051,7 +1050,7 @@ mod tests {
             export_type: "claims".into(),
             output_path: None,
         };
-        assert!(DocumentTools::export_tool(input).is_err());
+        assert!(export_tool(input).is_err());
     }
 
     #[test]
@@ -1061,7 +1060,7 @@ mod tests {
             export_type: "claims".into(),
             output_path: None,
         };
-        let result = DocumentTools::export_tool(input).unwrap();
+        let result = export_tool(input).unwrap();
         assert!(
             result["content"]
                 .as_str()
@@ -1077,7 +1076,7 @@ mod tests {
             export_type: "invalid_type".into(),
             output_path: None,
         };
-        assert!(DocumentTools::export_tool(input).is_err());
+        assert!(export_tool(input).is_err());
     }
 
     #[test]
@@ -1087,7 +1086,7 @@ mod tests {
             export_type: "oa_response".into(),
             output_path: None,
         };
-        let result = DocumentTools::export_tool(input).unwrap();
+        let result = export_tool(input).unwrap();
         assert!(
             result["content"]
                 .as_str()

@@ -306,6 +306,28 @@ fn default_capabilities() -> HashMap<String, ModelCapabilities> {
             speed_tier: 2,
             complexity_range: (1, 2),
         },
+        ModelCapabilities {
+            model_id: "deepseek-chat".to_string(),
+            provider: "deepseek".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: true,
+            context_window: 128_000,
+            cost_tier: 1,
+            speed_tier: 2,
+            complexity_range: (1, 2),
+        },
+        ModelCapabilities {
+            model_id: "deepseek-reasoner".to_string(),
+            provider: "deepseek".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: true,
+            context_window: 128_000,
+            cost_tier: 3,
+            speed_tier: 4,
+            complexity_range: (2, 3),
+        },
         // Qwen 系列
         ModelCapabilities {
             model_id: "qwen-max".to_string(),
@@ -329,38 +351,25 @@ fn default_capabilities() -> HashMap<String, ModelCapabilities> {
             speed_tier: 1,
             complexity_range: (1, 2),
         },
-        // Claude 系列
         ModelCapabilities {
-            model_id: "claude-sonnet-4-6".to_string(),
-            provider: "anthropic".to_string(),
+            model_id: "qwen-plus".to_string(),
+            provider: "qwen".to_string(),
             tool_use: true,
-            vision: true,
-            code_execution: false,
-            context_window: 200_000,
-            cost_tier: 4,
-            speed_tier: 4,
-            complexity_range: (2, 3),
-        },
-        ModelCapabilities {
-            model_id: "claude-haiku-4-5".to_string(),
-            provider: "anthropic".to_string(),
-            tool_use: true,
-            vision: true,
-            code_execution: false,
-            context_window: 200_000,
-            cost_tier: 2,
-            speed_tier: 1,
-            complexity_range: (1, 2),
-        },
-        // OpenAI 系列
-        ModelCapabilities {
-            model_id: "gpt-4o".to_string(),
-            provider: "openai".to_string(),
-            tool_use: true,
-            vision: true,
+            vision: false,
             code_execution: false,
             context_window: 128_000,
-            cost_tier: 5,
+            cost_tier: 2,
+            speed_tier: 2,
+            complexity_range: (1, 3),
+        },
+        ModelCapabilities {
+            model_id: "qwen3.5-plus".to_string(),
+            provider: "qwen".to_string(),
+            tool_use: true,
+            vision: true,
+            code_execution: false,
+            context_window: 262_144,
+            cost_tier: 4,
             speed_tier: 3,
             complexity_range: (2, 3),
         },
@@ -375,6 +384,63 @@ fn default_capabilities() -> HashMap<String, ModelCapabilities> {
             cost_tier: 2,
             speed_tier: 2,
             complexity_range: (1, 3),
+        },
+        ModelCapabilities {
+            model_id: "glm-5.1".to_string(),
+            provider: "glm".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: false,
+            context_window: 200_000,
+            cost_tier: 3,
+            speed_tier: 3,
+            complexity_range: (2, 3),
+        },
+        // MiniMax 系列
+        ModelCapabilities {
+            model_id: "minimax-m2.5".to_string(),
+            provider: "minimax".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: false,
+            context_window: 200_000,
+            cost_tier: 2,
+            speed_tier: 2,
+            complexity_range: (1, 3),
+        },
+        ModelCapabilities {
+            model_id: "minimax-m2.5-lightning".to_string(),
+            provider: "minimax".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: false,
+            context_window: 200_000,
+            cost_tier: 1,
+            speed_tier: 1,
+            complexity_range: (1, 2),
+        },
+        // Kimi / Moonshot 系列
+        ModelCapabilities {
+            model_id: "kimi-k2.5".to_string(),
+            provider: "kimi".to_string(),
+            tool_use: true,
+            vision: true,
+            code_execution: false,
+            context_window: 262_144,
+            cost_tier: 3,
+            speed_tier: 3,
+            complexity_range: (2, 3),
+        },
+        ModelCapabilities {
+            model_id: "moonshot-v1-128k".to_string(),
+            provider: "moonshot".to_string(),
+            tool_use: true,
+            vision: false,
+            code_execution: false,
+            context_window: 128_000,
+            cost_tier: 2,
+            speed_tier: 2,
+            complexity_range: (1, 2),
         },
     ];
 
@@ -426,9 +492,9 @@ mod tests {
         // 最低 cost_tier 的模型
         assert!(
             decision.recommended_model.contains("turbo")
-                || decision.recommended_model.contains("deepseek-v4-chat")
-                || decision.recommended_model.contains("haiku")
+                || decision.recommended_model.contains("deepseek")
                 || decision.recommended_model.contains("glm")
+                || decision.recommended_model.contains("lightning")
         );
     }
 

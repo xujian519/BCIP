@@ -1,12 +1,11 @@
 use codex_patent_core::ClaimType;
-use codex_patent_domain::claim_parser::ClaimParser;
+use codex_patent_domain::claim_parser;
 use pretty_assertions::assert_eq;
 
 #[test]
 fn parse_independent_claim() {
-    let parser = ClaimParser::new();
     let text = "1. 一种图像识别装置，其特征在于，包括：处理器；存储器。";
-    let claim = parser.parse(1, text);
+    let claim = claim_parser::parse(1, text);
 
     assert_eq!(claim.claim_number, 1);
     assert_eq!(claim.claim_type, ClaimType::Independent);
@@ -23,9 +22,8 @@ fn parse_independent_claim() {
 
 #[test]
 fn parse_dependent_claim() {
-    let parser = ClaimParser::new();
     let text = "2. 根据权利要求1所述的装置，其特征在于，所述处理器为GPU。";
-    let claim = parser.parse(2, text);
+    let claim = claim_parser::parse(2, text);
 
     assert_eq!(claim.claim_number, 2);
     assert_eq!(claim.claim_type, ClaimType::Dependent);
@@ -35,9 +33,8 @@ fn parse_dependent_claim() {
 
 #[test]
 fn parse_multiple_dependent_claim() {
-    let parser = ClaimParser::new();
     let text = "3. 根据权利要求1或2所述的装置，其特征在于，还包括散热模块。";
-    let claim = parser.parse(3, text);
+    let claim = claim_parser::parse(3, text);
 
     assert_eq!(claim.claim_type, ClaimType::Dependent);
     // extract_reference_cn takes the first digit found
@@ -50,10 +47,9 @@ fn parse_multiple_dependent_claim() {
 
 #[test]
 fn parse_claim_no_period() {
-    let parser = ClaimParser::new();
     // Claim text without ending period — should still parse features
     let text = "一种数据处理方法，其特征在于，包括：数据采集模块；分析模块";
-    let claim = parser.parse(4, text);
+    let claim = claim_parser::parse(4, text);
 
     assert_eq!(claim.claim_type, ClaimType::Independent);
     assert_eq!(claim.transition_word, "其特征在于");
@@ -66,10 +62,9 @@ fn parse_claim_no_period() {
 
 #[test]
 fn parse_claim_no_feature_phrase() {
-    let parser = ClaimParser::new();
     // No "其特征在于" — entire text becomes the body
     let text = "一种图像识别装置，包括处理器和存储器";
-    let claim = parser.parse(5, text);
+    let claim = claim_parser::parse(5, text);
 
     assert_eq!(
         claim.transition_word, "",
@@ -82,8 +77,7 @@ fn parse_claim_no_feature_phrase() {
 
 #[test]
 fn parse_empty_claim() {
-    let parser = ClaimParser::new();
-    let claim = parser.parse(99, "");
+    let claim = claim_parser::parse(99, "");
 
     assert_eq!(claim.claim_number, 99);
     assert_eq!(claim.claim_type, ClaimType::Independent);
@@ -96,10 +90,9 @@ fn parse_empty_claim() {
 
 #[test]
 fn parse_claim_extracts_features() {
-    let parser = ClaimParser::new();
     // Two segments separated by Chinese semicolons
     let text = "一种装置，其特征在于，包括：处理器；存储器，所述存储器为非易失性存储器。";
-    let claim = parser.parse(1, text);
+    let claim = claim_parser::parse(1, text);
 
     assert!(
         !claim.features.is_empty(),

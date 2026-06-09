@@ -9,59 +9,44 @@ use codex_patent_core::FeatureType;
 use codex_patent_core::ParsedClaim;
 use codex_patent_core::ParsedFeature;
 
-/// 权利要求解析器
-pub struct ClaimParser;
+/// 解析权利要求文本
+pub fn parse(claim_number: u32, text: &str) -> ParsedClaim {
+    let text = text.trim();
+    let (claim_type, dependent_from) = detect_dependency(text);
+    let (preamble, transition_word, body) = split_parts(text, claim_type);
+    let features = extract_features(&body);
 
-impl ClaimParser {
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// 解析权利要求文本
-    pub fn parse(&self, claim_number: u32, text: &str) -> ParsedClaim {
-        let text = text.trim();
-        let (claim_type, dependent_from) = detect_dependency(text);
-        let (preamble, transition_word, body) = split_parts(text, claim_type);
-        let features = extract_features(&body);
-
-        ParsedClaim {
-            claim_number,
-            claim_type,
-            preamble,
-            transition_word,
-            body,
-            features,
-            dependent_from,
-        }
-    }
-
-    /// 计算两个特征之间的相似度(bigram Jaccard 系数，支持中文)
-    pub fn feature_similarity(a: &ParsedFeature, b: &ParsedFeature) -> f64 {
-        crate::compare::lexical_similarity(&a.description, &b.description)
-    }
-
-    /// 计算两个文本的 bigram Jaccard 相似度（支持中文）
-    pub fn feature_text_similarity(a: &str, b: &str) -> f64 {
-        crate::compare::lexical_similarity(a, b)
-    }
-
-    /// 根据相似度值判定对应关系类型
-    pub fn classify_correspondence(similarity: f64) -> CorrespondenceType {
-        if similarity >= 0.9 {
-            CorrespondenceType::Exact
-        } else if similarity >= 0.6 {
-            CorrespondenceType::Equivalent
-        } else if similarity >= 0.3 {
-            CorrespondenceType::Different
-        } else {
-            CorrespondenceType::Missing
-        }
+    ParsedClaim {
+        claim_number,
+        claim_type,
+        preamble,
+        transition_word,
+        body,
+        features,
+        dependent_from,
     }
 }
 
-impl Default for ClaimParser {
-    fn default() -> Self {
-        Self::new()
+/// 计算两个特征之间的相似度(bigram Jaccard 系数，支持中文)
+pub fn feature_similarity(a: &ParsedFeature, b: &ParsedFeature) -> f64 {
+    crate::compare::lexical_similarity(&a.description, &b.description)
+}
+
+/// 计算两个文本的 bigram Jaccard 相似度（支持中文）
+pub fn feature_text_similarity(a: &str, b: &str) -> f64 {
+    crate::compare::lexical_similarity(a, b)
+}
+
+/// 根据相似度值判定对应关系类型
+pub fn classify_correspondence(similarity: f64) -> CorrespondenceType {
+    if similarity >= 0.9 {
+        CorrespondenceType::Exact
+    } else if similarity >= 0.6 {
+        CorrespondenceType::Equivalent
+    } else if similarity >= 0.3 {
+        CorrespondenceType::Different
+    } else {
+        CorrespondenceType::Missing
     }
 }
 
@@ -246,9 +231,8 @@ mod tests {
 
     #[test]
     fn test_parse_independent_claim() {
-        let parser = ClaimParser::new();
         let text = "一种数据处理方法,其特征在于,包括以下步骤:获取输入数据;对所述输入数据进行预处理;输出处理结果。";
-        let claim = parser.parse(1, text);
+        let claim = parse(1, text);
         assert_eq!(claim.claim_type, ClaimType::Independent);
         assert!(claim.dependent_from.is_none());
         assert_eq!(claim.transition_word, "其特征在于");
@@ -257,9 +241,8 @@ mod tests {
 
     #[test]
     fn test_parse_dependent_claim() {
-        let parser = ClaimParser::new();
         let text = "根据权利要求1所述的方法,其特征在于,所述预处理包括数据清洗。";
-        let claim = parser.parse(2, text);
+        let claim = parse(2, text);
         assert_eq!(claim.claim_type, ClaimType::Dependent);
         assert_eq!(claim.dependent_from, Some(1));
     }
@@ -280,17 +263,17 @@ mod tests {
             component: None,
             parameters: vec![],
         };
-        assert_eq!(ClaimParser::feature_similarity(&a, &b), 1.0);
+        assert_eq!(feature_similarity(&a, &b), 1.0);
     }
 
     #[test]
     fn test_classify_correspondence() {
         assert!(matches!(
-            ClaimParser::classify_correspondence(0.95),
+            classify_correspondence(0.95),
             CorrespondenceType::Exact
         ));
         assert!(matches!(
-            ClaimParser::classify_correspondence(0.7),
+            classify_correspondence(0.7),
             CorrespondenceType::Equivalent
         ));
     }

@@ -16,3 +16,4 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+pretty_assertions = { workspace = true }

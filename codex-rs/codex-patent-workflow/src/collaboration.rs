@@ -19,6 +19,7 @@ use super::plan::ExecutionPlan;
 use super::plan::PlanStep;
 use super::plan::PlanStepStatus;
 use super::plan::RoutingHint;
+use super::plan::TaskPriority;
 use super::plan::WorkflowType;
 
 /// 协作模板标识
@@ -219,6 +220,10 @@ fn linear_plan(goal: &str, plan_name: &str, steps: &[(&str, &str, &str)]) -> Exe
                 .map(|(_, agent, _)| agent.to_string())
                 .collect(),
             reasoning: format!("{plan_name}协作工作流"),
+            target_jurisdiction: None,
+            estimated_steps: None,
+            requires_human_review: false,
+            priority: TaskPriority::Normal,
         },
         retry_on_failure: Some(2),
     }
@@ -313,6 +318,10 @@ fn full_review_plan(goal: &str) -> ExecutionPlan {
                 "quality_checker".into(),
             ],
             reasoning: "全面审查协作工作流（含并行分支）".into(),
+            target_jurisdiction: None,
+            estimated_steps: None,
+            requires_human_review: false,
+            priority: TaskPriority::Normal,
         },
         retry_on_failure: Some(2),
     }
@@ -335,7 +344,8 @@ impl CollaborationRegistry {
         self.templates
             .iter()
             .find(|t| {
-                let binding = serde_json::to_value(**t).unwrap();
+                let binding =
+                    serde_json::to_value(**t).expect("serializing tool type should never fail");
                 let snake = binding.as_str().unwrap_or("");
                 snake == name || t.display_name() == name
             })
