@@ -1,4 +1,3 @@
-use ansi_to_tui::Error;
 use ansi_to_tui::IntoText;
 use ratatui::text::Line;
 use ratatui::text::Text;
@@ -42,17 +41,9 @@ pub fn ansi_escape(s: &str) -> Text<'static> {
     // such that it's not worth it.
     match s.into_text() {
         Ok(text) => text,
-        Err(err) => match err {
-            Error::NomError(message) => {
-                tracing::error!(
-                    "ansi_to_tui NomError docs claim should never happen when parsing `{s}`: {message}"
-                );
-                panic!();
-            }
-            Error::Utf8Error(utf8error) => {
-                tracing::error!("Utf8Error: {utf8error}");
-                panic!();
-            }
-        },
+        Err(err) => {
+            tracing::warn!("ansi_to_tui parse error, falling back to raw text: {err}");
+            Text::from(s.to_string())
+        }
     }
 }

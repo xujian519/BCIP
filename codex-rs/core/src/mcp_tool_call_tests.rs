@@ -1266,7 +1266,6 @@ async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: 
         session.get_tx_event(),
         turn_context.permission_profile(),
         codex_mcp::McpRuntimeContext::new(Arc::clone(&session.services.environment_manager), {
-            #[allow(deprecated)]
             turn_context.cwd.to_path_buf()
         }),
         turn_context.config.codex_home.to_path_buf(),
@@ -2438,7 +2437,6 @@ async fn permission_request_hook_allows_mcp_tool_call() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("parse hook input"))
         .collect::<Vec<_>>();
-    #[allow(deprecated)]
     let turn_cwd = turn_context.cwd.clone();
     assert_eq!(
         inputs,
@@ -2500,7 +2498,6 @@ async fn permission_request_hook_uses_hook_tool_name_without_metadata() {
         .lines()
         .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("parse hook input"))
         .collect::<Vec<_>>();
-    #[allow(deprecated)]
     let turn_cwd = turn_context.cwd.clone();
     assert_eq!(
         inputs,

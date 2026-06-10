@@ -62,6 +62,8 @@ pub struct TurnContext {
     pub(crate) session_source: SessionSource,
     pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) environments: ResolvedTurnEnvironments,
+    /// Current working directory. Prefer `primary_cwd()` when reading — this field
+    /// exists because the value is computed during turn construction and stored here.
     pub(crate) cwd: AbsolutePathBuf,
     pub(crate) current_date: Option<String>,
     pub(crate) timezone: Option<String>,
@@ -506,7 +508,6 @@ impl Session {
             session_source,
             thread_source: session_configuration.thread_source,
             environments,
-            #[allow(deprecated)]
             cwd,
             current_date: Some(current_date),
             timezone: Some(timezone),

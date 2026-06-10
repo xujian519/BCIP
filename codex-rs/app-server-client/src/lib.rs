@@ -47,7 +47,7 @@ use codex_config::CloudRequirementsLoader;
 use codex_config::LoaderOverrides;
 use codex_config::NoopThreadConfigLoader;
 use codex_config::RemoteThreadConfigLoader;
-use codex_config::ThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_core::config::Config;
 pub use codex_exec_server::EnvironmentManager;
 pub use codex_exec_server::ExecServerRuntimePaths;
@@ -367,10 +367,12 @@ pub struct InProcessClientStartArgs {
     pub channel_capacity: usize,
 }
 
-fn configured_thread_config_loader(config: &Config) -> Arc<dyn ThreadConfigLoader> {
+fn configured_thread_config_loader(config: &Config) -> Arc<ThreadConfigLoaderKind> {
     match config.experimental_thread_config_endpoint.as_deref() {
-        Some(endpoint) => Arc::new(RemoteThreadConfigLoader::new(endpoint)),
-        None => Arc::new(NoopThreadConfigLoader),
+        Some(endpoint) => Arc::new(ThreadConfigLoaderKind::Remote(
+            RemoteThreadConfigLoader::new(endpoint),
+        )),
+        None => Arc::new(ThreadConfigLoaderKind::Noop(NoopThreadConfigLoader)),
     }
 }
 

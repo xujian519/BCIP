@@ -611,15 +611,13 @@ struct RunReporter {
 
 impl SessionReporter for RunReporter {
     fn on_update(&self, snapshot: &FileSearchSnapshot) {
-        #[allow(clippy::unwrap_used)]
-        let mut guard = self.snapshot.write().unwrap();
+        let mut guard = self.snapshot.write().expect("RunReporter snapshot lock should not be poisoned");
         *guard = snapshot.clone();
     }
 
     fn on_complete(&self) {
         let (cv, mutex) = &self.completed;
-        #[allow(clippy::unwrap_used)]
-        let mut completed = mutex.lock().unwrap();
+        let mut completed = mutex.lock().expect("RunReporter completed lock should not be poisoned");
         *completed = true;
         cv.notify_all();
     }
@@ -628,16 +626,11 @@ impl SessionReporter for RunReporter {
 impl RunReporter {
     fn wait_for_complete(&self) -> FileSearchSnapshot {
         let (cv, mutex) = &self.completed;
-        #[allow(clippy::unwrap_used)]
-        let mut completed = mutex.lock().unwrap();
+        let mut completed = mutex.lock().expect("RunReporter completed lock should not be poisoned");
         while !*completed {
-            #[allow(clippy::unwrap_used)]
-            {
-                completed = cv.wait(completed).unwrap();
-            }
+            completed = cv.wait(completed).expect("RunReporter condvar wait should not fail");
         }
-        #[allow(clippy::unwrap_used)]
-        self.snapshot.read().unwrap().clone()
+        self.snapshot.read().expect("RunReporter snapshot read lock should not be poisoned").clone()
     }
 }
 

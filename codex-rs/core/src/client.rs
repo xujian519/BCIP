@@ -1635,7 +1635,9 @@ impl ModelClientSession {
                     match event {
                         Ok(ResponseEvent::Completed { .. }) => break,
                         Err(err) => return Err(err),
-                        _ => {}
+                        _ => {
+                            tracing::debug!("unhandled response event during warmup: {:?}", event);
+                        }
                     }
                 }
                 Ok(())

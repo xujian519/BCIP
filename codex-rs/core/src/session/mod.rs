@@ -1547,7 +1547,7 @@ impl Session {
 
         let mut reloaded_user_configs = Vec::with_capacity(config_toml_paths.len());
         for config_toml_path in config_toml_paths {
-            let user_config = match std::fs::read_to_string(&config_toml_path) {
+            let user_config = match tokio::fs::read_to_string(&config_toml_path).await {
                 Ok(contents) => match toml::from_str::<toml::Value>(&contents) {
                     Ok(config) => config,
                     Err(err) => {

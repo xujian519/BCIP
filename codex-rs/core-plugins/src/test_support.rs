@@ -5,7 +5,7 @@ use crate::OPENAI_CURATED_MARKETPLACE_NAME;
 use crate::PluginsConfigInput;
 use codex_config::CloudRequirementsLoader;
 use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_config::loader::load_config_layers_state;
 use codex_exec_server::LOCAL_FS;
 use codex_utils_absolute_path::AbsolutePathBuf;
@@ -107,7 +107,7 @@ pub(crate) async fn load_plugins_config(codex_home: &Path, cwd: &Path) -> Plugin
         &[],
         LoaderOverrides::without_managed_config_for_tests(),
         CloudRequirementsLoader::default(),
-        &NoopThreadConfigLoader,
+        ThreadConfigLoaderKind::default(),
     )
     .await
     .expect("config should load");

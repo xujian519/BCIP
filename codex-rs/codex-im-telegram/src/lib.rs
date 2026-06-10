@@ -27,7 +27,6 @@ pub struct TelegramConfig {
 pub struct TelegramAdapter {
     api: TelegramApi,
     bridge: Arc<ImBridge>,
-    #[allow(dead_code)]
     config: TelegramConfig,
 }
 
@@ -295,8 +294,8 @@ struct TelegramUpdate {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[allow(dead_code)]
 struct TelegramMessage {
+    #[allow(dead_code)] // part of Telegram API response, may be needed for reply threading
     message_id: i64,
     chat: TelegramChat,
     from: Option<TelegramUser>,
@@ -311,20 +310,23 @@ struct TelegramChat {
 }
 
 #[derive(Debug, serde::Deserialize)]
-#[allow(dead_code)]
 struct TelegramUser {
     id: i64,
+    #[allow(dead_code)] // part of Telegram API response, may be used for display
     first_name: Option<String>,
+    #[allow(dead_code)] // part of Telegram API response, may be used for display
     username: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
+// Kept for complete Telegram API deserialization; fields used for presence checks only
 #[allow(dead_code)]
 struct TelegramPhotoSize {
     file_id: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
+// Kept for complete Telegram API deserialization; fields used for presence checks only
 #[allow(dead_code)]
 struct TelegramDocument {
     file_id: String,
@@ -336,13 +338,4 @@ struct TelegramCallbackQuery {
     id: String,
     message: Option<TelegramMessage>,
     data: Option<String>,
-}
-
-#[derive(Debug, serde::Serialize)]
-#[allow(dead_code)]
-struct SendMessageRequest {
-    chat_id: i64,
-    text: String,
-    parse_mode: Option<String>,
-    reply_markup: Option<serde_json::Value>,
 }

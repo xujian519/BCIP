@@ -238,7 +238,9 @@ fn build_current_thread_section(items: &[ResponseItem]) -> Option<String> {
                 }
                 current_assistant.push(text);
             }
-            _ => {}
+            _ => {
+                tracing::debug!("skipped response item in realtime context: {:?}", item);
+            }
         }
     }
 

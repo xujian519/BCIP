@@ -145,8 +145,8 @@ impl Session {
 
         let (tx_response, rx_response) = oneshot::channel();
         let prev_entry = {
-            let mut active = self.active_turn.lock().await;
-            match active.as_mut() {
+            let active = self.active_turn.lock().await;
+            match active.as_ref() {
                 Some(at) => {
                     let mut ts = at.turn_state.lock().await;
                     ts.insert_pending_elicitation(
@@ -208,8 +208,8 @@ impl Session {
         response: ElicitationResponse,
     ) -> anyhow::Result<()> {
         let entry = {
-            let mut active = self.active_turn.lock().await;
-            match active.as_mut() {
+            let active = self.active_turn.lock().await;
+            match active.as_ref() {
                 Some(at) => {
                     let mut ts = at.turn_state.lock().await;
                     ts.remove_pending_elicitation(&server_name, &id)

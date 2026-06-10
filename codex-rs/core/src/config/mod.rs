@@ -22,7 +22,7 @@ use codex_config::ProfileV2Name;
 use codex_config::ResidencyRequirement;
 use codex_config::SandboxModeRequirement;
 use codex_config::Sourced;
-use codex_config::ThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_config::config_toml::ConfigLockfileToml;
 use codex_config::config_toml::ConfigToml;
 use codex_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
@@ -1073,7 +1073,7 @@ pub struct ConfigBuilder {
     loader_overrides: Option<LoaderOverrides>,
     strict_config: bool,
     cloud_requirements: CloudRequirementsLoader,
-    thread_config_loader: Option<Arc<dyn ThreadConfigLoader>>,
+    thread_config_loader: Option<Arc<ThreadConfigLoaderKind>>,
     fallback_cwd: Option<PathBuf>,
 }
 
@@ -1110,7 +1110,7 @@ impl ConfigBuilder {
 
     pub fn thread_config_loader(
         mut self,
-        thread_config_loader: Arc<dyn ThreadConfigLoader>,
+        thread_config_loader: Arc<ThreadConfigLoaderKind>,
     ) -> Self {
         self.thread_config_loader = Some(thread_config_loader);
         self
@@ -1160,9 +1160,7 @@ impl ConfigBuilder {
                 strict_config,
             },
             cloud_requirements,
-            thread_config_loader
-                .as_deref()
-                .unwrap_or(&codex_config::NoopThreadConfigLoader),
+            thread_config_loader.as_deref().cloned().unwrap_or_default(),
         )
         .await?;
         let merged_toml = config_layer_stack.effective_config();
@@ -1545,7 +1543,7 @@ pub async fn load_config_as_toml_with_cli_and_load_options(
         &cli_overrides,
         options,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        ThreadConfigLoaderKind::default(),
     )
     .await?;
 
@@ -1756,7 +1754,7 @@ pub async fn load_global_mcp_servers(
         &cli_overrides,
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        ThreadConfigLoaderKind::default(),
     )
     .await?;
     let merged_toml = config_layer_stack.effective_config();
@@ -2973,8 +2971,7 @@ impl Config {
             .filter(|value| !value.is_empty());
 
         let model_providers =
-            merge_configured_model_providers(built_in_model_providers(openai_base_url), cfg.model_providers)
-                .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidData, message))?;
+            merge_configured_model_providers(built_in_model_providers(openai_base_url), cfg.model_providers);
 
         let model_provider_id = model_provider
             .or(cfg.model_provider)

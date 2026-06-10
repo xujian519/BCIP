@@ -129,7 +129,13 @@ impl ImBridge {
                     } => {
                         match msg {
                             Some(msg) => {
-                                let json = serde_json::to_string(&msg).expect("序列化 ClientMessage");
+                                let json = match serde_json::to_string(&msg) {
+                                    Ok(j) => j,
+                                    Err(e) => {
+                                        tracing::error!("消息序列化失败: {e}");
+                                        continue;
+                                    }
+                                };
                                 if let Err(e) = write.send(Message::Text(json.into())).await {
                                     error!(%e, "发送消息失败");
                                     *connected_send.lock().await = false;
@@ -224,5 +230,100 @@ impl ImBridge {
 
     pub async fn is_connected(&self) -> bool {
         *self.connected.lock().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn bridge_config_default_values() {
+        let config = BridgeConfig::default();
+        assert_eq!(config.server_url, "ws://127.0.0.1:3456");
+        assert_eq!(config.max_reconnect, 10);
+        assert_eq!(config.heartbeat_interval_secs, 30);
+        assert_eq!(config.session_db_path, "~/.bcip/adapter-sessions.db");
+    }
+
+    #[test]
+    fn bridge_error_display_connection() {
+        let err = BridgeError::Connection("timeout".to_string());
+        assert_eq!(format!("{err}"), "WebSocket 连接失败: timeout");
+    }
+
+    #[test]
+    fn bridge_error_display_serialization() {
+        let err = BridgeError::Serialization("bad json".to_string());
+        assert_eq!(format!("{err}"), "消息序列化失败: bad json");
+    }
+
+    #[test]
+    fn bridge_error_display_session() {
+        let err = BridgeError::Session("not found".to_string());
+        assert_eq!(format!("{err}"), "会话错误: not found");
+    }
+
+    #[tokio::test]
+    async fn session_store_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = session::SessionStore::new(&db_path).unwrap();
+
+        // Save a mapping
+        store
+            .save_mapping("dingtalk", "chat-1", "session-abc")
+            .await
+            .unwrap();
+
+        // Retrieve it
+        let result = store.get_session("dingtalk", "chat-1").await.unwrap();
+        assert_eq!(result, Some("session-abc".to_string()));
+
+        // Missing mapping
+        let missing = store.get_session("dingtalk", "chat-999").await.unwrap();
+        assert_eq!(missing, None);
+    }
+
+    #[tokio::test]
+    async fn session_store_remove_mapping() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = session::SessionStore::new(&db_path).unwrap();
+
+        store
+            .save_mapping("feishu", "chat-2", "session-xyz")
+            .await
+            .unwrap();
+
+        store.remove_mapping("feishu", "chat-2").await.unwrap();
+
+        let result = store.get_session("feishu", "chat-2").await.unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn session_store_list_sessions() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = session::SessionStore::new(&db_path).unwrap();
+
+        store
+            .save_mapping("dingtalk", "chat-a", "s1")
+            .await
+            .unwrap();
+        store
+            .save_mapping("dingtalk", "chat-b", "s2")
+            .await
+            .unwrap();
+        store.save_mapping("feishu", "chat-c", "s3").await.unwrap();
+
+        let dingtalk_sessions = store.list_sessions("dingtalk").await.unwrap();
+        assert_eq!(dingtalk_sessions.len(), 2);
+
+        let feishu_sessions = store.list_sessions("feishu").await.unwrap();
+        assert_eq!(feishu_sessions.len(), 1);
+        assert_eq!(feishu_sessions[0].session_id, "s3");
     }
 }

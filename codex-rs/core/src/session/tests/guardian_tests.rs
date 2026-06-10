@@ -307,7 +307,6 @@ async fn guardian_allows_shell_command_additional_permissions_requests_past_poli
     let handler = crate::tools::handlers::ShellCommandHandler::from(
         codex_tools::ShellCommandBackendConfig::Classic,
     );
-    #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
     let resp = handler
         .handle(ToolInvocation {
@@ -410,7 +409,6 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
     let handler = crate::tools::handlers::ShellCommandHandler::from(
         codex_tools::ShellCommandBackendConfig::Classic,
     );
-    #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
     let resp = handler
         .handle(ToolInvocation {
@@ -578,7 +576,6 @@ async fn shell_command_allows_sticky_turn_permissions_without_inline_request_per
     let handler = crate::tools::handlers::ShellCommandHandler::from(
         codex_tools::ShellCommandBackendConfig::Classic,
     );
-    #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
     let resp = handler
         .handle(ToolInvocation {

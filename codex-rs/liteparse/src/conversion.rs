@@ -179,13 +179,12 @@ pub async fn convert_to_pdf(
     };
 
     let tmp_dir = tempfile::Builder::new().prefix("liteparse-").tempdir()?;
+    let tmp_dir_str = tmp_dir.path().to_str().ok_or_else(|| {
+        LiteParseError::Conversion("temp dir path contains non-UTF-8 characters".to_string())
+    })?;
     let pdf_path = match tool {
-        ConversionTool::ImageMagick => {
-            convert_image_to_pdf(path, tmp_dir.path().to_str().unwrap()).await?
-        }
-        ConversionTool::LibreOffice => {
-            convert_office_document(path, tmp_dir.path().to_str().unwrap(), password).await?
-        }
+        ConversionTool::ImageMagick => convert_image_to_pdf(path, tmp_dir_str).await?,
+        ConversionTool::LibreOffice => convert_office_document(path, tmp_dir_str, password).await?,
     };
 
     Ok((
@@ -567,7 +566,10 @@ pub async fn convert_data_to_pdf(
         .path()
         .join(format!("input.{}", ext.unwrap_or("bin".to_string())));
     tokio::fs::write(&tmp_path, data).await?;
-    let (converted, output_dir) = convert_to_pdf(tmp_path.to_str().unwrap(), password).await?;
+    let tmp_path_str = tmp_path.to_str().ok_or_else(|| {
+        LiteParseError::Conversion("staging path contains non-UTF-8 characters".to_string())
+    })?;
+    let (converted, output_dir) = convert_to_pdf(tmp_path_str, password).await?;
     let mut temps = vec![staging_dir];
     if let Some(d) = output_dir {
         temps.push(d);

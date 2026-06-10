@@ -46,7 +46,6 @@ fn shell_command_for_invocation(invocation: &ToolInvocation) -> Option<(Vec<Stri
                 if !invocation.turn.config.permissions.allow_login_shell
                     && params.login == Some(true)
                 {
-                    #[allow(deprecated)]
                     let cwd = invocation.turn.resolve_path(params.workdir).to_path_buf();
                     return (Vec::new(), cwd);
                 }
@@ -57,7 +56,6 @@ fn shell_command_for_invocation(invocation: &ToolInvocation) -> Option<(Vec<Stri
                     .session
                     .user_shell()
                     .derive_exec_args(&params.command, use_login_shell);
-                #[allow(deprecated)]
                 let cwd = invocation.turn.resolve_path(params.workdir).to_path_buf();
                 (command, cwd)
             }),
@@ -71,7 +69,6 @@ fn shell_command_for_invocation(invocation: &ToolInvocation) -> Option<(Vec<Stri
                     invocation.turn.config.permissions.allow_login_shell,
                 )
                 .ok()?;
-                #[allow(deprecated)]
                 let cwd = invocation.turn.resolve_path(params.workdir).to_path_buf();
                 Some((command.command, cwd))
             }),

@@ -587,7 +587,9 @@ impl AnalyticsReducer {
                     }),
                 );
             }
-            _ => {}
+            other => {
+                tracing::debug!("unhandled client request: {:?}", other);
+            }
         }
     }
 
@@ -811,7 +813,9 @@ impl AnalyticsReducer {
             } => {
                 self.ingest_turn_steer_response(connection_id, request_id, response, out);
             }
-            _ => {}
+            _ => {
+                tracing::debug!("unhandled client response: {:?}", response);
+            }
         }
     }
 
@@ -927,7 +931,9 @@ impl AnalyticsReducer {
                     },
                 );
             }
-            _ => {}
+            _ => {
+                tracing::debug!("unhandled server request: {:?}", request);
+            }
         }
     }
 
@@ -972,7 +978,9 @@ impl AnalyticsReducer {
                     out,
                 );
             }
-            _ => {}
+            _ => {
+                tracing::debug!("unhandled server response: {:?}", response);
+            }
         }
     }
 
@@ -1218,7 +1226,9 @@ impl AnalyticsReducer {
                 let turn_id = notification.turn.id;
                 self.maybe_emit_turn_event(&turn_id, out).await;
             }
-            _ => {}
+            _ => {
+                tracing::debug!("unhandled server notification: {:?}", notification);
+            }
         }
     }
 

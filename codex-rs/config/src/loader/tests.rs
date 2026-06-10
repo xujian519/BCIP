@@ -108,7 +108,7 @@ model = "gpt-work"
         &[],
         overrides,
         CloudRequirementsLoader::default(),
-        &crate::NoopThreadConfigLoader,
+        crate::NoopThreadConfigLoader,
     )
     .await
     .expect_err("profile-v2 should reject a matching legacy profile in base user config");
@@ -167,7 +167,7 @@ model = "gpt-main"
         &[],
         overrides,
         CloudRequirementsLoader::default(),
-        &crate::NoopThreadConfigLoader,
+        crate::NoopThreadConfigLoader,
     )
     .await
     .expect_err("profile-v2 should reject a matching legacy profile selector");
@@ -224,7 +224,7 @@ model = "gpt-dev"
         &[],
         overrides,
         CloudRequirementsLoader::default(),
-        &crate::NoopThreadConfigLoader,
+        crate::NoopThreadConfigLoader,
     )
     .await
     .expect("profile-v2 should allow unrelated legacy profiles in base user config");

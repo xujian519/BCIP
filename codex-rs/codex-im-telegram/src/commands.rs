@@ -1,6 +1,6 @@
-use super::TelegramAdapter;
+use codex_im_protocol::platform::{self, ImCommand};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+use super::TelegramAdapter;
 pub enum BotCommand {
     Start,
     Help,
@@ -17,37 +17,13 @@ pub enum BotCommand {
 pub fn parse_command(input: &str) -> Option<BotCommand> {
     let text = input.trim();
 
+    // Telegram-specific commands first
     if text == "/start" {
         return Some(BotCommand::Start);
-    }
-    if text == "/help" || text == "帮助" {
-        return Some(BotCommand::Help);
     }
     if text == "/projects" || text == "项目列表" {
         return Some(BotCommand::Projects);
     }
-    if text == "/status" || text == "状态" {
-        return Some(BotCommand::Status);
-    }
-    if text == "/stop" || text == "停止" {
-        return Some(BotCommand::Stop);
-    }
-    if text == "/clear" || text == "清空" {
-        return Some(BotCommand::Clear);
-    }
-
-    if let Some(rest) = text.strip_prefix("/new ") {
-        let project = if rest.is_empty() {
-            None
-        } else {
-            Some(rest.trim().to_string())
-        };
-        return Some(BotCommand::NewSession(project));
-    }
-    if text.starts_with("/new") {
-        return Some(BotCommand::NewSession(None));
-    }
-
     if let Some(rest) = text.strip_prefix("/allow ") {
         return Some(BotCommand::Allow(rest.trim().to_string()));
     }
@@ -58,7 +34,15 @@ pub fn parse_command(input: &str) -> Option<BotCommand> {
         return Some(BotCommand::Deny(rest.trim().to_string()));
     }
 
-    None
+    // Delegate common commands to protocol
+    match platform::parse_command(text)? {
+        ImCommand::Help => Some(BotCommand::Help),
+        ImCommand::NewSession(project) => Some(BotCommand::NewSession(project)),
+        ImCommand::Status => Some(BotCommand::Status),
+        ImCommand::Stop => Some(BotCommand::Stop),
+        ImCommand::Clear => Some(BotCommand::Clear),
+        ImCommand::PlatformSpecific(_) => None,
+    }
 }
 
 impl TelegramAdapter {

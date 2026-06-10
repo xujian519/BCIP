@@ -2,14 +2,14 @@ mod api;
 
 use std::sync::Arc;
 
+use api::DingtalkApi;
 use codex_im_bridge::ImBridge;
 use codex_im_protocol::ClientMessage;
 use codex_im_protocol::ServerMessage;
+use codex_im_protocol::platform::{ImCommand, StreamingBuffer};
 use tokio::sync::Mutex;
 use tracing::error;
 use tracing::info;
-
-use api::DingtalkApi;
 
 #[derive(Debug)]
 pub struct DingtalkConfig {
@@ -19,6 +19,7 @@ pub struct DingtalkConfig {
 }
 
 #[derive(Debug)]
+// TODO: wire into adapter — adapter declared but not used outside this crate
 #[allow(dead_code)]
 pub struct DingtalkAdapter {
     api: DingtalkApi,
@@ -67,8 +68,8 @@ impl DingtalkAdapter {
     pub async fn ensure_token(&self) -> Result<String, String> {
         {
             let token = self.access_token.lock().await;
-            if token.is_some() {
-                return Ok(token.clone().unwrap());
+            if let Some(t) = token.as_ref() {
+                return Ok(t.clone());
             }
         }
         let new_token = self.api.get_access_token().await?;
@@ -92,7 +93,7 @@ impl DingtalkAdapter {
             return Ok(()); // Silently ignore unauthorized users
         }
 
-        if let Some(command) = self.parse_command(text) {
+        if let Some(command) = codex_im_protocol::platform::parse_command(text) {
             let token = self.ensure_token().await?;
             self.handle_command(&token, conversation_id, sender_id, &command)
                 .await;
@@ -128,50 +129,22 @@ impl DingtalkAdapter {
         }
     }
 
-    fn parse_command(&self, text: &str) -> Option<DingtalkCommand> {
-        let trimmed = text.trim();
-
-        if trimmed == "新会话" || trimmed == "/new" {
-            return Some(DingtalkCommand::NewSession(None));
-        }
-        if let Some(rest) = trimmed
-            .strip_prefix("新会话 ")
-            .or_else(|| trimmed.strip_prefix("/new "))
-        {
-            return Some(DingtalkCommand::NewSession(Some(rest.trim().to_string())));
-        }
-        if trimmed == "帮助" || trimmed == "/help" {
-            return Some(DingtalkCommand::Help);
-        }
-        if trimmed == "状态" || trimmed == "/status" {
-            return Some(DingtalkCommand::Status);
-        }
-        if trimmed == "停止" || trimmed == "/stop" {
-            return Some(DingtalkCommand::Stop);
-        }
-        if trimmed == "清空" || trimmed == "/clear" {
-            return Some(DingtalkCommand::Clear);
-        }
-
-        None
-    }
-
     async fn handle_command(
         &self,
         token: &str,
         conversation_id: &str,
         _sender_id: &str,
-        cmd: &DingtalkCommand,
+        cmd: &ImCommand,
     ) {
         match cmd {
-            DingtalkCommand::Help => {
+            ImCommand::Help => {
                 let text = "BCIP 专利智能助手\n\n命令: 新会话 / 帮助 / 状态 / 停止 / 清空";
                 self.api
                     .send_message(token, conversation_id, text)
                     .await
                     .ok();
             }
-            DingtalkCommand::NewSession(project) => {
+            ImCommand::NewSession(project) => {
                 let text = match project {
                     Some(p) => format!("正在创建新会话，项目: {p}"),
                     None => "正在创建新会话...".into(),
@@ -181,24 +154,27 @@ impl DingtalkAdapter {
                     .await
                     .ok();
             }
-            DingtalkCommand::Status => {
+            ImCommand::Status => {
                 self.api
                     .send_message(token, conversation_id, "查询当前状态...")
                     .await
                     .ok();
             }
-            DingtalkCommand::Stop => {
+            ImCommand::Stop => {
                 self.api
                     .send_message(token, conversation_id, "停止当前生成...")
                     .await
                     .ok();
                 self.bridge.send_message(ClientMessage::StopGeneration).ok();
             }
-            DingtalkCommand::Clear => {
+            ImCommand::Clear => {
                 self.api
                     .send_message(token, conversation_id, "会话上下文已清空。")
                     .await
                     .ok();
+            }
+            ImCommand::PlatformSpecific(cmd) => {
+                tracing::debug!(%cmd, "钉钉不支持的平台特有命令，已忽略");
             }
         }
     }
@@ -209,7 +185,7 @@ impl DingtalkAdapter {
         conversation_id: &str,
         event_rx: &mut tokio::sync::broadcast::Receiver<ServerMessage>,
     ) {
-        let mut text_buffer = String::new();
+        let mut buf = StreamingBuffer::new(3500);
 
         loop {
             let event = match event_rx.recv().await {
@@ -227,16 +203,16 @@ impl DingtalkAdapter {
                 }
 
                 ServerMessage::ContentDelta { delta, .. } => {
-                    text_buffer.push_str(&delta);
-
-                    if text_buffer.chars().count() > 3500 {
-                        if let Ok(_) = self
+                    buf.push_delta(&delta);
+                    // 钉钉：先发送完整内容再清空缓冲区（无消息气泡机制）
+                    if buf.should_flush()
+                        && self
                             .api
-                            .send_message(token, conversation_id, &text_buffer)
+                            .send_message(token, conversation_id, buf.content())
                             .await
-                        {
-                            text_buffer.clear();
-                        }
+                            .is_ok()
+                    {
+                        buf.clear();
                     }
                 }
 
@@ -252,9 +228,9 @@ impl DingtalkAdapter {
                 }
 
                 ServerMessage::MessageComplete { .. } => {
-                    if !text_buffer.is_empty() {
+                    if !buf.is_empty() {
                         self.api
-                            .send_message(token, conversation_id, &text_buffer)
+                            .send_message(token, conversation_id, buf.content())
                             .await
                             .ok();
                     }
@@ -288,11 +264,127 @@ pub struct SentMessage {
     pub message_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DingtalkCommand {
-    Help,
-    NewSession(Option<String>),
-    Status,
-    Stop,
-    Clear,
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use codex_im_protocol::platform::{ImCommand, StreamingBuffer, parse_command};
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn dingtalk_message_construction() {
+        let msg = DingtalkMessage {
+            message_id: "msg-123".to_string(),
+            conversation_id: "conv-1".to_string(),
+            sender_id: "user-1".to_string(),
+            content: Some("hello".to_string()),
+        };
+        assert_eq!(msg.message_id, "msg-123");
+        assert_eq!(msg.conversation_id, "conv-1");
+        assert_eq!(msg.sender_id, "user-1");
+        assert_eq!(msg.content.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn dingtalk_message_empty_content() {
+        let msg = DingtalkMessage {
+            message_id: "msg-456".to_string(),
+            conversation_id: "conv-2".to_string(),
+            sender_id: "user-2".to_string(),
+            content: None,
+        };
+        assert_eq!(msg.content, None);
+    }
+
+    #[test]
+    fn sent_message_construction() {
+        let msg = SentMessage {
+            message_id: "sent-789".to_string(),
+        };
+        assert_eq!(msg.message_id, "sent-789");
+    }
+
+    #[test]
+    fn dingtalk_config_fields() {
+        let config = DingtalkConfig {
+            app_key: "key-abc".to_string(),
+            app_secret: "secret-xyz".to_string(),
+            allowed_users: vec!["user-1".to_string(), "user-2".to_string()],
+        };
+        assert_eq!(config.app_key, "key-abc");
+        assert_eq!(config.allowed_users.len(), 2);
+    }
+
+    #[test]
+    fn command_parsing_new_session() {
+        let cmd = parse_command("新会话");
+        assert_eq!(cmd, Some(ImCommand::NewSession(None)));
+    }
+
+    #[test]
+    fn command_parsing_new_session_with_project() {
+        let cmd = parse_command("新会话 my-project");
+        assert_eq!(
+            cmd,
+            Some(ImCommand::NewSession(Some("my-project".to_string())))
+        );
+    }
+
+    #[test]
+    fn command_parsing_help() {
+        assert_eq!(parse_command("/help"), Some(ImCommand::Help));
+        assert_eq!(parse_command("帮助"), Some(ImCommand::Help));
+    }
+
+    #[test]
+    fn command_parsing_status_stop_clear() {
+        assert_eq!(parse_command("/status"), Some(ImCommand::Status));
+        assert_eq!(parse_command("状态"), Some(ImCommand::Status));
+        assert_eq!(parse_command("/stop"), Some(ImCommand::Stop));
+        assert_eq!(parse_command("停止"), Some(ImCommand::Stop));
+        assert_eq!(parse_command("/clear"), Some(ImCommand::Clear));
+        assert_eq!(parse_command("清空"), Some(ImCommand::Clear));
+    }
+
+    #[test]
+    fn command_parsing_platform_specific() {
+        let cmd = parse_command("/custom_command arg1");
+        assert_eq!(
+            cmd,
+            Some(ImCommand::PlatformSpecific(
+                "/custom_command arg1".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn command_parsing_plain_text_returns_none() {
+        assert_eq!(parse_command("你好"), None);
+        assert_eq!(parse_command("just a normal message"), None);
+    }
+
+    #[test]
+    fn streaming_buffer_push_and_flush() {
+        let mut buf = StreamingBuffer::new(10);
+        assert!(buf.is_empty());
+
+        buf.push_delta("hello");
+        assert_eq!(buf.content(), "hello");
+        assert!(!buf.should_flush());
+
+        buf.push_delta(" world!!!");
+        assert!(buf.should_flush());
+
+        let flushed = buf.flush();
+        assert_eq!(flushed, "hello world!!!");
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn streaming_buffer_delta_since_last_send() {
+        let mut buf = StreamingBuffer::new(100);
+        buf.push_delta("part1");
+        buf.mark_sent();
+        buf.push_delta("part2");
+        assert_eq!(buf.delta_since_last_send(), "part2");
+    }
 }

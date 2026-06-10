@@ -148,7 +148,7 @@ invalid = ["#;
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("expected error");
@@ -180,7 +180,7 @@ invalid = ["#,
             ..Default::default()
         },
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -211,7 +211,7 @@ async fn ignore_rules_marks_config_stack_for_exec_policy_rule_skip() -> std::io:
             ..Default::default()
         },
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -237,7 +237,7 @@ invalid = ["#;
         &[] as &[(String, TomlValue)],
         overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("expected error");
@@ -289,7 +289,7 @@ async fn top_level_allow_managed_hooks_only_in_user_config_does_not_enable_requi
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -324,7 +324,7 @@ command = "python3 /tmp/user-hook.py"
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -534,7 +534,7 @@ extra = true
         &[] as &[(String, TomlValue)],
         overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load config");
@@ -568,7 +568,7 @@ async fn returns_empty_when_all_layers_missing() {
         &[] as &[(String, TomlValue)],
         overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load layers");
@@ -645,7 +645,7 @@ approval_policy = "on-failure"
         &[] as &[(String, TomlValue)],
         overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load layers");
@@ -708,7 +708,7 @@ async fn includes_thread_config_layers_in_stack() -> anyhow::Result<()> {
         &[("features.plugins".to_string(), TomlValue::Boolean(true))],
         overrides,
         CloudRequirementsLoader::default(),
-        &StaticThreadConfigLoader::new(vec![ThreadConfigSource::Session(SessionThreadConfig {
+        StaticThreadConfigLoader::new(vec![ThreadConfigSource::Session(SessionThreadConfig {
             features: BTreeMap::from([("plugins".to_string(), false)]),
             ..Default::default()
         })]),
@@ -788,7 +788,7 @@ flag = false
         &[] as &[(String, TomlValue)],
         overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load config");
@@ -892,7 +892,7 @@ allowed_sandbox_modes = ["read-only"]
         &[] as &[(String, TomlValue)],
         loader_overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -954,7 +954,7 @@ allowed_approval_policies = ["never"]
         &[] as &[(String, TomlValue)],
         loader_overrides,
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1115,7 +1115,7 @@ allowed_approval_policies = ["on-request"]
                 guardian_policy_config: None,
             }))
         }),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1395,7 +1395,7 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         cloud_requirements,
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1774,7 +1774,7 @@ async fn load_config_layers_includes_cloud_hook_requirements() -> anyhow::Result
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         cloud_requirements,
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1815,7 +1815,7 @@ async fn load_config_layers_applies_matching_remote_sandbox_config() -> anyhow::
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         cloud_requirements,
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1857,7 +1857,7 @@ async fn load_config_layers_fails_when_cloud_requirements_loader_fails() -> anyh
                 "cloud requirements failed",
             ))
         }),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("cloud requirements failure should fail closed");
@@ -1907,7 +1907,7 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1990,7 +1990,7 @@ async fn linked_worktree_project_layers_keep_worktree_config_but_use_root_repo_h
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2072,7 +2072,7 @@ async fn linked_worktree_project_layers_use_root_repo_hooks_without_worktree_con
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2143,7 +2143,7 @@ async fn nested_project_root_markers_do_not_redirect_regular_repo_hooks() -> std
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2331,7 +2331,7 @@ async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> s
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2372,7 +2372,7 @@ async fn codex_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::R
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2438,7 +2438,7 @@ async fn codex_home_within_project_tree_is_not_double_loaded() -> std::io::Resul
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2514,7 +2514,7 @@ profile = "ignored"
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
     let project_layers_untrusted: Vec<_> = layers_untrusted
@@ -2561,7 +2561,7 @@ profile = "ignored"
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
     let project_layers_unknown: Vec<_> = layers_unknown
@@ -2650,7 +2650,7 @@ wire_api = "responses"
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2755,7 +2755,7 @@ model = "legacy-model"
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
             CloudRequirementsLoader::default(),
-            &codex_config::NoopThreadConfigLoader,
+            codex_config::NoopThreadConfigLoader,
         )
         .await?;
 
@@ -2832,7 +2832,7 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2998,7 +2998,7 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
             CloudRequirementsLoader::default(),
-            &codex_config::NoopThreadConfigLoader,
+            codex_config::NoopThreadConfigLoader,
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -3067,7 +3067,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
             CloudRequirementsLoader::default(),
-            &codex_config::NoopThreadConfigLoader,
+            codex_config::NoopThreadConfigLoader,
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -3128,7 +3128,7 @@ async fn cli_overrides_with_relative_paths_do_not_break_trust_check() -> std::io
         &cli_overrides,
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -3174,7 +3174,7 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        &codex_config::NoopThreadConfigLoader,
+        codex_config::NoopThreadConfigLoader,
     )
     .await?;
 

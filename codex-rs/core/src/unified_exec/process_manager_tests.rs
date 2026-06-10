@@ -170,9 +170,7 @@ async fn failed_initial_end_for_unstored_process_uses_fallback_output() {
         process_id: 123,
         yield_time_ms: 1000,
         max_output_tokens: None,
-        #[allow(deprecated)]
         cwd: turn.cwd.clone(),
-        #[allow(deprecated)]
         sandbox_cwd: turn.cwd.clone(),
         environment: turn
             .environments
@@ -197,7 +195,6 @@ async fn failed_initial_end_for_unstored_process_uses_fallback_output() {
         /*process_started_alive*/ false,
         &context,
         &request,
-        #[allow(deprecated)]
         turn.cwd.clone(),
         transcript,
         "PRE_DENIAL_MARKER".to_string(),

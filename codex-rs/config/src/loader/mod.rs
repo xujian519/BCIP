@@ -106,6 +106,8 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 /// associated with it such that `cwd` should be `Some(...)`. Only for
 /// thread-agnostic config loading (e.g., for the app server's `/config`
 /// endpoint) should `cwd` be `None`.
+/// Note: `thread_config_loader` uses `impl ThreadConfigLoader` instead of `&dyn ThreadConfigLoader`.
+/// For type-erased dispatch, wrap in `ThreadConfigLoaderKind` (see `config::thread_config`).
 #[allow(clippy::too_many_arguments)]
 pub async fn load_config_layers_state(
     fs: &dyn ExecutorFileSystem,
@@ -114,7 +116,7 @@ pub async fn load_config_layers_state(
     cli_overrides: &[(String, TomlValue)],
     options: impl Into<ConfigLoadOptions>,
     cloud_requirements: CloudRequirementsLoader,
-    thread_config_loader: &dyn ThreadConfigLoader,
+    thread_config_loader: impl ThreadConfigLoader,
 ) -> io::Result<ConfigLayerStack> {
     let ConfigLoadOptions {
         loader_overrides: overrides,

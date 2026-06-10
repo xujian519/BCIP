@@ -407,7 +407,6 @@ impl ToolRegistry {
                 "sandbox_policy",
                 permission_profile_policy_tag(
                     &invocation.turn.permission_profile,
-                    #[allow(deprecated)]
                     invocation.turn.cwd.as_path(),
                 ),
             ),
@@ -598,7 +597,7 @@ impl ToolRegistry {
                                 }
                             }
                         }
-                        Err(last_err.unwrap())
+                        Err(last_err.expect("tool execution should have recorded at least one error"))
                     }
                 },
             )

@@ -3,7 +3,7 @@ use codex_cloud_requirements::cloud_requirements_loader;
 use codex_config::CloudRequirementsLoader;
 use codex_config::ConfigLayerStack;
 use codex_config::LoaderOverrides;
-use codex_config::ThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_config::loader::load_config_layers_state;
 use codex_core::config::Config;
 use codex_core::config::ConfigOverrides;
@@ -33,7 +33,7 @@ pub(crate) struct ConfigManager {
     strict_config: bool,
     cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
     arg0_paths: Arg0DispatchPaths,
-    thread_config_loader: Arc<RwLock<Arc<dyn ThreadConfigLoader>>>,
+    thread_config_loader: Arc<RwLock<Arc<ThreadConfigLoaderKind>>>,
 }
 
 impl ConfigManager {
@@ -44,7 +44,7 @@ impl ConfigManager {
         strict_config: bool,
         cloud_requirements: CloudRequirementsLoader,
         arg0_paths: Arg0DispatchPaths,
-        thread_config_loader: Arc<dyn ThreadConfigLoader>,
+        thread_config_loader: Arc<ThreadConfigLoaderKind>,
     ) -> Self {
         Self {
             codex_home,
@@ -106,7 +106,7 @@ impl ConfigManager {
 
     pub(crate) fn replace_thread_config_loader(
         &self,
-        thread_config_loader: Arc<dyn ThreadConfigLoader>,
+        thread_config_loader: Arc<ThreadConfigLoaderKind>,
     ) {
         if let Ok(mut guard) = self.thread_config_loader.write() {
             *guard = thread_config_loader;
@@ -115,11 +115,11 @@ impl ConfigManager {
         }
     }
 
-    fn current_thread_config_loader(&self) -> Arc<dyn ThreadConfigLoader> {
+    fn current_thread_config_loader(&self) -> Arc<ThreadConfigLoaderKind> {
         self.thread_config_loader
             .read()
             .map(|guard| Arc::clone(&*guard))
-            .unwrap_or_else(|_| Arc::new(codex_config::NoopThreadConfigLoader))
+            .unwrap_or_else(|_| Arc::new(ThreadConfigLoaderKind::default()))
     }
 
     pub(crate) async fn sync_default_client_residency_requirement(&self) {
@@ -268,7 +268,7 @@ impl ConfigManager {
                 strict_config: self.strict_config,
             },
             self.current_cloud_requirements(),
-            thread_config_loader.as_ref(),
+            thread_config_loader.as_ref().clone(),
         )
         .await
     }
@@ -304,7 +304,7 @@ impl ConfigManager {
             /*strict_config*/ false,
             cloud_requirements,
             Arg0DispatchPaths::default(),
-            Arc::new(codex_config::NoopThreadConfigLoader),
+            Arc::new(ThreadConfigLoaderKind::default()),
         )
     }
 

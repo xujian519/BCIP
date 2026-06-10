@@ -715,7 +715,6 @@ async fn run_review_on_session(
             final_output_json_schema: Some(params.schema.clone()),
             responsesapi_client_metadata: None,
             thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
-                #[allow(deprecated)]
                 cwd: Some(params.parent_turn.cwd.to_path_buf()),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(legacy_sandbox_policy),
@@ -1094,7 +1093,6 @@ mod tests {
         let reasoning_effort = turn.reasoning_effort;
         let reasoning_summary = turn.reasoning_summary;
         let personality = turn.personality;
-        #[allow(deprecated)]
         let cwd = turn.cwd.clone();
         let spawn_config = build_guardian_review_session_config(
             turn.config.as_ref(),

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use codex_model_provider_info::ModelProviderInfo;
 use codex_model_provider_info::WireApi;
 use codex_protocol::config_types::ModelProviderAuthInfo;
@@ -51,7 +50,6 @@ impl RemoteThreadConfigLoader {
     }
 }
 
-#[async_trait]
 impl ThreadConfigLoader for RemoteThreadConfigLoader {
     async fn load(
         &self,

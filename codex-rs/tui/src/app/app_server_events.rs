@@ -116,7 +116,9 @@ impl App {
                 );
                 return;
             }
-            _ => {}
+            _ => {
+                tracing::debug!("unhandled server notification: {:?}", notification);
+            }
         }
 
         match server_notification_thread_target(&notification) {

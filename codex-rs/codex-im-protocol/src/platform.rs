@@ -35,7 +35,7 @@ pub trait ImPlatform: Send + Sync {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImCommand {
     Help,
-    NewSession,
+    NewSession(Option<String>),
     Status,
     Stop,
     Clear,
@@ -48,7 +48,15 @@ pub fn parse_command(text: &str) -> Option<ImCommand> {
     let trimmed = text.trim();
     match trimmed {
         "/help" | "帮助" | "/帮助" => Some(ImCommand::Help),
-        "/new" | "新会话" | "/新会话" | "/start" => Some(ImCommand::NewSession),
+        "/new" | "新会话" | "/新会话" | "/start" => Some(ImCommand::NewSession(None)),
+        _ if trimmed.starts_with("/new ") || trimmed.starts_with("新会话 ") => {
+            let rest = if let Some(r) = trimmed.strip_prefix("/new ") {
+                r
+            } else {
+                trimmed.strip_prefix("新会话 ").unwrap_or(trimmed)
+            };
+            Some(ImCommand::NewSession(Some(rest.trim().to_string())))
+        }
         "/status" | "状态" | "/状态" => Some(ImCommand::Status),
         "/stop" | "停止" | "/停止" => Some(ImCommand::Stop),
         "/clear" | "清空" | "/清空" => Some(ImCommand::Clear),
@@ -171,7 +179,6 @@ pub fn format_server_event(event: &super::ServerMessage) -> Option<String> {
         _ => None,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,7 +186,7 @@ mod tests {
     #[test]
     fn test_parse_command_chinese() {
         assert_eq!(parse_command("帮助"), Some(ImCommand::Help));
-        assert_eq!(parse_command("新会话"), Some(ImCommand::NewSession));
+        assert_eq!(parse_command("新会话"), Some(ImCommand::NewSession(None)));
         assert_eq!(parse_command("状态"), Some(ImCommand::Status));
         assert_eq!(parse_command("停止"), Some(ImCommand::Stop));
         assert_eq!(parse_command("清空"), Some(ImCommand::Clear));
@@ -188,10 +195,22 @@ mod tests {
     #[test]
     fn test_parse_command_english() {
         assert_eq!(parse_command("/help"), Some(ImCommand::Help));
-        assert_eq!(parse_command("/new"), Some(ImCommand::NewSession));
+        assert_eq!(parse_command("/new"), Some(ImCommand::NewSession(None)));
         assert_eq!(parse_command("/status"), Some(ImCommand::Status));
         assert_eq!(parse_command("/stop"), Some(ImCommand::Stop));
         assert_eq!(parse_command("/clear"), Some(ImCommand::Clear));
+    }
+
+    #[test]
+    fn test_parse_command_with_project_name() {
+        assert_eq!(
+            parse_command("/new my-project"),
+            Some(ImCommand::NewSession(Some("my-project".to_string())))
+        );
+        assert_eq!(
+            parse_command("新会话 专利项目"),
+            Some(ImCommand::NewSession(Some("专利项目".to_string())))
+        );
     }
 
     #[test]

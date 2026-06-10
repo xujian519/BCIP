@@ -84,7 +84,6 @@ async fn exec_command_with_tty(
 ) -> Result<ExecCommandToolOutput, UnifiedExecError> {
     let manager = &session.services.unified_exec_manager;
     let process_id = manager.allocate_process_id().await;
-    #[allow(deprecated)]
     let cwd = workdir
         .as_ref()
         .map_or_else(|| turn.cwd.clone(), |workdir| turn.cwd.join(workdir));
@@ -525,7 +524,6 @@ async fn reusing_completed_process_returns_unknown_process() -> anyhow::Result<(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn completed_pipe_commands_preserve_exit_code() -> anyhow::Result<()> {
     let (_, turn) = make_session_and_context().await;
-    #[allow(deprecated)]
     let cwd = turn.cwd.clone();
     let request = test_exec_request(
         &turn,
@@ -624,7 +622,6 @@ async fn remote_exec_server_rejects_inherited_fd_launches() -> anyhow::Result<()
     turn.environments.turn_environments[0].environment =
         Arc::new(remote_test_env.environment().clone());
 
-    #[allow(deprecated)]
     let cwd = turn.cwd.clone();
     let request = test_exec_request(
         &turn,

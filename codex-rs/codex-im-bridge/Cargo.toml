@@ -13,3 +13,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
 tokio-tungstenite = { workspace = true }
 tracing = { workspace = true }
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = "3"

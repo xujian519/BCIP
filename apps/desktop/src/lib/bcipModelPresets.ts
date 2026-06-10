@@ -53,6 +53,60 @@ const BCIP_MODEL_ENTRIES: Array<{
     displayName: 'GLM-4 Flash',
     description: '智谱 GLM 快速模型',
   },
+  // Qwen 系列
+  {
+    model: 'qwen-plus',
+    displayName: 'Qwen Plus',
+    description: '阿里通义千问 Plus（config: model_provider = Qwen）',
+  },
+  {
+    model: 'qwen-max',
+    displayName: 'Qwen Max',
+    description: '阿里通义千问 Max（config: model_provider = Qwen）',
+  },
+  {
+    model: 'qwen-turbo',
+    displayName: 'Qwen Turbo',
+    description: '阿里通义千问 Turbo（config: model_provider = Qwen）',
+  },
+  {
+    model: 'qwen3.5-plus',
+    displayName: 'Qwen 3.5 Plus',
+    description: '阿里通义千问 3.5 Plus，1M 上下文（config: model_provider = Qwen）',
+  },
+  {
+    model: 'qwen3.6-flash',
+    displayName: 'Qwen 3.6 Flash',
+    description: '阿里通义千问 3.6 Flash（config: model_provider = Qwen）',
+  },
+  // MiniMax 系列
+  {
+    model: 'minimax-m2.5',
+    displayName: 'MiniMax M2.5',
+    description: 'MiniMax M2.5（config: model_provider = MiniMax）',
+  },
+  {
+    model: 'minimax-m2.5-lightning',
+    displayName: 'MiniMax M2.5 Lightning',
+    description: 'MiniMax 快速版（config: model_provider = MiniMax）',
+  },
+  // DeepSeek 补充
+  {
+    model: 'deepseek-reasoner',
+    displayName: 'DeepSeek Reasoner',
+    description: 'DeepSeek 深度推理（config: model_provider = DeepSeek）',
+  },
+  // Kimi / Moonshot 补充
+  {
+    model: 'kimi-k2.5',
+    displayName: 'Kimi K2.5',
+    description: '月之暗面 Kimi 旗舰，262K 上下文（config: model_provider = Kimi）',
+  },
+  {
+    model: 'moonshot-v1-128k',
+    displayName: 'Moonshot 128K',
+    description: 'Moonshot 128K 上下文（config: model_provider = KimiDirect）',
+  },
 ];
 
 export const BCIP_MODEL_PROVIDERS: Array<{ id: string; name: string }> = [
@@ -61,6 +115,9 @@ export const BCIP_MODEL_PROVIDERS: Array<{ id: string; name: string }> = [
   { id: 'ZhiPuVLM', name: '智谱 GLM 视觉（多模态）' },
   { id: 'Kimi', name: 'Kimi 直连' },
   { id: 'KimiDirect', name: 'Kimi Moonshot 直连' },
+  { id: 'Qwen', name: '阿里通义千问 (Dashscope)' },
+  { id: 'MiniMax', name: 'MiniMax 直连' },
+  { id: 'BaiDu', name: '百度千帆' },
   { id: 'LocalProxy', name: '本地代理 (8788，可选)' },
 ];
 

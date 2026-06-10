@@ -40,6 +40,27 @@ wire_api = "chat"
 base_url = "https://api.moonshot.cn/v1/"
 env_key = "MOONSHOT_API_KEY"
 
+# Qwen / 阿里通义千问（Dashscope）
+[model_providers.Qwen]
+name = "阿里通义千问 (直连)"
+wire_api = "chat"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+env_key = "DASHSCOPE_API_KEY"
+
+# MiniMax（国内版）
+[model_providers.MiniMax]
+name = "MiniMax (直连)"
+wire_api = "chat"
+base_url = "https://api.minimaxi.com/v1"
+env_key = "MINIMAX_API_KEY"
+
+# 百度千帆
+[model_providers.BaiDu]
+name = "百度千帆 (直连)"
+wire_api = "chat"
+base_url = "https://qianfan.baidubce.com/v2"
+env_key = "QIANFAN_API_KEY"
+
 # 可选：本地 LiteLLM（8788）；未启动时会出现 502
 [model_providers.LocalProxy]
 name = "本地代理 (8788，可选)"

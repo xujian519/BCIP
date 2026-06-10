@@ -92,7 +92,6 @@ impl ShellCommandHandler {
         let shell = session.user_shell();
         let use_login_shell = Self::resolve_use_login_shell(params.login, allow_login_shell)?;
         let command = Self::base_command(shell.as_ref(), &params.command, use_login_shell);
-        #[allow(deprecated)]
         let cwd = turn_context.resolve_path(params.workdir.clone());
 
         Ok(ExecParams {
@@ -161,10 +160,8 @@ impl ToolExecutor<ToolInvocation> for ShellCommandHandler {
             )));
         };
 
-        #[allow(deprecated)]
         let cwd = resolve_workdir_base_path(&arguments, &turn.cwd)?;
         let params: ShellCommandToolCallParams = parse_arguments_with_base_path(&arguments, &cwd)?;
-        #[allow(deprecated)]
         let workdir = turn.resolve_path(params.workdir.clone());
         maybe_emit_implicit_skill_invocation(
             session.as_ref(),

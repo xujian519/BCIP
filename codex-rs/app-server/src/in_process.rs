@@ -79,7 +79,7 @@ use codex_app_server_protocol::ServerRequest;
 use codex_arg0::Arg0DispatchPaths;
 use codex_config::CloudRequirementsLoader;
 use codex_config::LoaderOverrides;
-use codex_config::ThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_core::config::Config;
 use codex_core::resolve_installation_id;
 use codex_exec_server::EnvironmentManager;
@@ -127,7 +127,7 @@ pub struct InProcessStartArgs {
     /// Preloaded cloud requirements provider.
     pub cloud_requirements: CloudRequirementsLoader,
     /// Loader used to fetch typed thread config sources before a thread starts.
-    pub thread_config_loader: Arc<dyn ThreadConfigLoader>,
+    pub thread_config_loader: Arc<ThreadConfigLoaderKind>,
     /// Feedback sink used by app-server/core telemetry and logs.
     pub feedback: CodexFeedback,
     /// SQLite tracing layer used to flush recently emitted logs before feedback upload.
@@ -773,7 +773,7 @@ mod tests {
             loader_overrides: LoaderOverrides::default(),
             strict_config: false,
             cloud_requirements: CloudRequirementsLoader::default(),
-            thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+            thread_config_loader: Arc::new(ThreadConfigLoaderKind::default()),
             feedback: CodexFeedback::new(),
             log_db: None,
             state_db: Some(state_db),

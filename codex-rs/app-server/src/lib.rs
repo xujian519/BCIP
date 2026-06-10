@@ -5,7 +5,7 @@ use codex_config::ConfigLayerStackOrdering;
 use codex_config::LoaderOverrides;
 use codex_config::NoopThreadConfigLoader;
 use codex_config::RemoteThreadConfigLoader;
-use codex_config::ThreadConfigLoader;
+use codex_config::ThreadConfigLoaderKind;
 use codex_core::config::Config;
 use codex_core::resolve_installation_id;
 use codex_login::AuthManager;
@@ -121,10 +121,12 @@ enum LogFormat {
 
 type StderrLogLayer = Box<dyn Layer<Registry> + Send + Sync + 'static>;
 
-fn configured_thread_config_loader(config: &Config) -> Arc<dyn ThreadConfigLoader> {
+fn configured_thread_config_loader(config: &Config) -> Arc<ThreadConfigLoaderKind> {
     match config.experimental_thread_config_endpoint.as_deref() {
-        Some(endpoint) => Arc::new(RemoteThreadConfigLoader::new(endpoint)),
-        None => Arc::new(NoopThreadConfigLoader),
+        Some(endpoint) => Arc::new(ThreadConfigLoaderKind::Remote(
+            RemoteThreadConfigLoader::new(endpoint),
+        )),
+        None => Arc::new(ThreadConfigLoaderKind::Noop(NoopThreadConfigLoader)),
     }
 }
 
@@ -462,7 +464,7 @@ pub async fn run_main_with_transport_options(
         strict_config,
         Default::default(),
         arg0_paths.clone(),
-        Arc::new(NoopThreadConfigLoader),
+        Arc::new(ThreadConfigLoaderKind::default()),
     );
     match config_manager
         .load_latest_config(/*fallback_cwd*/ None)

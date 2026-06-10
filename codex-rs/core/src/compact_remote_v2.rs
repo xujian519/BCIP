@@ -42,6 +42,7 @@ use codex_utils_output_truncation::approx_token_count;
 use codex_utils_output_truncation::truncate_text;
 use futures::StreamExt;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
@@ -407,7 +408,9 @@ async fn collect_compaction_output(
                 completed_response_id = Some(response_id);
                 break;
             }
-            _ => {}
+            other => {
+                debug!("unhandled response event in compaction stream: {:?}", other);
+            }
         }
     }
 

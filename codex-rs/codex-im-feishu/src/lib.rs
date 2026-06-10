@@ -1,11 +1,10 @@
 mod api;
-mod cards;
 
 use std::sync::Arc;
 
 use codex_im_bridge::ImBridge;
-use codex_im_protocol::ClientMessage;
-use codex_im_protocol::ServerMessage;
+use codex_im_protocol::platform::{ImCommand, StreamingBuffer};
+use codex_im_protocol::{ClientMessage, ServerMessage};
 use tokio::sync::Mutex;
 use tracing::error;
 use tracing::info;
@@ -20,10 +19,10 @@ pub struct FeishuConfig {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct FeishuAdapter {
     api: FeishuApi,
     bridge: Arc<ImBridge>,
+    #[allow(dead_code)] // stored for future use (e.g., allowed_users checks)
     config: FeishuConfig,
     tenant_access_token: Arc<Mutex<Option<String>>>,
 }
@@ -90,7 +89,7 @@ impl FeishuAdapter {
             Err(_) => return,
         };
 
-        if let Some(command) = self.parse_command(text) {
+        if let Some(command) = codex_im_protocol::platform::parse_command(text) {
             self.handle_command(&token, &message.chat_id, &message.sender_id, &command)
                 .await;
             return;
@@ -120,78 +119,40 @@ impl FeishuAdapter {
             }
         }
     }
-
-    fn parse_command(&self, text: &str) -> Option<FeishuCommand> {
-        let trimmed = text.trim();
-
-        if trimmed == "新会话" || trimmed == "/new" {
-            return Some(FeishuCommand::NewSession(None));
-        }
-        if let Some(rest) = trimmed
-            .strip_prefix("新会话 ")
-            .or_else(|| trimmed.strip_prefix("/new "))
-        {
-            return Some(FeishuCommand::NewSession(Some(rest.trim().to_string())));
-        }
-        if trimmed == "帮助" || trimmed == "/help" {
-            return Some(FeishuCommand::Help);
-        }
-        if trimmed == "状态" || trimmed == "/status" {
-            return Some(FeishuCommand::Status);
-        }
-        if trimmed == "停止" || trimmed == "/stop" {
-            return Some(FeishuCommand::Stop);
-        }
-        if trimmed == "清空" || trimmed == "/clear" {
-            return Some(FeishuCommand::Clear);
-        }
-
-        None
-    }
-
-    async fn handle_command(
-        &self,
-        token: &str,
-        chat_id: &str,
-        _sender_id: &str,
-        cmd: &FeishuCommand,
-    ) {
+    async fn handle_command(&self, token: &str, chat_id: &str, _sender_id: &str, cmd: &ImCommand) {
         match cmd {
-            FeishuCommand::Help => {
-                let text = "BCIP 专利智能助手\n\n命令: 新会话 / 帮助 / 状态 / 停止 / 清空";
-                self.api.send_message(token, chat_id, text).await.ok();
+            ImCommand::Help => {
+                let text = codex_im_protocol::platform::help_text("飞书");
+                self.api.send_message(token, chat_id, &text).await.ok();
             }
-            FeishuCommand::NewSession(project) => {
+            ImCommand::NewSession(project) => {
                 let text = match project {
                     Some(p) => format!("正在创建新会话，项目: {p}"),
                     None => "正在创建新会话...".into(),
                 };
                 self.api.send_message(token, chat_id, &text).await.ok();
             }
-            FeishuCommand::Status => {
+            ImCommand::Status => {
                 self.api
                     .send_message(token, chat_id, "查询当前状态...")
                     .await
                     .ok();
             }
-            FeishuCommand::Stop => {
+            ImCommand::Stop => {
                 self.api
                     .send_message(token, chat_id, "停止当前生成...")
                     .await
                     .ok();
                 self.bridge.send_message(ClientMessage::StopGeneration).ok();
             }
-            FeishuCommand::Clear => {
+            ImCommand::Clear => {
                 self.api
                     .send_message(token, chat_id, "会话上下文已清空。")
                     .await
                     .ok();
             }
-            FeishuCommand::Projects => {
-                self.api
-                    .send_message(token, chat_id, "列出最近项目...")
-                    .await
-                    .ok();
+            ImCommand::PlatformSpecific(cmd) => {
+                tracing::debug!(%cmd, "飞书不支持的平台特有命令，已忽略");
             }
         }
     }
@@ -203,7 +164,7 @@ impl FeishuAdapter {
         event_rx: &mut tokio::sync::broadcast::Receiver<ServerMessage>,
     ) {
         let mut current_message_id: Option<String> = None;
-        let mut text_buffer = String::new();
+        let mut buf = StreamingBuffer::new(4000);
 
         loop {
             let event = match event_rx.recv().await {
@@ -219,27 +180,26 @@ impl FeishuAdapter {
                         .await
                         .ok();
                 }
-
                 ServerMessage::ContentDelta { delta, .. } => {
-                    text_buffer.push_str(&delta);
-
-                    if text_buffer.chars().count() > 4000 {
-                        text_buffer.clear();
+                    buf.push_delta(&delta);
+                    // 飞书消息气泡机制：先清空缓冲区再发送空消息以"断开"前一个气泡，
+                    // 与钉钉直接发送内容后清空的行为不同
+                    if buf.should_flush() {
+                        buf.clear();
                         if let Ok(msg) = self.api.send_message(token, chat_id, "").await {
                             current_message_id = Some(msg.message_id);
                         }
                     } else if let Some(_msg_id) = &current_message_id {
                         self.api
-                            .send_message(token, chat_id, &text_buffer)
+                            .send_message(token, chat_id, buf.content())
                             .await
                             .ok();
                     } else if let Ok(msg) =
-                        self.api.send_message(token, chat_id, &text_buffer).await
+                        self.api.send_message(token, chat_id, buf.content()).await
                     {
                         current_message_id = Some(msg.message_id);
                     }
                 }
-
                 ServerMessage::ToolUse { tool_name, .. } => {
                     let label = codex_im_common::tool_name_label(
                         codex_im_common::Channel::Feishu,
@@ -247,7 +207,6 @@ impl FeishuAdapter {
                     );
                     self.api.send_message(token, chat_id, &label).await.ok();
                 }
-
                 ServerMessage::PermissionRequest {
                     request_id,
                     tool_name,
@@ -263,7 +222,6 @@ impl FeishuAdapter {
                     );
                     self.api.send_message(token, chat_id, &text).await.ok();
                 }
-
                 ServerMessage::MessageComplete { .. } => break,
                 ServerMessage::Error { code, message } => {
                     self.api
@@ -272,7 +230,6 @@ impl FeishuAdapter {
                         .ok();
                     break;
                 }
-
                 _ => {}
             }
         }
@@ -309,14 +266,4 @@ pub struct FeishuMessage {
 #[derive(Debug, Clone)]
 pub struct SentMessage {
     pub message_id: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FeishuCommand {
-    Help,
-    NewSession(Option<String>),
-    Projects,
-    Status,
-    Stop,
-    Clear,
 }

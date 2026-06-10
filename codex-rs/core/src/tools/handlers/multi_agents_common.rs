@@ -268,7 +268,6 @@ pub(crate) fn apply_spawn_agent_runtime_overrides(
         })?;
     config.permissions.shell_environment_policy = turn.shell_environment_policy.clone();
     config.codex_linux_sandbox_exe = turn.codex_linux_sandbox_exe.clone();
-    #[allow(deprecated)]
     let turn_cwd = turn.cwd.clone();
     config.cwd = turn_cwd;
     config
