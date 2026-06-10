@@ -556,7 +556,7 @@ pub async fn pdf_tools(input: PdfInput) -> Result<serde_json::Value, PatentError
     let result = lp
         .parse(file_path)
         .await
-        .map_err(|e| PatentError::Agent(e.to_string()))?;
+        .map_err(|e| PatentError::DocumentParse(format!("pdf_tools: {e}")))?;
 
     match input.operation.as_str() {
         "extract_text" => Ok(serde_json::json!({
@@ -661,7 +661,7 @@ pub async fn ocr_bridge(input: OcrInput) -> Result<serde_json::Value, PatentErro
     let result = lp
         .parse(&input.image_path)
         .await
-        .map_err(|e| PatentError::Agent(e.to_string()))?;
+        .map_err(|e| PatentError::DocumentParse(format!("ocr_bridge: {e}")))?;
 
     Ok(serde_json::json!({
         "operation": input.operation.as_deref().unwrap_or("recognize"),
@@ -704,7 +704,7 @@ pub async fn document_parser(input: DocumentParserInput) -> Result<serde_json::V
     let result = lp
         .parse(&input.file_path)
         .await
-        .map_err(|e| PatentError::Agent(e.to_string()))?;
+        .map_err(|e| PatentError::DocumentParse(format!("document_parser: {e}")))?;
 
     let page_breaks = input.page_breaks.unwrap_or(true);
     let max_chars = input.max_chars.unwrap_or(500_000);
@@ -734,7 +734,7 @@ pub async fn pdf_screenshot(input: ScreenshotInput) -> Result<serde_json::Value,
     let screenshots = lp
         .screenshot(&input.file_path, input.pages)
         .await
-        .map_err(|e| PatentError::Agent(e.to_string()))?;
+        .map_err(|e| PatentError::DocumentParse(format!("pdf_screenshot: {e}")))?;
 
     let results: Vec<serde_json::Value> = screenshots
         .into_iter()

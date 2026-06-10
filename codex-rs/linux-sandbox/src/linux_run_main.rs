@@ -18,6 +18,21 @@ use std::thread;
 use std::time::Duration;
 
 use crate::bwrap::BwrapNetworkMode;
+
+/// Print message to stderr and terminate without unwinding.
+/// Safe in forked child processes where panic unwind is UB.
+fn fatal_exit(msg: &str) -> ! {
+    eprintln!("{msg}");
+    unsafe { libc::_exit(1) };
+}
+
+/// Wrapper around `format!` + `fatal_exit` to avoid repeated allocations.
+macro_rules! fatal_exit {
+    ($($arg:tt)*) => {{
+        let msg = format!($($arg)*);
+        fatal_exit(&msg);
+    }};
+}
 use crate::bwrap::BwrapOptions;
 use crate::bwrap::create_bwrap_command_args;
 use crate::landlock::apply_permission_profile_to_current_thread;
@@ -158,14 +173,14 @@ pub fn run_main() -> ! {
     } = LandlockCommand::parse();
 
     if command.is_empty() {
-        panic!("No command specified to execute.");
+        fatal_exit!("No command specified to execute.");
     }
     ensure_inner_stage_mode_is_valid(apply_seccomp_then_exec, use_legacy_landlock);
     let EffectivePermissions {
         permission_profile,
         file_system_sandbox_policy,
         network_sandbox_policy,
-    } = resolve_permission_profile(permission_profile).unwrap_or_else(|err| panic!("{err}"));
+    } = resolve_permission_profile(permission_profile).unwrap_or_else(|err| fatal_exit!("{err}"));
     ensure_legacy_landlock_mode_supports_policy(
         use_legacy_landlock,
         &file_system_sandbox_policy,
@@ -179,9 +194,9 @@ pub fn run_main() -> ! {
         if allow_network_for_proxy {
             let spec = proxy_route_spec
                 .as_deref()
-                .unwrap_or_else(|| panic!("managed proxy mode requires --proxy-route-spec"));
+                .unwrap_or_else(|| fatal_exit!("managed proxy mode requires --proxy-route-spec"));
             if let Err(err) = activate_proxy_routes_in_netns(spec) {
-                panic!("error activating Linux proxy routing bridge: {err}");
+                fatal_exit!("error activating Linux proxy routing bridge: {err}");
             }
         }
         let proxy_routing_active = allow_network_for_proxy;
@@ -192,9 +207,9 @@ pub fn run_main() -> ! {
             allow_network_for_proxy,
             proxy_routing_active,
         ) {
-            panic!("error applying Linux sandbox restrictions: {e:?}");
+            fatal_exit!("error applying Linux sandbox restrictions: {e:?}");
         }
-        exec_or_panic(command);
+        exec_or_fatal(command);
     }
 
     if file_system_sandbox_policy.has_full_disk_write_access() && !allow_network_for_proxy {
@@ -205,9 +220,9 @@ pub fn run_main() -> ! {
             allow_network_for_proxy,
             /*proxy_routed_network*/ false,
         ) {
-            panic!("error applying Linux sandbox restrictions: {e:?}");
+            fatal_exit!("error applying Linux sandbox restrictions: {e:?}");
         }
-        exec_or_panic(command);
+        exec_or_fatal(command);
     }
 
     if !use_legacy_landlock {
@@ -217,7 +232,7 @@ pub fn run_main() -> ! {
         let proxy_route_spec =
             if allow_network_for_proxy {
                 Some(prepare_host_proxy_route_spec().unwrap_or_else(|err| {
-                    panic!("failed to prepare host proxy routing bridge: {err}")
+                    fatal_exit!("failed to prepare host proxy routing bridge: {err}")
                 }))
             } else {
                 None
@@ -249,9 +264,9 @@ pub fn run_main() -> ! {
         allow_network_for_proxy,
         /*proxy_routed_network*/ false,
     ) {
-        panic!("error applying legacy Linux sandbox restrictions: {e:?}");
+        fatal_exit!("error applying legacy Linux sandbox restrictions: {e:?}");
     }
-    exec_or_panic(command);
+    exec_or_fatal(command);
 }
 
 #[derive(Debug, Clone)]
@@ -294,7 +309,7 @@ fn resolve_permission_profile(
 
 fn ensure_inner_stage_mode_is_valid(apply_seccomp_then_exec: bool, use_legacy_landlock: bool) {
     if apply_seccomp_then_exec && use_legacy_landlock {
-        panic!("--apply-seccomp-then-exec is incompatible with --use-legacy-landlock");
+        fatal_exit!("--apply-seccomp-then-exec is incompatible with --use-legacy-landlock");
     }
 }
 
@@ -308,7 +323,7 @@ fn ensure_legacy_landlock_mode_supports_policy(
         && file_system_sandbox_policy
             .needs_direct_runtime_enforcement(network_sandbox_policy, sandbox_policy_cwd)
     {
-        panic!(
+        fatal_exit!(
             "permission profiles requiring direct runtime enforcement are incompatible with --use-legacy-landlock"
         );
     }
@@ -417,7 +432,7 @@ fn apply_inner_command_argv0_for_launcher(
     let command_separator_index = argv
         .iter()
         .position(|arg| arg == "--")
-        .unwrap_or_else(|| panic!("bubblewrap argv is missing command separator '--'"));
+        .unwrap_or_else(|| fatal_exit!("bubblewrap argv is missing command separator '--'"));
 
     if supports_argv0 {
         argv.splice(
@@ -429,7 +444,7 @@ fn apply_inner_command_argv0_for_launcher(
 
     let command_index = command_separator_index + 1;
     let Some(command) = argv.get_mut(command_index) else {
-        panic!("bubblewrap argv is missing inner command after '--'");
+        fatal_exit!("bubblewrap argv is missing inner command after '--'");
     };
     *command = argv0_fallback_command;
 }
@@ -437,7 +452,7 @@ fn apply_inner_command_argv0_for_launcher(
 fn current_process_argv0() -> String {
     match std::env::args_os().next() {
         Some(argv0) => argv0.to_string_lossy().into_owned(),
-        None => panic!("failed to resolve current process argv[0]"),
+        None => fatal_exit!("failed to resolve current process argv[0]"),
     }
 }
 
@@ -511,7 +526,8 @@ fn run_bwrap_in_child_with_synthetic_mount_cleanup(bwrap_args: crate::bwrap::Bwr
     let pid = unsafe { libc::fork() };
     if pid < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("failed to fork for bubblewrap: {err}");
+        eprintln!("fatal: failed to fork for bubblewrap: {err}");
+        unsafe { libc::_exit(1) };
     }
 
     if pid == 0 {
@@ -520,7 +536,8 @@ fn run_bwrap_in_child_with_synthetic_mount_cleanup(bwrap_args: crate::bwrap::Bwr
         let setpgid_res = unsafe { libc::setpgid(0, 0) };
         if setpgid_res < 0 {
             let err = std::io::Error::last_os_error();
-            panic!("failed to place bubblewrap child in its own process group: {err}");
+            eprintln!("fatal: failed to place bubblewrap child in its own process group: {err}");
+            unsafe { libc::_exit(1) };
         }
         terminate_with_parent(parent_pid);
         wait_for_parent_exec_start(exec_start_pipe[0], exec_start_pipe[1]);
@@ -584,7 +601,7 @@ impl ProtectedCreateMonitor {
         self.stop.store(true, Ordering::SeqCst);
         self.handle
             .join()
-            .unwrap_or_else(|_| panic!("protected create monitor thread panicked"));
+            .unwrap_or_else(|_| fatal_exit!("protected create monitor thread panicked"));
         self.violation.load(Ordering::SeqCst)
     }
 }
@@ -687,7 +704,7 @@ fn create_exec_start_pipe(enabled: bool) -> [libc::c_int; 2] {
     let mut pipe = [-1, -1];
     if unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_CLOEXEC) } < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("failed to create bubblewrap exec start pipe: {err}");
+        fatal_exit!("failed to create bubblewrap exec start pipe: {err}");
     }
     pipe
 }
@@ -756,7 +773,7 @@ impl ForwardedSignalMask {
             }
             if libc::sigprocmask(libc::SIG_BLOCK, &blocked, &mut previous) < 0 {
                 let err = std::io::Error::last_os_error();
-                panic!("failed to block bubblewrap forwarded signals: {err}");
+                fatal_exit!("failed to block bubblewrap forwarded signals: {err}");
             }
         }
         Self { previous }
@@ -770,7 +787,7 @@ impl ForwardedSignalMask {
             }
             if libc::sigprocmask(libc::SIG_SETMASK, &restored, std::ptr::null_mut()) < 0 {
                 let err = std::io::Error::last_os_error();
-                panic!("failed to restore bubblewrap forwarded signals: {err}");
+                fatal_exit!("failed to restore bubblewrap forwarded signals: {err}");
             }
         }
     }
@@ -780,7 +797,7 @@ fn terminate_with_parent(parent_pid: libc::pid_t) {
     let res = unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) };
     if res < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("failed to set bubblewrap child parent-death signal: {err}");
+        fatal_exit!("failed to set bubblewrap child parent-death signal: {err}");
     }
     if unsafe { libc::getppid() } != parent_pid {
         unsafe {
@@ -797,7 +814,7 @@ impl ForwardedSignalHandlers {
             unsafe {
                 if libc::sigaction(signal, &previous_action, std::ptr::null_mut()) < 0 {
                     let err = std::io::Error::last_os_error();
-                    panic!("failed to restore bubblewrap signal handler for {signal}: {err}");
+                    fatal_exit!("failed to restore bubblewrap signal handler for {signal}: {err}");
                 }
             }
         }
@@ -815,7 +832,7 @@ fn install_bwrap_signal_forwarders(pid: libc::pid_t) -> ForwardedSignalHandlers 
             libc::sigemptyset(&mut action.sa_mask);
             if libc::sigaction(*signal, &action, &mut previous_action) < 0 {
                 let err = std::io::Error::last_os_error();
-                panic!("failed to install bubblewrap signal forwarder for {signal}: {err}");
+                fatal_exit!("failed to install bubblewrap signal forwarder for {signal}: {err}");
             }
         }
         previous.push((*signal, previous_action));
@@ -851,7 +868,7 @@ fn reset_forwarded_signal_handlers_to_default() {
         unsafe {
             if libc::signal(*signal, libc::SIG_DFL) == libc::SIG_ERR {
                 let err = std::io::Error::last_os_error();
-                panic!("failed to reset bubblewrap signal handler for {signal}: {err}");
+                fatal_exit!("failed to reset bubblewrap signal handler for {signal}: {err}");
             }
         }
     }
@@ -868,7 +885,7 @@ fn wait_for_bwrap_child(pid: libc::pid_t) -> libc::c_int {
         if err.raw_os_error() == Some(libc::EINTR) {
             continue;
         }
-        panic!("waitpid failed for bubblewrap child: {err}");
+        fatal_exit!("waitpid failed for bubblewrap child: {err}");
     }
 }
 
@@ -881,7 +898,7 @@ fn register_synthetic_mount_targets(
             .map(|target| {
                 let marker_dir = synthetic_mount_marker_dir(target.path());
                 fs::create_dir_all(&marker_dir).unwrap_or_else(|err| {
-                    panic!(
+                    fatal_exit!(
                         "failed to create synthetic bubblewrap mount marker directory {}: {err}",
                         marker_dir.display()
                     )
@@ -905,7 +922,7 @@ fn register_synthetic_mount_targets(
                 let marker_file = marker_dir.join(std::process::id().to_string());
                 fs::write(&marker_file, synthetic_mount_marker_contents(&target)).unwrap_or_else(
                     |err| {
-                        panic!(
+                        fatal_exit!(
                             "failed to register synthetic bubblewrap mount target {}: {err}",
                             target.path().display()
                         )
@@ -930,14 +947,14 @@ fn register_protected_create_targets(
             .map(|target| {
                 let marker_dir = synthetic_mount_marker_dir(target.path());
                 fs::create_dir_all(&marker_dir).unwrap_or_else(|err| {
-                    panic!(
+                    fatal_exit!(
                         "failed to create protected create marker directory {}: {err}",
                         marker_dir.display()
                     )
                 });
                 let marker_file = marker_dir.join(std::process::id().to_string());
                 fs::write(&marker_file, PROTECTED_CREATE_MARKER).unwrap_or_else(|err| {
-                    panic!(
+                    fatal_exit!(
                         "failed to register protected create target {}: {err}",
                         target.path().display()
                     )
@@ -965,7 +982,7 @@ fn synthetic_mount_marker_dir_has_active_synthetic_owner(marker_dir: &Path) -> b
         match fs::read(path) {
             Ok(contents) => contents == SYNTHETIC_MOUNT_MARKER_SYNTHETIC,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => false,
-            Err(err) => panic!(
+            Err(err) => fatal_exit!(
                 "failed to read synthetic bubblewrap mount marker {}: {err}",
                 path.display()
             ),
@@ -984,14 +1001,14 @@ fn synthetic_mount_marker_dir_has_active_process_matching(
     let entries = match fs::read_dir(marker_dir) {
         Ok(entries) => entries,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return false,
-        Err(err) => panic!(
+        Err(err) => fatal_exit!(
             "failed to read synthetic bubblewrap mount marker directory {}: {err}",
             marker_dir.display()
         ),
     };
     for entry in entries {
         let entry = entry.unwrap_or_else(|err| {
-            panic!(
+            fatal_exit!(
                 "failed to read synthetic bubblewrap mount marker in {}: {err}",
                 marker_dir.display()
             )
@@ -1008,7 +1025,7 @@ fn synthetic_mount_marker_dir_has_active_process_matching(
             match fs::remove_file(&path) {
                 Ok(()) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                Err(err) => panic!(
+                Err(err) => fatal_exit!(
                     "failed to remove stale synthetic bubblewrap mount marker {}: {err}",
                     path.display()
                 ),
@@ -1029,7 +1046,7 @@ fn cleanup_synthetic_mount_targets(targets: &[SyntheticMountTargetRegistration])
             match fs::remove_file(&target.marker_file) {
                 Ok(()) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                Err(err) => panic!(
+                Err(err) => fatal_exit!(
                     "failed to unregister synthetic bubblewrap mount target {}: {err}",
                     target.target.path().display()
                 ),
@@ -1045,7 +1062,7 @@ fn cleanup_synthetic_mount_targets(targets: &[SyntheticMountTargetRegistration])
                 Ok(()) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) if err.kind() == std::io::ErrorKind::DirectoryNotEmpty => {}
-                Err(err) => panic!(
+                Err(err) => fatal_exit!(
                     "failed to remove synthetic bubblewrap mount marker directory {}: {err}",
                     target.marker_dir.display()
                 ),
@@ -1060,7 +1077,7 @@ fn cleanup_protected_create_targets(targets: &[ProtectedCreateTargetRegistration
             match fs::remove_file(&target.marker_file) {
                 Ok(()) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                Err(err) => panic!(
+                Err(err) => fatal_exit!(
                     "failed to unregister protected create target {}: {err}",
                     target.target.path().display()
                 ),
@@ -1080,7 +1097,7 @@ fn cleanup_protected_create_targets(targets: &[ProtectedCreateTargetRegistration
                 Ok(()) => {}
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
                 Err(err) if err.kind() == std::io::ErrorKind::DirectoryNotEmpty => {}
-                Err(err) => panic!(
+                Err(err) => fatal_exit!(
                     "failed to remove protected create marker directory {}: {err}",
                     target.marker_dir.display()
                 ),
@@ -1098,14 +1115,14 @@ fn remove_protected_create_target(target: &crate::bwrap::ProtectedCreateTarget) 
                 thread::sleep(Duration::from_millis(1));
             }
             Err(err) => {
-                panic!(
+                fatal_exit!(
                     "failed to remove protected create target {}: {err}",
                     target.path().display()
                 );
             }
         }
     }
-    panic!("protected create removal retry loop should return or panic")
+    fatal_exit!("protected create removal retry loop should return or panic")
 }
 
 fn remove_protected_create_target_best_effort(
@@ -1160,7 +1177,7 @@ fn remove_synthetic_mount_target(target: &crate::bwrap::SyntheticMountTarget) {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return,
-        Err(err) => panic!(
+        Err(err) => fatal_exit!(
             "failed to inspect synthetic bubblewrap mount target {}: {err}",
             path.display()
         ),
@@ -1172,7 +1189,7 @@ fn remove_synthetic_mount_target(target: &crate::bwrap::SyntheticMountTarget) {
         crate::bwrap::SyntheticMountTargetKind::EmptyFile => match fs::remove_file(path) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-            Err(err) => panic!(
+            Err(err) => fatal_exit!(
                 "failed to remove synthetic bubblewrap mount target {}: {err}",
                 path.display()
             ),
@@ -1181,7 +1198,7 @@ fn remove_synthetic_mount_target(target: &crate::bwrap::SyntheticMountTarget) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
             Err(err) if err.kind() == std::io::ErrorKind::DirectoryNotEmpty => {}
-            Err(err) => panic!(
+            Err(err) => fatal_exit!(
                 "failed to remove synthetic bubblewrap mount target {}: {err}",
                 path.display()
             ),
@@ -1201,7 +1218,7 @@ fn process_is_active(pid: libc::pid_t) -> bool {
 fn with_synthetic_mount_registry_lock<T>(f: impl FnOnce() -> T) -> T {
     let registry_root = synthetic_mount_registry_root();
     fs::create_dir_all(&registry_root).unwrap_or_else(|err| {
-        panic!(
+        fatal_exit!(
             "failed to create synthetic bubblewrap mount registry {}: {err}",
             registry_root.display()
         )
@@ -1214,14 +1231,14 @@ fn with_synthetic_mount_registry_lock<T>(f: impl FnOnce() -> T) -> T {
         .truncate(false)
         .open(&lock_path)
         .unwrap_or_else(|err| {
-            panic!(
+            fatal_exit!(
                 "failed to open synthetic bubblewrap mount registry lock {}: {err}",
                 lock_path.display()
             )
         });
     if unsafe { libc::flock(lock_file.as_raw_fd(), libc::LOCK_EX) } < 0 {
         let err = std::io::Error::last_os_error();
-        panic!(
+        fatal_exit!(
             "failed to lock synthetic bubblewrap mount registry {}: {err}",
             lock_path.display()
         );
@@ -1229,7 +1246,7 @@ fn with_synthetic_mount_registry_lock<T>(f: impl FnOnce() -> T) -> T {
     let result = f();
     if unsafe { libc::flock(lock_file.as_raw_fd(), libc::LOCK_UN) } < 0 {
         let err = std::io::Error::last_os_error();
-        panic!(
+        fatal_exit!(
             "failed to unlock synthetic bubblewrap mount registry {}: {err}",
             lock_path.display()
         );
@@ -1313,7 +1330,7 @@ fn run_bwrap_in_child_capture_stderr(bwrap_args: crate::bwrap::BwrapArgs) -> Str
     let pipe_res = unsafe { libc::pipe2(pipe_fds.as_mut_ptr(), libc::O_CLOEXEC) };
     if pipe_res < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("failed to create stderr pipe for bubblewrap: {err}");
+        fatal_exit!("failed to create stderr pipe for bubblewrap: {err}");
     }
     let read_fd = pipe_fds[0];
     let write_fd = pipe_fds[1];
@@ -1321,7 +1338,7 @@ fn run_bwrap_in_child_capture_stderr(bwrap_args: crate::bwrap::BwrapArgs) -> Str
     let pid = unsafe { libc::fork() };
     if pid < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("failed to fork for bubblewrap: {err}");
+        fatal_exit!("failed to fork for bubblewrap: {err}");
     }
 
     if pid == 0 {
@@ -1332,7 +1349,7 @@ fn run_bwrap_in_child_capture_stderr(bwrap_args: crate::bwrap::BwrapArgs) -> Str
             close_fd_or_panic(read_fd, "close read end in bubblewrap child");
             if libc::dup2(write_fd, libc::STDERR_FILENO) < 0 {
                 let err = std::io::Error::last_os_error();
-                panic!("failed to redirect stderr for bubblewrap: {err}");
+                fatal_exit!("failed to redirect stderr for bubblewrap: {err}");
             }
             close_fd_or_panic(write_fd, "close write end in bubblewrap child");
         }
@@ -1350,7 +1367,7 @@ fn run_bwrap_in_child_capture_stderr(bwrap_args: crate::bwrap::BwrapArgs) -> Str
     let mut stderr_bytes = Vec::new();
     let mut limited_reader = (&mut read_file).take(MAX_PREFLIGHT_STDERR_BYTES);
     if let Err(err) = limited_reader.read_to_end(&mut stderr_bytes) {
-        panic!("failed to read bubblewrap stderr: {err}");
+        fatal_exit!("failed to read bubblewrap stderr: {err}");
     }
 
     let status = wait_for_bwrap_child(pid);
@@ -1376,7 +1393,7 @@ fn close_fd_or_panic(fd: libc::c_int, context: &str) {
     let close_res = unsafe { libc::close(fd) };
     if close_res < 0 {
         let err = std::io::Error::last_os_error();
-        panic!("{context}: {err}");
+        fatal_exit!("{context}: {err}");
     }
 }
 
@@ -1409,11 +1426,11 @@ fn build_inner_seccomp_command(args: InnerSeccompCommandArgs<'_>) -> Vec<String>
     } = args;
     let current_exe = match std::env::current_exe() {
         Ok(path) => path,
-        Err(err) => panic!("failed to resolve current executable path: {err}"),
+        Err(err) => fatal_exit!("failed to resolve current executable path: {err}"),
     };
     let permission_profile_json = match serde_json::to_string(permission_profile) {
         Ok(json) => json,
-        Err(err) => panic!("failed to serialize permission profile: {err}"),
+        Err(err) => fatal_exit!("failed to serialize permission profile: {err}"),
     };
 
     let mut inner = vec![
@@ -1433,7 +1450,7 @@ fn build_inner_seccomp_command(args: InnerSeccompCommandArgs<'_>) -> Vec<String>
     if allow_network_for_proxy {
         inner.push("--allow-network-for-proxy".to_string());
         let proxy_route_spec = proxy_route_spec
-            .unwrap_or_else(|| panic!("managed proxy mode requires a proxy route spec"));
+            .unwrap_or_else(|| fatal_exit!("managed proxy mode requires a proxy route spec"));
         inner.push("--proxy-route-spec".to_string());
         inner.push(proxy_route_spec);
     }
@@ -1442,15 +1459,18 @@ fn build_inner_seccomp_command(args: InnerSeccompCommandArgs<'_>) -> Vec<String>
     inner
 }
 
-/// Exec the provided argv, panicking with context if it fails.
-fn exec_or_panic(command: Vec<String>) -> ! {
-    #[expect(clippy::expect_used)]
-    let c_command =
-        CString::new(command[0].as_str()).expect("Failed to convert command to CString");
-    #[expect(clippy::expect_used)]
+/// Exec the provided argv, exiting with context if it fails.
+fn exec_or_fatal(command: Vec<String>) -> ! {
+    let c_command = match CString::new(command[0].as_str()) {
+        Ok(c) => c,
+        Err(err) => fatal_exit!("Failed to convert command to CString: {err}"),
+    };
     let c_args: Vec<CString> = command
         .iter()
-        .map(|arg| CString::new(arg.as_str()).expect("Failed to convert arg to CString"))
+        .map(|arg| match CString::new(arg.as_str()) {
+            Ok(c) => c,
+            Err(err) => fatal_exit!("Failed to convert arg to CString: {err}"),
+        })
         .collect();
 
     let mut c_args_ptrs: Vec<*const libc::c_char> = c_args.iter().map(|arg| arg.as_ptr()).collect();
@@ -1462,7 +1482,7 @@ fn exec_or_panic(command: Vec<String>) -> ! {
 
     // If execvp returns, there was an error.
     let err = std::io::Error::last_os_error();
-    panic!("Failed to execvp {}: {err}", command[0].as_str());
+    fatal_exit!("Failed to execvp {}: {err}", command[0].as_str());
 }
 
 #[cfg(test)]

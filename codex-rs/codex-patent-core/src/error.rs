@@ -141,6 +141,9 @@ pub enum PatentError {
     /// 反思/自评流程错误。
     #[error("reflection error: {0}")]
     Reflection(String),
+    /// 文档解析错误（PDF/DOCX 等 LiteParse 错误）。
+    #[error("document parse error: {0}")]
+    DocumentParse(String),
 }
 
 impl From<serde_json::Error> for PatentError {
@@ -165,6 +168,7 @@ impl PatentError {
                 | PatentError::Search(_)
                 | PatentError::Io(_)
                 | PatentError::Provider(_)
+                | PatentError::DocumentParse(_)
         )
     }
 }

@@ -672,25 +672,15 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     println!("Updating via `{cmd_str}`...");
 
     let status = {
+        let (cmd, args) = action.command_args();
         #[cfg(windows)]
         {
-            if action == UpdateAction::StandaloneWindows {
-                let (cmd, args) = action.command_args();
-                // Run the standalone PowerShell installer with PowerShell
-                // itself. Routing this through `cmd.exe /C` would parse
-                // PowerShell metacharacters like `|` before PowerShell sees
-                // the installer command.
-                std::process::Command::new(cmd).args(args).status()?
-            } else {
-                // On Windows, run via cmd.exe so .CMD/.BAT are correctly resolved (PATHEXT semantics).
-                std::process::Command::new("cmd")
-                    .args(["/C", &cmd_str])
-                    .status()?
-            }
+            // Always use direct command args (no shell) to avoid injection
+            // via cmd.exe /C parsing of metacharacters like |, &, etc.
+            std::process::Command::new(cmd).args(args).status()?
         }
         #[cfg(not(windows))]
         {
-            let (cmd, args) = action.command_args();
             let command_path = crate::wsl_paths::normalize_for_wsl(cmd);
             let normalized_args: Vec<String> = args
                 .iter()

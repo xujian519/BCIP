@@ -13,7 +13,7 @@ use tracing::error;
 use tracing::info;
 
 /// 定时任务定义。
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct CronTask {
     pub id: String,
     pub cron: String,
@@ -63,7 +63,10 @@ impl CronScheduler {
         let tasks = if task_file.exists() {
             let content = std::fs::read_to_string(&task_file)
                 .map_err(|e| SchedulerError::IoError(e.to_string()))?;
-            serde_json::from_str(&content).unwrap_or_default()
+            serde_json::from_str(&content).unwrap_or_else(|e| {
+                error!("scheduled_tasks.json 已损坏，将使用空任务列表: {e}");
+                Vec::new()
+            })
         } else {
             Vec::new()
         };
@@ -235,7 +238,10 @@ impl CronScheduler {
         if self.task_file.exists() {
             let content = std::fs::read_to_string(&self.task_file)
                 .map_err(|e| SchedulerError::IoError(e.to_string()))?;
-            self.tasks = serde_json::from_str(&content).unwrap_or_default();
+            self.tasks = serde_json::from_str(&content).unwrap_or_else(|e| {
+                error!("scheduled_tasks.json 已损坏，将保留当前任务列表: {e}");
+                self.tasks.clone()
+            });
         }
         Ok(())
     }
