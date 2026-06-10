@@ -11,6 +11,23 @@ const PLAN_IMPLEMENTATION_YES: &str = "Yes, implement this plan";
 const PLAN_IMPLEMENTATION_CLEAR_CONTEXT: &str = "Yes, clear context and implement";
 const PLAN_IMPLEMENTATION_NO: &str = "No, stay in Plan mode";
 pub(super) const PLAN_IMPLEMENTATION_CODING_MESSAGE: &str = "Implement the plan.";
+
+const PLAN_IMPLEMENTATION_PREFIX: &str = "\
+The plan below has been approved. Switch to Default mode and execute it immediately. \
+Do not re-plan, re-analyze, or ask for confirmation. Begin implementation now.\n\n\
+---\nApproved Plan:\n";
+const PLAN_IMPLEMENTATION_SUFFIX: &str = "\n---";
+
+/// Build the user message for plan implementation, embedding the plan content
+/// when available so the model does not need to search conversation history.
+pub(super) fn build_implement_message(plan_markdown: Option<&str>) -> String {
+    match plan_markdown {
+        Some(plan) if !plan.trim().is_empty() => {
+            format!("{PLAN_IMPLEMENTATION_PREFIX}{plan}{PLAN_IMPLEMENTATION_SUFFIX}")
+        }
+        _ => PLAN_IMPLEMENTATION_CODING_MESSAGE.to_string(),
+    }
+}
 pub(super) const PLAN_IMPLEMENTATION_CLEAR_CONTEXT_PREFIX: &str = concat!(
     "A previous agent produced the plan below to accomplish the user's task. ",
     "Implement the plan in a fresh context. Treat the plan as the source of ",
@@ -32,7 +49,7 @@ pub(super) fn selection_view_params(
 ) -> SelectionViewParams {
     let (implement_actions, implement_disabled_reason) = match default_mask.clone() {
         Some(mask) => {
-            let user_text = PLAN_IMPLEMENTATION_CODING_MESSAGE.to_string();
+            let user_text = build_implement_message(plan_markdown);
             let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
                 tx.send(AppEvent::SubmitUserMessageWithMode {
                     text: user_text.clone(),
